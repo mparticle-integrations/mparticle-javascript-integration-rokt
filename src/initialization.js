@@ -1,5 +1,5 @@
 var initialization = {
-    name: 'Rokt',
+    name: 'RoktWSDK',
 /*  ****** Fill out initForwarder to load your SDK ******
     Note that not all arguments may apply to your SDK initialization.
     These are passed from mParticle, but leave them even if they are not being used.
@@ -10,6 +10,7 @@ var initialization = {
 */
     initForwarder: function(forwarderSettings, testMode, userAttributes, userIdentities, processEvent, eventQueue, isInitialized, common, appVersion, appName, customFlags, clientId) {
         if (!testMode) {
+          if(!window.Rokt) {
             // Create and append the Rokt launcher script
             var target = document.head || document.body;
             var script = document.createElement('script');
@@ -47,6 +48,7 @@ var initialization = {
             };
 
             target.appendChild(script);
+          }
         } else {
             // For testing, you can simulate initialization if needed.
             console.log('Test mode enabled – skipping Rokt launcher script load.');
