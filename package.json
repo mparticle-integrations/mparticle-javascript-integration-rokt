@@ -1,6 +1,6 @@
 {
   "name": "integration-RoktWSDK",
-  "version": "1.0.3",
+  "version": "1.0.0",
   "main": "dist/RoktWSDK-Kit.common.js",
   "files": [
     "dist/RoktWSDK-Kit.common.js"
