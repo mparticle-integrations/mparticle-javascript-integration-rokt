@@ -1,10 +1,11 @@
 {
-  "name": "integration-RoktWSDK",
+  "name": "@mparticle/web-rokt-wsdk-kit",
   "version": "1.0.0",
   "main": "dist/RoktWSDK-Kit.common.js",
   "files": [
     "dist/RoktWSDK-Kit.common.js"
   ],
+  "repository": "https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt",
   "scripts": {
     "build": "ENVIRONMENT=production rollup --config rollup.config.js",
     "build:test": "ENVIRONMENT=production rollup --config rollup.test.config.js",
@@ -14,7 +15,7 @@
     "watch": "ENVIRONMENT=production rollup --config rollup.config.js -w"
   },
   "publishConfig": {
-        "access": "public"
+    "access": "public"
   },
   "devDependencies": {
     "@mparticle/web-kit-wrapper": "^1.0.5",
