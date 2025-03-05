@@ -7,7 +7,7 @@ const files = [
     'config.js',
 
     // TODO: Replace this with the compiled name of your kit
-    '../dist/XYZ-Kit.iife.js',
+    '../dist/RoktWSDK-Kit.iife.js',
 
     'lib/mockhttprequest.js',
     './test-bundle.js',
