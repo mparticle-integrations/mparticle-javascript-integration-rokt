@@ -1,6 +1,6 @@
 {
   "name": "@mparticle/web-rokt-wsdk-kit",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "dist/RoktWSDK-Kit.common.js",
   "files": [
     "dist/RoktWSDK-Kit.common.js"

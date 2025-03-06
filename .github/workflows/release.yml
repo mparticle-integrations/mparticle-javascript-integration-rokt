@@ -9,15 +9,15 @@ on:
                 default: 'true'
 
 jobs:
-    # Kit release is done from master branch.
-    confirm-public-repo-master-branch:
-        name: 'Confirm release is run from public/master branch'
+    # Kit release is done from main branch.
+    confirm-public-repo-main-branch:
+        name: 'Confirm release is run from public/main branch'
         uses: mParticle/mparticle-workflows/.github/workflows/sdk-release-repo-branch-check.yml@stable
 
     build-and-test:
         name: Build and Test
         runs-on: ubuntu-latest
-        needs: confirm-public-repo-master-branch
+        needs: confirm-public-repo-main-branch
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
         runs-on: ubuntu-latest
         needs:
             - build-and-test
-            - confirm-public-repo-master-branch
+            - confirm-public-repo-main-branch
         steps:
             - name: Checkout development branch
               uses: actions/checkout@v4
@@ -60,14 +60,13 @@ jobs:
               run: |
                   git checkout -b release/${{ github.run_number }}
                   git push origin release/${{ github.run_number }}
-
     release:
         name: Perform Release
         runs-on: ubuntu-latest
         needs:
             - build-and-test
             - create-release-branch
-            - confirm-public-repo-master-branch
+            - confirm-public-repo-main-branch
         env:
             GITHUB_TOKEN: ${{ secrets.MP_INTEGRATIONS_SEMANTIC_RELEASE_BOT }}
             GIT_AUTHOR_NAME: mparticle-automation
@@ -77,11 +76,11 @@ jobs:
             NPM_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
 
         steps:
-            - name: Checkout public master branch
+            - name: Checkout public main branch
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
-                  ref: master
+                  ref: main
 
             - name: Import GPG Key
               uses: crazy-max/ghaction-import-gpg@v4
@@ -91,7 +90,7 @@ jobs:
                   git_user_signingkey: true
                   git_commit_gpgsign: true
 
-            - name: Merge release branch into master branch
+            - name: Merge release branch into main branch
               run: |
                   git pull origin release/${{ github.run_number }}
             - name: Setup Node.js
@@ -110,7 +109,6 @@ jobs:
               if: ${{ github.event.inputs.dryRun == 'false'}}
               run: |
                   npx semantic-release
-
             - name: Archive npm failure logs
               uses: actions/upload-artifact@v4
               if: failure()
@@ -122,30 +120,28 @@ jobs:
               if: ${{ github.event.inputs.dryRun == 'false' }}
               run: |
                   git push origin HEAD:release/${{ github.run_number }}
-
     sync-repository:
         name: Sync repositories
         needs: release
         runs-on: ubuntu-latest
         steps:
-            - name: Checkout master branch
+            - name: Checkout main branch
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
                   repository: ${{ github.repository }}
                   token: ${{ secrets.MP_INTEGRATIONS_SEMANTIC_RELEASE_BOT }}
-                  ref: master
+                  ref: main
 
-            - name: Merge release branch into master branch
+            - name: Merge release branch into main branch
               if: ${{ github.event.inputs.dryRun == 'false' }}
               run: |
                   git pull origin release/${{ github.run_number }}
-
-            - name: Push release commits to master and development branches
+            - name: Push release commits to main and development branches
               if: ${{ github.event.inputs.dryRun == 'false' }}
               run: |
                   git push origin HEAD:development
-                  git push origin HEAD:master
+                  git push origin HEAD:main
             - name: Delete release branch
               if: ${{ github.event.inputs.dryRun == 'false' }}
               run: |

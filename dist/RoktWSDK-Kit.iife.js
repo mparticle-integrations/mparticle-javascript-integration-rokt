@@ -214,7 +214,7 @@ var RoktWsdkKit = (function (exports) {
 
     var sessionHandler = {
         onSessionStart: function(event) {
-            
+
         },
         onSessionEnd: function(event) {
 

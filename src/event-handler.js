@@ -33,3 +33,4 @@ EventHandler.prototype.logPageView = function(event) {
 };
 
 module.exports = EventHandler;
+

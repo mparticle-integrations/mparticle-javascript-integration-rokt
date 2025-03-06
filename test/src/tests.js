@@ -179,7 +179,7 @@ describe('XYZ Forwarder', function () {
         //         category: 'category'
         //     }
         // });
-        
+
         // window.MockXYZForwarder.eventProperties[0].label.should.equal('label');
         // window.MockXYZForwarder.eventProperties[0].value.should.equal(200);
 

@@ -214,7 +214,7 @@ var RoktWsdkKit = (function (exports) {
 
     var sessionHandler = {
         onSessionStart: function(event) {
-            
+
         },
         onSessionEnd: function(event) {
 
@@ -736,11 +736,14 @@ var RoktWsdkKit = (function (exports) {
     }
 
     var SDKsettings = {
-        apiKey: 'testAPIKey'
+        apiKey: 'testAPIKey',
         /* fill in SDKsettings with any particular settings or options your sdk requires in order to
         initialize, this may be apiKey, projectId, primaryCustomerType, etc. These are passed
         into the src/initialization.js file as the
         */
+        applicationId: 'testAppId',
+        userIdentificationType: 'customerid',
+        forwardWebRequestsServerSide: false,
     };
 
     // Do not edit below:

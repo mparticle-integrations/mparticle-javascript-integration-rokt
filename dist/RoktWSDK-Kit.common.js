@@ -215,7 +215,7 @@ var initialization_1 = initialization;
 
 var sessionHandler = {
     onSessionStart: function(event) {
-        
+
     },
     onSessionEnd: function(event) {
 

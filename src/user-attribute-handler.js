@@ -26,3 +26,4 @@ UserAttributeHandler.prototype.onConsentStateUpdated = function(
 ) {};
 
 module.exports = UserAttributeHandler;
+

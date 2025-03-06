@@ -50,3 +50,4 @@ IdentityHandler.prototype.onSetUserIdentity = function(
 ) {};
 
 module.exports = IdentityHandler;
+
