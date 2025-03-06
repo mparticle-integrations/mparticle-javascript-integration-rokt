@@ -18,43 +18,45 @@ module.exports = {
                     { type: 'style', release: 'patch' },
                     { type: 'build', release: 'patch' },
                     { type: 'chore', release: 'patch' },
-                    { type: 'revert', release: 'patch' }
-                ]
-            }
+                    { type: 'revert', release: 'patch' },
+                ],
+            },
         ],
         [
             '@semantic-release/release-notes-generator',
             {
-                preset: 'angular'
-            }
+                preset: 'angular',
+            },
         ],
         [
             '@semantic-release/changelog',
             {
-                changelogFile: 'CHANGELOG.md'
-            }
+                changelogFile: 'CHANGELOG.md',
+            },
         ],
         ['@semantic-release/npm'],
         [
             '@semantic-release/exec',
             {
-                prepareCmd: 'sh ./scripts/release.sh'
-            }
+                prepareCmd: 'sh ./scripts/release.sh',
+            },
         ],
         [
             '@semantic-release/github',
             {
-                assets: ['dist/RoktWSDK-Kit.common.js', 'dist/RoktWSDK-Kit.iife.js']
-            }
+                assets: [
+                    'dist/RoktWSDK-Kit.common.js',
+                    'dist/RoktWSDK-Kit.iife.js',
+                ],
+            },
         ],
         [
             '@semantic-release/git',
             {
                 assets: ['package.json', 'package-lock.json', 'CHANGELOG.md'],
                 message:
-                    'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}'
-            }
-        ]
-    ]
+                    'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
+            },
+        ],
+    ],
 };
-
