@@ -13,7 +13,7 @@ var RoktWsdkKit = (function (exports) {
         this.common = common || {};
     }
 
-    CommerceHandler.prototype.logCommerceEvent = function(event) {
+    CommerceHandler.prototype.logCommerceEvent = function (_event) {
         /*
             Sample ecommerce event schema:
             {
@@ -94,15 +94,15 @@ var RoktWsdkKit = (function (exports) {
     function EventHandler(common) {
         this.common = common || {};
     }
-    EventHandler.prototype.logEvent = function(event) {};
-    EventHandler.prototype.logError = function(event) {
+    EventHandler.prototype.logEvent = function (_event) {};
+    EventHandler.prototype.logError = function (_event) {
         // The schema for a logError event is the same, but noteworthy differences are as follows:
         // {
         //     EventAttributes: {m: 'name of error passed into MP', s: "Error", t: 'stack trace in string form if applicable'},
         //     EventName: "Error"
         // }
     };
-    EventHandler.prototype.logPageView = function(event) {
+    EventHandler.prototype.logPageView = function (_event) {
         /* The schema for a logPagView event is the same, but noteworthy differences are as follows:
             {
                 EventAttributes: {hostname: "www.google.com", title: 'Test Page'},  // These are event attributes only if no additional event attributes are explicitly provided to mParticle.logPageView(...)
@@ -135,32 +135,32 @@ var RoktWsdkKit = (function (exports) {
     function IdentityHandler(common) {
         this.common = common || {};
     }
-    IdentityHandler.prototype.onUserIdentified = function(mParticleUser) {};
-    IdentityHandler.prototype.onIdentifyComplete = function(
-        mParticleUser,
-        identityApiRequest
+    IdentityHandler.prototype.onUserIdentified = function (_mParticleUser) {};
+    IdentityHandler.prototype.onIdentifyComplete = function (
+        _mParticleUser,
+        _identityApiRequest
     ) {};
-    IdentityHandler.prototype.onLoginComplete = function(
-        mParticleUser,
-        identityApiRequest
+    IdentityHandler.prototype.onLoginComplete = function (
+        _mParticleUser,
+        _identityApiRequest
     ) {};
-    IdentityHandler.prototype.onLogoutComplete = function(
-        mParticleUser,
-        identityApiRequest
+    IdentityHandler.prototype.onLogoutComplete = function (
+        _mParticleUser,
+        _identityApiRequest
     ) {};
-    IdentityHandler.prototype.onModifyComplete = function(
-        mParticleUser,
-        identityApiRequest
+    IdentityHandler.prototype.onModifyComplete = function (
+        _mParticleUser,
+        _identityApiRequest
     ) {};
 
     /*  In previous versions of the mParticle web SDK, setting user identities on
         kits is only reachable via the onSetUserIdentity method below. We recommend
         filling out `onSetUserIdentity` for maximum compatibility
     */
-    IdentityHandler.prototype.onSetUserIdentity = function(
-        forwarderSettings,
-        id,
-        type
+    IdentityHandler.prototype.onSetUserIdentity = function (
+        _forwarderSettings,
+        _id,
+        _type
     ) {};
 
     var identityHandler = IdentityHandler;
@@ -169,6 +169,7 @@ var RoktWsdkKit = (function (exports) {
 
     var initialization = {
         name: 'RoktWsdk',
+        moduleId: 181,
         /*  ****** Fill out initForwarder to load your SDK ******
         Note that not all arguments may apply to your SDK initialization.
         These are passed from mParticle, but leave them even if they are not being used.
@@ -192,7 +193,7 @@ var RoktWsdkKit = (function (exports) {
             _clientId
         ) {
             if (!testMode) {
-                if (!window.Rokt && !window.Rokt?.currentLauncher) {
+                if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
                     var target = document.head || document.body;
                     var script = document.createElement('script');
                     script.type = 'text/javascript';
@@ -206,8 +207,8 @@ var RoktWsdkKit = (function (exports) {
                         // Once the script loads, ensure the Rokt object is available
                         if (
                             window.Rokt &&
-                            typeof window.Rokt?.createLauncher === 'function'
-                            && window.Rokt?.currentLauncher === undefined
+                            typeof window.Rokt.createLauncher === 'function' &&
+                            window.Rokt.currentLauncher === undefined
                         ) {
                             window.Rokt.createLauncher({
                                 accountId: forwarderSettings.accountId,
@@ -264,12 +265,8 @@ var RoktWsdkKit = (function (exports) {
     var initialization_1 = initialization;
 
     var sessionHandler = {
-        onSessionStart: function(event) {
-
-        },
-        onSessionEnd: function(event) {
-
-        }
+        onSessionStart: function (_event) {},
+        onSessionEnd: function (_event) {},
     };
 
     var sessionHandler_1 = sessionHandler;
@@ -286,19 +283,19 @@ var RoktWsdkKit = (function (exports) {
     function UserAttributeHandler(common) {
         this.common = common || {};
     }
-    UserAttributeHandler.prototype.onRemoveUserAttribute = function(
-        key,
-        mParticleUser
+    UserAttributeHandler.prototype.onRemoveUserAttribute = function (
+        _key,
+        _mParticleUser
     ) {};
-    UserAttributeHandler.prototype.onSetUserAttribute = function(
-        key,
-        value,
-        mParticleUser
+    UserAttributeHandler.prototype.onSetUserAttribute = function (
+        _key,
+        _value,
+        _mParticleUser
     ) {};
-    UserAttributeHandler.prototype.onConsentStateUpdated = function(
-        oldState,
-        newState,
-        mParticleUser
+    UserAttributeHandler.prototype.onConsentStateUpdated = function (
+        _oldState,
+        _newState,
+        _mParticleUser
     ) {};
 
     var userAttributeHandler = UserAttributeHandler;
