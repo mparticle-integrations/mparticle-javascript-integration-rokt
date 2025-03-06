@@ -1,10 +1,6 @@
 var sessionHandler = {
-    onSessionStart: function(event) {
-
-    },
-    onSessionEnd: function(event) {
-
-    }
+    onSessionStart: function (_event) {},
+    onSessionEnd: function (_event) {},
 };
 
 module.exports = sessionHandler;

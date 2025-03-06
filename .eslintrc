@@ -24,6 +24,7 @@
         "no-prototype-builtins": "off",
         "no-empty": "off",
         "no-useless-escape": "off",
-        "no-unexpected-multiline": "off"
+        "no-unexpected-multiline": "off",
+        "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }]
     }
 }

@@ -25,7 +25,7 @@ var initialization = {
         _clientId
     ) {
         if (!testMode) {
-            if (!window.Rokt && !window.Rokt?.currentLauncher) {
+            if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
                 var target = document.head || document.body;
                 var script = document.createElement('script');
                 script.type = 'text/javascript';
@@ -39,8 +39,8 @@ var initialization = {
                     // Once the script loads, ensure the Rokt object is available
                     if (
                         window.Rokt &&
-                        typeof window.Rokt?.createLauncher === 'function'
-                        && window.Rokt?.currentLauncher === undefined
+                        typeof window.Rokt.createLauncher === 'function' &&
+                        window.Rokt.currentLauncher === undefined
                     ) {
                         window.Rokt.createLauncher({
                             accountId: forwarderSettings.accountId,
