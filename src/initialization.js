@@ -52,7 +52,7 @@ var initialization = {
                         })
                             .then(function (launcher) {
                                 // Assign the launcher to a global variable for later access
-                                window.rokt.currentLauncher = launcher;
+                                window.Rokt.currentLauncher = launcher;
                                 if (window['Rokt'] && eventQueue.length > 0) {
                                     for (
                                         var i = 0;
