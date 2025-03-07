@@ -45,8 +45,8 @@ module.exports = {
             '@semantic-release/github',
             {
                 assets: [
-                    'dist/RoktWSDK-Kit.common.js',
-                    'dist/RoktWSDK-Kit.iife.js',
+                    'dist/RoktWsdk-Kit.common.js',
+                    'dist/RoktWsdk-Kit.iife.js',
                 ],
             },
         ],
