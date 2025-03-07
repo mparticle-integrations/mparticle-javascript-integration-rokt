@@ -2,7 +2,7 @@ function CommerceHandler(common) {
     this.common = common || {};
 }
 
-CommerceHandler.prototype.logCommerceEvent = function (_event) {
+CommerceHandler.prototype.logCommerceEvent = function () {
     /*
         Sample ecommerce event schema:
         {
