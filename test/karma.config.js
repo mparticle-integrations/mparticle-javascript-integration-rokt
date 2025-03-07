@@ -6,7 +6,7 @@ const files = [
     '../node_modules/should/should.js',
     'config.js',
 
-    '../dist/RoktWSDK-Kit.iife.js',
+    '../dist/RoktWsdk-Kit.iife.js',
 
     'lib/mockhttprequest.js',
     './test-bundle.js',
