@@ -46,9 +46,9 @@ var initialization = {
                         window.Rokt.createLauncher({
                             accountId: forwarderSettings.accountId,
                             sandbox:
-                                forwarderSettings.sandbox !== undefined
-                                    ? forwarderSettings.sandbox
-                                    : true,
+                                forwarderSettings.sandboxMode && forwarderSettings.sandboxMode  === 'True'
+                                    ? true
+                                    : false,
                         })
                             .then(function (launcher) {
                                 // Assign the launcher to a global variable for later access
