@@ -6,8 +6,7 @@ const files = [
     '../node_modules/should/should.js',
     'config.js',
 
-    // TODO: Replace this with the compiled name of your kit
-    '../dist/RoktWSDK-Kit.iife.js',
+    '../dist/RoktWsdk-Kit.iife.js',
 
     'lib/mockhttprequest.js',
     './test-bundle.js',

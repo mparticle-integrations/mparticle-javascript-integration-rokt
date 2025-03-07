@@ -21,32 +21,32 @@ For more userIdentity types, see https://docs.mparticle.com/developers/sdk/web/i
 function IdentityHandler(common) {
     this.common = common || {};
 }
-IdentityHandler.prototype.onUserIdentified = function(mParticleUser) {};
-IdentityHandler.prototype.onIdentifyComplete = function(
-    mParticleUser,
-    identityApiRequest
+IdentityHandler.prototype.onUserIdentified = function (_mParticleUser) {};
+IdentityHandler.prototype.onIdentifyComplete = function (
+    _mParticleUser,
+    _identityApiRequest
 ) {};
-IdentityHandler.prototype.onLoginComplete = function(
-    mParticleUser,
-    identityApiRequest
+IdentityHandler.prototype.onLoginComplete = function (
+    _mParticleUser,
+    _identityApiRequest
 ) {};
-IdentityHandler.prototype.onLogoutComplete = function(
-    mParticleUser,
-    identityApiRequest
+IdentityHandler.prototype.onLogoutComplete = function (
+    _mParticleUser,
+    _identityApiRequest
 ) {};
-IdentityHandler.prototype.onModifyComplete = function(
-    mParticleUser,
-    identityApiRequest
+IdentityHandler.prototype.onModifyComplete = function (
+    _mParticleUser,
+    _identityApiRequest
 ) {};
 
 /*  In previous versions of the mParticle web SDK, setting user identities on
     kits is only reachable via the onSetUserIdentity method below. We recommend
     filling out `onSetUserIdentity` for maximum compatibility
 */
-IdentityHandler.prototype.onSetUserIdentity = function(
-    forwarderSettings,
-    id,
-    type
+IdentityHandler.prototype.onSetUserIdentity = function (
+    _forwarderSettings,
+    _id,
+    _type
 ) {};
 
 module.exports = IdentityHandler;

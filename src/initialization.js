@@ -1,6 +1,9 @@
+var roktLauncherScript = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
+
 var initialization = {
-    name: 'insertSDKNameHere',
-/*  ****** Fill out initForwarder to load your SDK ******
+    name: 'RoktWsdk',
+    moduleId: 181,
+    /*  ****** Fill out initForwarder to load your SDK ******
     Note that not all arguments may apply to your SDK initialization.
     These are passed from mParticle, but leave them even if they are not being used.
     forwarderSettings contain settings that your SDK requires in order to initialize
@@ -8,35 +11,85 @@ var initialization = {
     userIdentities example: { 1: 'customerId', 2: 'facebookId', 7: 'emailid@email.com' }
     additional identityTypes can be found at https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/src/types.js#L88-L101
 */
-    initForwarder: function(forwarderSettings, testMode, userAttributes, userIdentities, processEvent, eventQueue, isInitialized, common, appVersion, appName, customFlags, clientId) {
-        /* `forwarderSettings` contains your SDK specific settings such as apiKey that your customer needs in order to initialize your SDK properly */
-
+    initForwarder: function (
+        forwarderSettings,
+        testMode,
+        _userAttributes,
+        _userIdentities,
+        processEvent,
+        eventQueue,
+        _isInitialized,
+        _common,
+        _appVersion,
+        _appName,
+        _customFlags,
+        _clientId
+    ) {
         if (!testMode) {
-            /* Load your Web SDK here using a variant of your snippet from your readme that your customers would generally put into their <head> tags
-               Generally, our integrations create script tags and append them to the <head>. Please follow the following format as a guide:
-            */
+            if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
+                var target = document.head || document.body;
+                var script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = roktLauncherScript;
+                script.async = true;
+                script.crossOrigin = 'anonymous';
+                script.fetchPriority = 'high';
+                script.id = 'rokt-launcher';
 
-            // var clientScript = document.createElement('script');
-            // clientScript.type = 'text/javascript';
-            // clientScript.async = true;
-            // clientScript.src = 'https://www.clientscript.com/static/clientSDK.js';   // <---- Update this to be your script
-            // (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(clientScript);
-            // clientScript.onload = function() {
-            //     if (clientSDKObject && eventQueue.length > 0) {
-            //         // Process any events that may have been queued up while forwarder was being initialized.
-            //         for (var i = 0; i < eventQueue.length; i++) {
-            //             processEvent(eventQueue[i]);
-            //         }
-            //          // now that each queued event is processed, we empty the eventQueue
-            //         eventQueue = [];
-            //     }
-            //    clientSDKObject.initialize(forwarderSettings.apiKey);
-            // };
-        } else {
-            // For testing, you should fill out this section in order to ensure any required initialization calls are made,
-            // clientSDKObject.initialize(forwarderSettings.apiKey)
+                script.onload = function () {
+                    // Once the script loads, ensure the Rokt object is available
+                    if (
+                        window.Rokt &&
+                        typeof window.Rokt.createLauncher === 'function' &&
+                        window.Rokt.currentLauncher === undefined
+                    ) {
+                        window.Rokt.createLauncher({
+                            accountId: forwarderSettings.accountId,
+                            sandbox: forwarderSettings.sandboxMode === 'True',
+                        })
+                            .then(function (launcher) {
+                                // Assign the launcher to a global variable for later access
+                                window.Rokt.currentLauncher = launcher;
+                                if (window['Rokt'] && eventQueue.length > 0) {
+                                    for (
+                                        var i = 0;
+                                        i < eventQueue.length;
+                                        i++
+                                    ) {
+                                        processEvent(eventQueue[i]);
+                                    }
+                                    eventQueue = [];
+                                }
+                            })
+                            .catch(function (err) {
+                                console.error(
+                                    'Error creating Rokt launcher:',
+                                    err
+                                );
+                            });
+                    } else {
+                        console.error(
+                            'Rokt object is not available after script load.'
+                        );
+                    }
+                };
+
+                script.onerror = function (error) {
+                    console.error(
+                        'Failed to load Rokt launcher script:',
+                        error
+                    );
+                };
+
+                target.appendChild(script);
+            } else {
+                // For testing, you can simulate initialization if needed.
+                console.log(
+                    'Test mode enabled – skipping Rokt launcher script load.'
+                );
+            }
         }
-    }
+    },
 };
 
 module.exports = initialization;
