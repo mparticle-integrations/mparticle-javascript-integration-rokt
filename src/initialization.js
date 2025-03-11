@@ -1,7 +1,7 @@
 var roktLauncherScript = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
 
 var initialization = {
-    name: 'RoktWsdk',
+    name: 'Rokt',
     moduleId: 181,
     /*  ****** Fill out initForwarder to load your SDK ******
     Note that not all arguments may apply to your SDK initialization.
@@ -50,6 +50,9 @@ var initialization = {
                             .then(function (launcher) {
                                 // Assign the launcher to a global variable for later access
                                 window.Rokt.currentLauncher = launcher;
+                                window.dispatchEvent(
+                                    new Event('rokt-launcher-created')
+                                );
                                 if (window['Rokt'] && eventQueue.length > 0) {
                                     for (
                                         var i = 0;
