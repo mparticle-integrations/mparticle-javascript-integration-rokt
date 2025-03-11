@@ -1,4 +1,4 @@
-var RoktWsdkKit = (function (exports) {
+var RoktKit = (function (exports) {
     'use strict';
 
     function Common() {}
@@ -168,7 +168,7 @@ var RoktWsdkKit = (function (exports) {
     var roktLauncherScript = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
 
     var initialization = {
-        name: 'RoktWsdk',
+        name: 'Rokt',
         moduleId: 181,
         /*  ****** Fill out initForwarder to load your SDK ******
         Note that not all arguments may apply to your SDK initialization.
