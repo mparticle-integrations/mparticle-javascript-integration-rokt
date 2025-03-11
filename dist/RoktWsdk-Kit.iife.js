@@ -217,6 +217,9 @@ var RoktWsdkKit = (function (exports) {
                                 .then(function (launcher) {
                                     // Assign the launcher to a global variable for later access
                                     window.Rokt.currentLauncher = launcher;
+                                    window.dispatchEvent(
+                                        new Event('rokt-launcher-created')
+                                    );
                                     if (window['Rokt'] && eventQueue.length > 0) {
                                         for (
                                             var i = 0;
