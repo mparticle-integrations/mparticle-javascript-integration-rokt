@@ -1,52 +1,38 @@
-// This file is all boilerplate. Do not edit unless you know what you're doing.
+import resolve from 'rollup-plugin-node-resolve';
+import commonjs from 'rollup-plugin-commonjs';
 
-import {
-    production,
-    testEndToEnd,
-} from './node_modules/@mparticle/web-kit-wrapper/rollup.base';
+const kitName = 'Rokt';
 
-const { ENVIRONMENT } = process.env;
-const initialization = require('./src/initialization');
+const outputs = {
+    name: `${kitName}Kit`,
+    exports: 'named',
+    strict: true,
+};
 
-const productionBuilds = {
-    iife: {
-        input: production.input,
+const plugins = [
+    resolve({ 
+        browser: true
+    }),
+    commonjs(),
+];
+
+export default [
+    {
+        input: `src/${kitName}-Kit.js`,
         output: {
-            ...production.output,
+            ...outputs,
             format: 'iife',
-            file: `dist/${initialization.name}-Kit.iife.js`,
-            name: `${initialization.name}Kit`,
+            file: `dist/${kitName}-Kit.iife.js`,
         },
-        plugins: [...production.plugins],
+        plugins,
     },
-    cjs: {
-        input: production.input,
+    {
+        input: `src/${kitName}-Kit.js`,
         output: {
-            ...production.output,
+            ...outputs,
             format: 'cjs',
-            file: `dist/${initialization.name}-Kit.common.js`,
-            name: `${initialization.name}Kit`,
+            file: `dist/${kitName}-Kit.common.js`,
         },
-        plugins: [...production.plugins],
+        plugins,
     },
-};
-
-const testEndToEndBuild = {
-    input: testEndToEnd.input,
-    output: {
-        ...testEndToEnd.output,
-        format: 'iife',
-        file: 'test/end-to-end-testapp/build/compilation.js',
-        name: `${initialization.name}Kit`,
-    },
-    plugins: [...testEndToEnd.plugins],
-};
-
-let selectedBuilds = [];
-if (ENVIRONMENT === 'production') {
-    selectedBuilds.push(productionBuilds.iife, productionBuilds.cjs);
-} else if (ENVIRONMENT === 'testEndToEnd') {
-    selectedBuilds.push(testEndToEndBuild);
-}
-
-export default selectedBuilds;
+];
