@@ -1,9 +1,9 @@
 {
   "name": "@mparticle/web-rokt-wsdk-kit",
-  "version": "0.0.2",
-  "main": "dist/RoktWsdk-Kit.common.js",
+  "version": "0.0.3",
+  "main": "dist/Rokt-Kit.common.js",
   "files": [
-    "dist/RoktWsdk-Kit.common.js"
+    "dist/Rokt-Kit.common.js"
   ],
   "repository": "https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt",
   "scripts": {
