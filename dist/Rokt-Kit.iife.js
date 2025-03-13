@@ -166,6 +166,26 @@ var RoktKit = (function (exports) {
     var identityHandler = IdentityHandler;
 
     var roktLauncherScript = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
+    var roktPreloadIframe = 'https://apps.rokt.com/wsdk/preload/index.html';
+
+    function loadRoktPreloadIframe() {
+        if (document.getElementById('rokt-preload-iframe')) {
+            return;
+        }
+
+        var iframe = document.createElement('iframe');
+        iframe.setAttribute('id', 'rokt-preload-iframe');
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.setAttribute('src', roktPreloadIframe);
+        iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+
+        iframe.style.border = '0px';
+        iframe.style.width = '100%';
+        iframe.style.display = 'none';
+
+        document.body.appendChild(iframe);
+    }
+
 
     var initialization = {
         name: 'Rokt',
@@ -193,6 +213,7 @@ var RoktKit = (function (exports) {
             _clientId
         ) {
             if (!testMode) {
+                loadRoktPreloadIframe();
                 if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
                     var target = document.head || document.body;
                     var script = document.createElement('script');
