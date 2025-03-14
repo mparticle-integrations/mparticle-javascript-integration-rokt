@@ -1,5 +1,5 @@
 {
-  "name": "@mparticle/web-rokt-wsdk-kit",
+  "name": "@mparticle/web-rokt-kit",
   "version": "0.0.2",
   "description": "mParticle integration kit for Rokt",
   "main": "dist/Rokt-Kit.common.js",
