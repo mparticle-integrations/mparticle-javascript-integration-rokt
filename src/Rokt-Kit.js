@@ -82,15 +82,12 @@ function getId() {
 }
 
 function register(config) {
-    var forwarderNameWithSuffix = [name, suffix].join('-');
     if (!config) {
         window.console.log(
-            'You must pass a config object to register the kit ' +
-                forwarderNameWithSuffix
+            'You must pass a config object to register the kit ' + name
         );
         return;
     }
-
     if (!isObject(config)) {
         window.console.log(
             "'config' must be an object. You passed in a " + typeof config
@@ -99,19 +96,23 @@ function register(config) {
     }
 
     if (isObject(config.kits)) {
-        config.kits[forwarderNameWithSuffix] = {
+        config.kits[name] = {
             constructor: constructor,
         };
     } else {
         config.kits = {};
-        config.kits[forwarderNameWithSuffix] = {
+        config.kits[name] = {
             constructor: constructor,
         };
     }
     window.console.log(
-        'Successfully registered ' +
-            forwarderNameWithSuffix +
-            ' to your mParticle configuration'
+        'Successfully registered ' + name + ' to your mParticle configuration'
+    );
+}
+
+function isObject(val) {
+    return (
+        val != null && typeof val === 'object' && Array.isArray(val) === false
     );
 }
 
