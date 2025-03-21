@@ -42,8 +42,7 @@ var constructor = function () {
     ) {
         var accountId = settings.accountId;
         var sandboxMode = settings.sandboxMode === 'True';
-        var enableOnboardingFlow = settings.enableOnboardingFlow === 'False';
-        var onboardingExpProvider = settings.onboardingExpProvider === 'Optimizely';
+        self.onboardingExpProvider = settings.onboardingExpProvider;
 
         self.userAttributes = _userAttributes;
 
@@ -69,11 +68,6 @@ var constructor = function () {
                         sandbox: sandboxMode,
                     })
                         .then(function (launcher) {
-                            if (enableOnboardingFlow) {
-                                if (onboardingExpProvider && onboardingExpProvider === 'Optimizely') {
-                                    launcher.preSelectionCallback = fetchOptimizely
-                                }
-                            }
                             // Assign the launcher to a global variable for later access
                             window.Rokt.currentLauncher = launcher;
                             window.mParticle.Rokt.attachLauncher(launcher);
@@ -84,6 +78,9 @@ var constructor = function () {
 
                             // Attaches the kit to the Rokt manager
                             window.mParticle.Rokt.kit = self;
+
+                            console.log("Rokt launcher attached");
+
                         })
                         .catch(function (err) {
                             console.error('Error creating Rokt launcher:', err);
@@ -105,11 +102,14 @@ var constructor = function () {
         }
     }
 
-<<<<<<< HEAD
     function selectPlacements(options) {
+
+        const optimizelyAttributes = fetchOptimizely() ? (self.onboardingExpProvider && self.onboardingExpProvider === 'Optimizely') : {};
+
         const placementAttributes = {
             ...options?.attributes,
             ...self.userAttributes,
+            ...optimizelyAttributes,
         };
 
         const userAttributeFilters = self.filters.userAttributeFilters;
@@ -141,33 +141,31 @@ var constructor = function () {
     this.selectPlacements = selectPlacements;
 
     // mParticle Kit Callback Methods
-=======
     function fetchOptimizely() {
-        window.mParticle.ready(function () {
-            window.mParticle._getActiveForwarders().filter(function (forwarder) {
-                return forwarder.name === 'Optimizely';
-            }).forEach(function () {
-                // Get the state object
-                var optimizelyState = window.optimizely.get('state');
-
-                // Get active experiment IDs
-                var activeExperimentIds = optimizelyState.getActiveExperimentIds();
-
-                console.log("Active Experiment IDs:", activeExperimentIds);
-
-                // Get variations for each active experiment
-                var activeExperiments = activeExperimentIds.reduce(function(acc, expId) {
-                    acc[`rokt.custom.optimizely.${expId}.variationId`] = optimizelyState.getVariationMap()[expId];
-                    return acc;
-                }, {});
-
-                console.log("Active Experiments:", activeExperiments);
-                return activeExperiments;
-            });
+        const forwarders = window.mParticle._getActiveForwarders().filter(function (forwarder) {
+            return forwarder.name === 'Optimizely';
         });
-    }
 
->>>>>>> 9f978b7 (Onboarding fun)
+        if (forwarders.length > 0) {
+            // Get the state object
+            var optimizelyState = window.optimizely.get('state');
+
+            // Get active experiment IDs
+            var activeExperimentIds = optimizelyState.getActiveExperimentIds();
+
+            console.log("Active Experiment IDs:", activeExperimentIds);
+
+            // Get variations for each active experiment
+            var activeExperiments = activeExperimentIds.reduce(function(acc, expId) {
+                acc[`rokt.custom.optimizely.${expId}.variationId`] = optimizelyState.getVariationMap()[expId].id;
+                return acc;
+            }, {});
+
+            console.log("[ROKT] Active Optimizely Experiments:", activeExperiments);
+            return activeExperiments;
+        }
+        return {};
+    }
     this.init = initForwarder;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
