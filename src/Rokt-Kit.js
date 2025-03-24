@@ -28,6 +28,13 @@ function attachLauncher(accountId, sandboxMode) {
             window.Rokt.currentLauncher = launcher;
             window.mParticle.Rokt.attachLauncher(launcher);
 
+            // Locally cache the launcher and filters
+            self.launcher = launcher;
+            self.filters = window.mParticle.Rokt.filters;
+
+            // Attaches the kit to the Rokt manager
+            window.mParticle.Rokt.attachKitself;
+
             self.isInitialized = true;
         })
         .catch(function (err) {
@@ -41,8 +48,22 @@ var constructor = function () {
     self.name = name;
     self.moduleId = moduleId;
     self.isInitialized = false;
+    self.launcher = null;
+    self.filters = {};
+    self.filteredUser = {};
+    self.userAttributes = {};
 
-    function initForwarder(settings, service, testMode) {
+    function initForwarder(
+        settings,
+        service,
+        testMode,
+        trackerId,
+        _userAttributes,
+        userIdentities,
+        appVersion,
+        appName,
+        customFlags
+    ) {
         var accountId = settings.accountId;
         var sandboxMode = window.mParticle.getEnvironment() === 'development';
 
@@ -50,6 +71,8 @@ var constructor = function () {
             attachLauncher(accountId, sandboxMode);
             return;
         }
+
+        self.userAttributes = _userAttributes;
 
         if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
             var target = document.head || document.body;
@@ -86,7 +109,45 @@ var constructor = function () {
         }
     }
 
+    function selectPlacements(options) {
+        const placementAttributes = {
+            ...options?.attributes,
+            ...self.userAttributes,
+        };
+
+        const userAttributeFilters = self.filters.userAttributeFilters;
+        const filteredAttributes = self.filters.filterUserAttributes(placementAttributes, userAttributeFilters);
+
+        self.userAttributes = filteredAttributes;
+
+        self.launcher.selectPlacements({
+            ...options,
+            attributes: filteredAttributes,
+        });
+    }
+
+    function onUserIdentified(filteredUser) {
+        console.log('onUserIdentified', filteredUser);
+        self.filteredUser = filteredUser;
+        self.userAttributes = filteredUser.getAllUserAttributes();
+    }
+
+    function setUserAttribute(key, value) {
+        self.userAttributes[key] = value;
+    }
+
+    function removeUserAttribute(key) {
+        delete self.userAttributes[key];
+    }
+
+    // Called by the mParticle Rokt Manager
+    this.selectPlacements = selectPlacements;
+
+    // mParticle Kit Callback Methods
     this.init = initForwarder;
+    this.setUserAttribute = setUserAttribute;
+    this.onUserIdentified = onUserIdentified;
+    this.removeUserAttribute = removeUserAttribute;
 };
 
 function getId() {
