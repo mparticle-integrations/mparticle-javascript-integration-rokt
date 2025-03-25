@@ -99,17 +99,17 @@ var constructor = function () {
     }
 
     function selectPlacements(options) {
-        const placementAttributes = mergeObjects(
+        var placementAttributes = mergeObjects(
             options?.attributes,
             self.userAttributes
         );
 
-        const userAttributeFilters = self.filters.userAttributeFilters;
-        const filteredAttributes = self.filters.filterUserAttributes(placementAttributes, userAttributeFilters);
+        var userAttributeFilters = self.filters.userAttributeFilters;
+        var filteredAttributes = self.filters.filterUserAttributes(placementAttributes, userAttributeFilters);
 
         self.userAttributes = filteredAttributes;
 
-        const selectPlacementsOptions = mergeObjects(
+        var selectPlacementsOptions = mergeObjects(
             options,
             {
                 attributes: filteredAttributes,
