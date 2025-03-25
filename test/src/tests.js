@@ -1,5 +1,5 @@
 /* eslint-disable no-undef*/
-describe('XYZ Forwarder', function () {
+describe('Rokt Forwarder', function () {
     // -------------------DO NOT EDIT ANYTHING BELOW THIS LINE-----------------------
     var // MessageType = {
         //     SessionStart: 1,
@@ -83,7 +83,7 @@ describe('XYZ Forwarder', function () {
         },
     };
     // -------------------START EDITING BELOW:-----------------------
-    var MockXYZForwarder = function () {
+    var MockRoktForwarder = function () {
         var self = this;
 
         // create properties for each type of event you want tracked, see below for examples
@@ -93,14 +93,29 @@ describe('XYZ Forwarder', function () {
 
         this.trackCustomName = null;
         this.logPurchaseName = null;
-        this.apiKey = null;
-        this.appId = null;
+        this.accountId = null;
+        this.sandbox = null;
         this.userId = null;
         this.userAttributes = {};
         this.userIdField = null;
 
         this.eventProperties = [];
         this.purchaseEventProperties = [];
+
+        this.createLauncherCalled = false;
+        this.createLauncher = function (options) {
+            self.accountId = options.accountId;
+            self.sandbox = options.sandbox;
+            self.createLauncherCalled = true;
+
+            return Promise.resolve({
+                then: function (callback) {
+                    callback();
+                },
+            });
+        };
+
+        this.currentLauncher = function () {};
 
         // stub your different methods to ensure they are being called properly
         this.initialize = function (appId, apiKey) {
@@ -136,150 +151,56 @@ describe('XYZ Forwarder', function () {
         };
     };
 
-    before(function () {});
+    before(function () {
+    });
 
     beforeEach(function () {
-        window.MockXYZForwarder = new MockXYZForwarder();
-        // Include any specific settings that is required for initializing your SDK here
-        var sdkSettings = {
-            clientKey: '123456',
-            appId: 'abcde',
-            userIdField: 'customerId',
-        };
-        // You may require userAttributes or userIdentities to be passed into initialization
-        var userAttributes = {
-            color: 'green',
-        };
-        var userIdentities = [
-            {
-                Identity: 'customerId',
-                Type: IdentityType.CustomerId,
-            },
-            {
-                Identity: 'email',
-                Type: IdentityType.Email,
-            },
-            {
-                Identity: 'facebook',
-                Type: IdentityType.Facebook,
-            },
-        ];
+    });
 
-        // The third argument here is a boolean to indicate that the integration is in test mode to avoid loading any third party scripts. Do not change this value.
-        mParticle.forwarder.init(
-            sdkSettings,
+    it.only('should initialize the Rokt Web SDK', async () => {
+        window.Rokt = new MockRoktForwarder();
+        window.mParticle.Rokt.attachLauncherCalled = false;
+        window.mParticle.Rokt.attachLauncher = async (options) => {
+            console.log('attachLauncher called', options);
+            window.mParticle.Rokt.attachLauncherCalled = true;
+            console.log('checking attachLauncherCalled top', window.mParticle.Rokt.attachLauncherCalled);
+            Promise.resolve();
+        };
+
+        await mParticle.forwarder.init(
+            {
+                accountId: '123456',
+                sandboxMode: 'True',
+            },
             reportService.cb,
-            true,
-            null,
-            userAttributes,
-            userIdentities
+            true
         );
-    });
 
-    it('should log event', function (done) {
-        // mParticle.forwarder.process({
-        //     EventDataType: MessageType.PageEvent,
-        //     EventName: 'Test Event',
-        //     EventAttributes: {
-        //         label: 'label',
-        //         value: 200,
-        //         category: 'category'
-        //     }
-        // });
+        window.Rokt.accountId.should.equal('123456');
+        window.Rokt.sandbox.should.equal(true);
 
-        // window.MockXYZForwarder.eventProperties[0].label.should.equal('label');
-        // window.MockXYZForwarder.eventProperties[0].value.should.equal(200);
+        window.Rokt.createLauncherCalled.should.equal(true);
 
-        done();
-    });
-
-    it('should log page view', function (done) {
-        // mParticle.forwarder.process({
-        //     EventDataType: MessageType.PageView,
-        //     EventName: 'test name',
-        //     EventAttributes: {
-        //         attr1: 'test1',
-        //         attr2: 'test2'
-        //     }
-        // });
-        //
-        // window.MockXYZForwarder.trackCustomEventCalled.should.equal(true);
-        // window.MockXYZForwarder.trackCustomName.should.equal('test name');
-        // window.MockXYZForwarder.eventProperties[0].attr1.should.equal('test1');
-        // window.MockXYZForwarder.eventProperties[0].attr2.should.equal('test2');
-
-        done();
-    });
-
-    it('should log a product purchase commerce event', function (done) {
-        // mParticle.forwarder.process({
-        //     EventName: 'Test Purchase Event',
-        //     EventDataType: MessageType.Commerce,
-        //     EventCategory: EventType.ProductPurchase,
-        //     ProductAction: {
-        //         ProductActionType: ProductActionType.Purchase,
-        //         ProductList: [
-        //             {
-        //                 Sku: '12345',
-        //                 Name: 'iPhone 6',
-        //                 Category: 'Phones',
-        //                 Brand: 'iPhone',
-        //                 Variant: '6',
-        //                 Price: 400,
-        //                 TotalAmount: 400,
-        //                 CouponCode: 'coupon-code',
-        //                 Quantity: 1
-        //             }
-        //         ],
-        //         TransactionId: 123,
-        //         Affiliation: 'my-affiliation',
-        //         TotalAmount: 450,
-        //         TaxAmount: 40,
-        //         ShippingAmount: 10,
-        //         CouponCode: null
-        //     }
-        // });
-        //
-        // window.MockXYZForwarder.trackCustomEventCalled.should.equal(true);
-        // window.MockXYZForwarder.trackCustomName.should.equal('Purchase');
-        //
-        // window.MockXYZForwarder.eventProperties[0].Sku.should.equal('12345');
-        // window.MockXYZForwarder.eventProperties[0].Name.should.equal('iPhone 6');
-        // window.MockXYZForwarder.eventProperties[0].Category.should.equal('Phones');
-        // window.MockXYZForwarder.eventProperties[0].Brand.should.equal('iPhone');
-        // window.MockXYZForwarder.eventProperties[0].Variant.should.equal('6');
-        // window.MockXYZForwarder.eventProperties[0].Price.should.equal(400);
-        // window.MockXYZForwarder.eventProperties[0].TotalAmount.should.equal(400);
-        // window.MockXYZForwarder.eventProperties[0].CouponCode.should.equal('coupon-code');
-        // window.MockXYZForwarder.eventProperties[0].Quantity.should.equal(1);
-
-        done();
-    });
-
-    it('should set customer id user identity on user identity change', function (done) {
-        // var fakeUserStub = {
-        //     getUserIdentities: function() {
-        //         return {
-        //             userIdentities: {
-        //                 customerid: '123'
-        //             }
-        //         };
-        //     },
-        //     getMPID: function() {
-        //         return 'testMPID';
-        //     },
-        //     setUserAttribute: function() {
-        //
-        //     },
-        //     removeUserAttribute: function() {
-        //
-        //     }
-        // };
-        //
-        // mParticle.forwarder.onUserIdentified(fakeUserStub);
-        //
-        // window.MockXYZForwarder.userId.should.equal('123');
-
-        done();
+        await waitForCondition(() => window.mParticle.Rokt.attachLauncherCalled === true);
     });
 });
+
+const waitForCondition = function async(
+    conditionFn,
+    timeout = 200,
+    interval = 10
+) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+
+        (function poll() {
+            if (conditionFn()) {
+                return resolve(undefined);
+            } else if (Date.now() - startTime > timeout) {
+                return reject(new Error('Timeout waiting for condition'));
+            } else {
+                setTimeout(poll, interval);
+            }
+        })();
+    });
+};

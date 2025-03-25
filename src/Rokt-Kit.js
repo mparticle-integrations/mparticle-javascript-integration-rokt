@@ -18,14 +18,37 @@ var roktLauncherScript = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
 var name = 'Rokt';
 var moduleId = 181;
 
+function attachLauncher(accountId, sandboxMode) {
+    window.Rokt.createLauncher({
+        accountId: accountId,
+        sandbox: window.mParticle.getEnvironment() === 'development',
+    })
+        .then(function (launcher) {
+            // Assign the launcher to a global variable for later access
+            window.Rokt.currentLauncher = launcher;
+            window.mParticle.Rokt.attachLauncher(launcher);
+
+            self.isInitialized = true;
+        })
+        .catch(function (err) {
+            console.error('Error creating Rokt launcher:', err);
+        });
+}
+
 var constructor = function () {
     var self = this;
 
     self.name = name;
     self.moduleId = moduleId;
+    self.isInitialized = false;
 
-    function initForwarder(settings) {
+    function initForwarder(settings, service, testMode) {
         var accountId = settings.accountId;
+
+        if (testMode) {
+            attachLauncher(accountId, sandboxMode);
+            return;
+        }
 
         if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
             var target = document.head || document.body;
@@ -44,18 +67,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    window.Rokt.createLauncher({
-                        accountId: accountId,
-                        sandbox: window.mParticle.getEnvironment() === 'development',
-                    })
-                        .then(function (launcher) {
-                            // Assign the launcher to a global variable for later access
-                            window.Rokt.currentLauncher = launcher;
-                            window.mParticle.Rokt.attachLauncher(launcher);
-                        })
-                        .catch(function (err) {
-                            console.error('Error creating Rokt launcher:', err);
-                        });
+                    attachLauncher(accountId, sandboxMode);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
