@@ -146,23 +146,23 @@ var constructor = function () {
             return forwarder.name === 'Optimizely';
         });
 
-        if (forwarders.length > 0) {
-            // Get the state object
-            var optimizelyState = window.optimizely.get('state');
+        try {
+            if (forwarders.length > 0) {
+                // Get the state object
+                var optimizelyState = window.optimizely.get('state');
+                // Get active experiment IDs
+                var activeExperimentIds = optimizelyState.getActiveExperimentIds();
+                // Get variations for each active experiment
+                var activeExperiments = activeExperimentIds.reduce(function(acc, expId) {
+                    acc[`rokt.custom.optimizely.${expId}.variationId`] = optimizelyState.getVariationMap()[expId].id;
+                    return acc;
+                }, {});
 
-            // Get active experiment IDs
-            var activeExperimentIds = optimizelyState.getActiveExperimentIds();
-
-            console.log("Active Experiment IDs:", activeExperimentIds);
-
-            // Get variations for each active experiment
-            var activeExperiments = activeExperimentIds.reduce(function(acc, expId) {
-                acc[`rokt.custom.optimizely.${expId}.variationId`] = optimizelyState.getVariationMap()[expId].id;
-                return acc;
-            }, {});
-
-            console.log("[ROKT] Active Optimizely Experiments:", activeExperiments);
-            return activeExperiments;
+                console.log("[ROKT] Active Optimizely Experiments:", activeExperiments);
+                return activeExperiments;
+            }
+        } catch (error) {
+            console.error('Error fetching Optimizely attributes:', error);
         }
         return {};
     }
