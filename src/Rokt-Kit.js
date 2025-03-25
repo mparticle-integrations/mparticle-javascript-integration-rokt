@@ -69,14 +69,14 @@ var constructor = function () {
                         .then(function (launcher) {
                             // Assign the launcher to a global variable for later access
                             window.Rokt.currentLauncher = launcher;
-                            window.mParticle.Rokt.attachLauncher(launcher);
 
                             // Locally cache the launcher and filters
                             self.launcher = launcher;
                             self.filters = window.mParticle.Rokt.filters;
 
-                            // Attaches the kit to the Rokt manager
-                            window.mParticle.Rokt.kit = self;
+                            // Attaches the launcher and kit to the Rokt manager
+                            window.mParticle.Rokt.attachLauncher(launcher);
+                            window.mParticle.Rokt.attachKit(self);
                         })
                         .catch(function (err) {
                             console.error('Error creating Rokt launcher:', err);
@@ -99,24 +99,27 @@ var constructor = function () {
     }
 
     function selectPlacements(options) {
-        const placementAttributes = {
-            ...options?.attributes,
-            ...self.userAttributes,
-        };
+        const placementAttributes = mergeObjects(
+            options?.attributes,
+            self.userAttributes
+        );
 
         const userAttributeFilters = self.filters.userAttributeFilters;
         const filteredAttributes = self.filters.filterUserAttributes(placementAttributes, userAttributeFilters);
 
         self.userAttributes = filteredAttributes;
 
-        self.launcher.selectPlacements({
-            ...options,
-            attributes: filteredAttributes,
-        });
+        const selectPlacementsOptions = mergeObjects(
+            options,
+            {
+                attributes: filteredAttributes,
+            }
+        );
+
+        self.launcher.selectPlacements(selectPlacementsOptions);
     }
 
     function onUserIdentified(filteredUser) {
-        console.log('onUserIdentified', filteredUser);
         self.filteredUser = filteredUser;
         self.userAttributes = filteredUser.getAllUserAttributes();
     }
@@ -177,6 +180,19 @@ function isObject(val) {
         val != null && typeof val === 'object' && Array.isArray(val) === false
     );
 }
+
+function mergeObjects() {
+    var resObj = {};
+    for (var i = 0; i < arguments.length; i += 1) {
+        var obj = arguments[i],
+            keys = Object.keys(obj);
+        for (var j = 0; j < keys.length; j += 1) {
+            resObj[keys[j]] = obj[keys[j]];
+        }
+    }
+    return resObj;
+}
+
 
 if (window && window.mParticle && window.mParticle.addForwarder) {
     window.mParticle.addForwarder({
