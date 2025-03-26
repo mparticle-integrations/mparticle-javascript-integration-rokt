@@ -34,11 +34,7 @@ var constructor = function () {
         service,
         testMode,
         trackerId,
-        _userAttributes,
-        userIdentities,
-        appVersion,
-        appName,
-        customFlags
+        _userAttributes
     ) {
         var accountId = settings.accountId;
         var sandboxMode = settings.sandboxMode === 'True';
@@ -99,22 +95,20 @@ var constructor = function () {
     }
 
     function selectPlacements(options) {
-        var placementAttributes = mergeObjects(
-            options?.attributes,
-            self.userAttributes
-        );
+        var attributes = (options && options.attributes) || {};
+        var placementAttributes = mergeObjects(attributes, self.userAttributes);
 
         var userAttributeFilters = self.filters.userAttributeFilters;
-        var filteredAttributes = self.filters.filterUserAttributes(placementAttributes, userAttributeFilters);
+        var filteredAttributes = self.filters.filterUserAttributes(
+            placementAttributes,
+            userAttributeFilters
+        );
 
         self.userAttributes = filteredAttributes;
 
-        var selectPlacementsOptions = mergeObjects(
-            options,
-            {
-                attributes: filteredAttributes,
-            }
-        );
+        var selectPlacementsOptions = mergeObjects(options, {
+            attributes: filteredAttributes,
+        });
 
         self.launcher.selectPlacements(selectPlacementsOptions);
     }
@@ -192,7 +186,6 @@ function mergeObjects() {
     }
     return resObj;
 }
-
 
 if (window && window.mParticle && window.mParticle.addForwarder) {
     window.mParticle.addForwarder({
