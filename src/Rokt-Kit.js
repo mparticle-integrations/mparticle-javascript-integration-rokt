@@ -107,7 +107,10 @@ var constructor = function () {
 
         self.userAttributes = filteredAttributes;
 
-        var optimizelyAttributes = self.onboardingExpProvider === 'Optimizely' ? fetchOptimizely() : {};
+        var optimizelyAttributes =
+            self.onboardingExpProvider === 'Optimizely'
+                ? fetchOptimizely()
+                : {};
         var selectPlacementsOptions = mergeObjects(
             options,
             {
@@ -137,21 +140,32 @@ var constructor = function () {
 
     // mParticle Kit Callback Methods
     function fetchOptimizely() {
-        var forwarders = window.mParticle._getActiveForwarders().filter(function (forwarder) {
-            return forwarder.name === 'Optimizely';
-        });
+        var forwarders = window.mParticle
+            ._getActiveForwarders()
+            .filter(function (forwarder) {
+                return forwarder.name === 'Optimizely';
+            });
 
         try {
             if (forwarders.length > 0 || window.optimizely) {
                 // Get the state object
                 var optimizelyState = window.optimizely.get('state');
                 // Get active experiment IDs
-                var activeExperimentIds = optimizelyState.getActiveExperimentIds();
+                var activeExperimentIds =
+                    optimizelyState.getActiveExperimentIds();
                 // Get variations for each active experiment
-                var activeExperiments = activeExperimentIds.reduce(function(acc, expId) {
-                    acc[`rokt.custom.optimizely.${expId}.variationId`] = optimizelyState.getVariationMap()[expId].id;
+                var activeExperiments = activeExperimentIds.reduce(function (
+                    acc,
+                    expId
+                ) {
+                    acc[
+                        'rokt.custom.optimizely.experiment.' +
+                            expId +
+                            '.variationId'
+                    ] = optimizelyState.getVariationMap()[expId].id;
                     return acc;
-                }, {});
+                },
+                {});
                 return activeExperiments;
             }
         } catch (error) {
