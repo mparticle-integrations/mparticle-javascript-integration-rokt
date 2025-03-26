@@ -38,6 +38,7 @@ var constructor = function () {
     ) {
         var accountId = settings.accountId;
         var sandboxMode = settings.sandboxMode === 'True';
+        self.onboardingExpProvider = settings.onboardingExpProvider;
 
         self.userAttributes = _userAttributes;
 
@@ -106,9 +107,17 @@ var constructor = function () {
 
         self.userAttributes = filteredAttributes;
 
-        var selectPlacementsOptions = mergeObjects(options, {
-            attributes: filteredAttributes,
-        });
+        var optimizelyAttributes =
+            self.onboardingExpProvider === 'Optimizely'
+                ? fetchOptimizely()
+                : {};
+        var selectPlacementsOptions = mergeObjects(
+            options,
+            {
+                attributes: filteredAttributes,
+            },
+            optimizelyAttributes
+        );
 
         self.launcher.selectPlacements(selectPlacementsOptions);
     }
@@ -130,6 +139,40 @@ var constructor = function () {
     this.selectPlacements = selectPlacements;
 
     // mParticle Kit Callback Methods
+    function fetchOptimizely() {
+        var forwarders = window.mParticle
+            ._getActiveForwarders()
+            .filter(function (forwarder) {
+                return forwarder.name === 'Optimizely';
+            });
+
+        try {
+            if (forwarders.length > 0 || window.optimizely) {
+                // Get the state object
+                var optimizelyState = window.optimizely.get('state');
+                // Get active experiment IDs
+                var activeExperimentIds =
+                    optimizelyState.getActiveExperimentIds();
+                // Get variations for each active experiment
+                var activeExperiments = activeExperimentIds.reduce(function (
+                    acc,
+                    expId
+                ) {
+                    acc[
+                        'rokt.custom.optimizely.experiment.' +
+                            expId +
+                            '.variationId'
+                    ] = optimizelyState.getVariationMap()[expId].id;
+                    return acc;
+                },
+                {});
+                return activeExperiments;
+            }
+        } catch (error) {
+            console.error('Error fetching Optimizely attributes:', error);
+        }
+        return {};
+    }
     this.init = initForwarder;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
