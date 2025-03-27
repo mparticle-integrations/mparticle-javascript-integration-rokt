@@ -57,17 +57,16 @@ var constructor = function () {
         service,
         testMode,
         trackerId,
-        _userAttributes
+        filteredUserAttributes
     ) {
         var accountId = settings.accountId;
         var sandboxMode = window.mParticle.getEnvironment() === 'development';
+        self.userAttributes = filteredUserAttributes;
 
         if (testMode) {
             attachLauncher(accountId, sandboxMode);
             return;
         }
-
-        self.userAttributes = _userAttributes;
 
         if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
             var target = document.head || document.body;
@@ -87,7 +86,6 @@ var constructor = function () {
                     window.Rokt.currentLauncher === undefined
                 ) {
                     attachLauncher(accountId, sandboxMode);
-
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -106,8 +104,13 @@ var constructor = function () {
     }
 
     function selectPlacements(options) {
+        // https://docs.rokt.com/developers/integration-guides/web/library/select-placements-options/
+        // options should contain:
+        // - identifier
+        // - attributes
+
         var attributes = (options && options.attributes) || {};
-        var placementAttributes = mergeObjects(attributes, self.userAttributes);
+        var placementAttributes = mergeObjects(self.userAttributes,, attributes);
 
         var userAttributeFilters = self.filters.userAttributeFilters;
         var filteredAttributes = self.filters.filterUserAttributes(
