@@ -46,7 +46,7 @@ module.exports = {
             {
                 assets: [
                     'dist/RoktWsdk-Kit.common.js',
-                    'dist/RoktWsdk-Kit.iife.js',
+                    'dist/Rokt-Kit.iife.js',
                 ],
             },
         ],
