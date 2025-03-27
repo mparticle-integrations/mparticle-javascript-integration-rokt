@@ -26,7 +26,6 @@ var constructor = function () {
 
     function initForwarder(settings) {
         var accountId = settings.accountId;
-        var sandboxMode = settings.sandboxMode === 'True';
 
         if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
             var target = document.head || document.body;
@@ -47,7 +46,7 @@ var constructor = function () {
                 ) {
                     window.Rokt.createLauncher({
                         accountId: accountId,
-                        sandbox: sandboxMode,
+                        sandbox: window.mParticle.getEnvironment() === 'development',
                     })
                         .then(function (launcher) {
                             // Assign the launcher to a global variable for later access
