@@ -46,7 +46,6 @@ describe('Rokt Forwarder', () => {
         this.createLauncherCalled = false;
         this.createLauncher = function (options) {
             self.accountId = options.accountId;
-            self.sandbox = options.sandbox;
             self.createLauncherCalled = true;
 
             return Promise.resolve({
