@@ -46,7 +46,7 @@ var constructor = function () {
                 ) {
                     window.Rokt.createLauncher({
                         accountId: accountId,
-                        sandbox:  mParticle.getEnvironment() === 'development',
+                        sandbox: mParticle.getEnvironment() === 'development',
                     })
                         .then(function (launcher) {
                             // Assign the launcher to a global variable for later access
