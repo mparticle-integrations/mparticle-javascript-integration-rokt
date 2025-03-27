@@ -101,8 +101,14 @@ var constructor = function () {
 
         self.userAttributes = filteredAttributes;
 
+        var mpid = self.filters.filteredUser.getMPID();
+
+        var selectPlacementsAttributes = mergeObjects(filteredAttributes, {
+            mpid: mpid,
+        });
+
         var selectPlacementsOptions = mergeObjects(options, {
-            attributes: filteredAttributes,
+            attributes: selectPlacementsAttributes,
         });
 
         self.launcher.selectPlacements(selectPlacementsOptions);
