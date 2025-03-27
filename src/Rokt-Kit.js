@@ -21,7 +21,7 @@ var moduleId = 181;
 function attachLauncher(accountId, sandboxMode) {
     window.Rokt.createLauncher({
         accountId: accountId,
-        sandbox: window.mParticle.getEnvironment() === 'development',
+        sandbox: sandboxMode,
     })
         .then(function (launcher) {
             // Assign the launcher to a global variable for later access
@@ -44,6 +44,7 @@ var constructor = function () {
 
     function initForwarder(settings, service, testMode) {
         var accountId = settings.accountId;
+        var sandboxMode = window.mParticle.getEnvironment() === 'development';
 
         if (testMode) {
             attachLauncher(accountId, sandboxMode);

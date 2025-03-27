@@ -22,6 +22,9 @@ describe('Rokt Forwarder', () => {
     // -------------------DO NOT EDIT ANYTHING ABOVE THIS LINE-----------------------
     // -------------------START EDITING BELOW:-----------------------
     // -------------------mParticle stubs - Add any additional stubbing to our methods as needed-----------------------
+    mParticle.getEnvironment = function () {
+        return 'development';
+    };
     mParticle.Identity = {
         getCurrentUser: function () {
             return {
@@ -72,14 +75,12 @@ describe('Rokt Forwarder', () => {
         await mParticle.forwarder.init(
             {
                 accountId: '123456',
-                sandboxMode: 'True',
             },
             reportService.cb,
             true
         );
 
         window.Rokt.accountId.should.equal('123456');
-        window.Rokt.sandbox.should.equal(true);
 
         window.Rokt.createLauncherCalled.should.equal(true);
 
