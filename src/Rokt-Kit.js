@@ -110,7 +110,7 @@ var constructor = function () {
         // - attributes
 
         var attributes = (options && options.attributes) || {};
-        var placementAttributes = mergeObjects(self.userAttributes,, attributes);
+        var placementAttributes = mergeObjects(self.userAttributes, attributes);
 
         var userAttributeFilters = self.filters.userAttributeFilters;
         var filteredAttributes = self.filters.filterUserAttributes(
