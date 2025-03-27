@@ -26,7 +26,13 @@ function attachLauncher(accountId, sandboxMode) {
         .then(function (launcher) {
             // Assign the launcher to a global variable for later access
             window.Rokt.currentLauncher = launcher;
-            window.mParticle.Rokt.attachLauncher(launcher);
+
+            // Locally cache the launcher and filters
+            self.launcher = launcher;
+            self.filters = window.mParticle.Rokt.filters;
+
+            // Attaches the kit to the Rokt manager
+            window.mParticle.Rokt.attachKit(self);
 
             self.isInitialized = true;
         })
@@ -41,10 +47,21 @@ var constructor = function () {
     self.name = name;
     self.moduleId = moduleId;
     self.isInitialized = false;
+    self.launcher = null;
+    self.filters = {};
+    self.filteredUser = {};
+    self.userAttributes = {};
 
-    function initForwarder(settings, service, testMode) {
+    function initForwarder(
+        settings,
+        service,
+        testMode,
+        trackerId,
+        filteredUserAttributes
+    ) {
         var accountId = settings.accountId;
         var sandboxMode = window.mParticle.getEnvironment() === 'development';
+        self.userAttributes = filteredUserAttributes;
 
         if (testMode) {
             attachLauncher(accountId, sandboxMode);
@@ -86,7 +103,51 @@ var constructor = function () {
         }
     }
 
+    function selectPlacements(options) {
+        // https://docs.rokt.com/developers/integration-guides/web/library/select-placements-options/
+        // options should contain:
+        // - identifier
+        // - attributes
+
+        var attributes = (options && options.attributes) || {};
+        var placementAttributes = mergeObjects(self.userAttributes, attributes);
+
+        var userAttributeFilters = self.filters.userAttributeFilters;
+        var filteredAttributes = self.filters.filterUserAttributes(
+            placementAttributes,
+            userAttributeFilters
+        );
+
+        self.userAttributes = filteredAttributes;
+
+        var selectPlacementsOptions = mergeObjects(options, {
+            attributes: filteredAttributes,
+        });
+
+        self.launcher.selectPlacements(selectPlacementsOptions);
+    }
+
+    function onUserIdentified(filteredUser) {
+        self.filteredUser = filteredUser;
+        self.userAttributes = filteredUser.getAllUserAttributes();
+    }
+
+    function setUserAttribute(key, value) {
+        self.userAttributes[key] = value;
+    }
+
+    function removeUserAttribute(key) {
+        delete self.userAttributes[key];
+    }
+
+    // Called by the mParticle Rokt Manager
+    this.selectPlacements = selectPlacements;
+
+    // mParticle Kit Callback Methods
     this.init = initForwarder;
+    this.setUserAttribute = setUserAttribute;
+    this.onUserIdentified = onUserIdentified;
+    this.removeUserAttribute = removeUserAttribute;
 };
 
 function getId() {
@@ -126,6 +187,18 @@ function isObject(val) {
     return (
         val != null && typeof val === 'object' && Array.isArray(val) === false
     );
+}
+
+function mergeObjects() {
+    var resObj = {};
+    for (var i = 0; i < arguments.length; i += 1) {
+        var obj = arguments[i],
+            keys = Object.keys(obj);
+        for (var j = 0; j < keys.length; j += 1) {
+            resObj[keys[j]] = obj[keys[j]];
+        }
+    }
+    return resObj;
 }
 
 if (window && window.mParticle && window.mParticle.addForwarder) {

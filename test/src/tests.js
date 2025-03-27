@@ -86,9 +86,9 @@ describe('Rokt Forwarder', () => {
     it('should initialize the Rokt Web SDK', async () => {
         window.Rokt = new MockRoktForwarder();
         window.mParticle.Rokt = window.Rokt;
-        window.mParticle.Rokt.attachLauncherCalled = false;
-        window.mParticle.Rokt.attachLauncher = async () => {
-            window.mParticle.Rokt.attachLauncherCalled = true;
+        window.mParticle.Rokt.attachKitCalled = false;
+        window.mParticle.Rokt.attachKit = async () => {
+            window.mParticle.Rokt.attachKitCalled = true;
             Promise.resolve();
         };
 
@@ -105,7 +105,7 @@ describe('Rokt Forwarder', () => {
         window.Rokt.createLauncherCalled.should.equal(true);
 
         await waitForCondition(
-            () => window.mParticle.Rokt.attachLauncherCalled === true
+            () => window.mParticle.Rokt.attachKitCalled === true
         );
     });
 });
