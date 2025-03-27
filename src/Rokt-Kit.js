@@ -34,10 +34,11 @@ var constructor = function () {
         service,
         testMode,
         trackerId,
-        _userAttributes
+        filteredUserAttributes
     ) {
         var accountId = settings.accountId;
-        var sandboxMode = settings.sandboxMode === 'True';
+
+        self.userAttributes = filteredUserAttributes;
 
         self.userAttributes = _userAttributes;
 
@@ -60,7 +61,8 @@ var constructor = function () {
                 ) {
                     window.Rokt.createLauncher({
                         accountId: accountId,
-                        sandbox: sandboxMode,
+                        sandbox:
+                            window.mParticle.getEnvironment() === 'development',
                     })
                         .then(function (launcher) {
                             // Assign the launcher to a global variable for later access
@@ -70,8 +72,7 @@ var constructor = function () {
                             self.launcher = launcher;
                             self.filters = window.mParticle.Rokt.filters;
 
-                            // Attaches the launcher and kit to the Rokt manager
-                            window.mParticle.Rokt.attachLauncher(launcher);
+                            // Attaches the kit to the Rokt manager
                             window.mParticle.Rokt.attachKit(self);
                         })
                         .catch(function (err) {
@@ -95,8 +96,13 @@ var constructor = function () {
     }
 
     function selectPlacements(options) {
+        // https://docs.rokt.com/developers/integration-guides/web/library/select-placements-options/
+        // options should contain:
+        // - identifier
+        // - attributes
+
         var attributes = (options && options.attributes) || {};
-        var placementAttributes = mergeObjects(attributes, self.userAttributes);
+        var placementAttributes = mergeObjects(self.userAttributes,, attributes);
 
         var userAttributeFilters = self.filters.userAttributeFilters;
         var filteredAttributes = self.filters.filterUserAttributes(
