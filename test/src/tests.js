@@ -198,7 +198,7 @@ describe('Rokt Forwarder', () => {
             });
         });
 
-        it('should process user attributes filters that are passed in via the config and selectPlacements options', async () => {
+        it('should filter user attributes through filterUserAttributes function before sending to selectPlacements', async () => {
             window.mParticle.forwarder.filters = {
                 filterUserAttributes: function () {
                     return {
