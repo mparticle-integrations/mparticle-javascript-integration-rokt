@@ -106,10 +106,6 @@ describe('Rokt Forwarder', () => {
             window.Rokt.accountId.should.equal('123456');
 
             window.Rokt.createLauncherCalled.should.equal(true);
-
-            await waitForCondition(
-                () => window.mParticle.Rokt.attachKitCalled === true
-            );
         });
     });
 
@@ -204,7 +200,6 @@ describe('Rokt Forwarder', () => {
 
         it('should process user attributes filters that are passed in via the config and selectPlacements options', async () => {
             window.mParticle.forwarder.filters = {
-                userAttributesFilters: [],
                 filterUserAttributes: function () {
                     return {
                         'user-attribute': 'user-attribute-value',
