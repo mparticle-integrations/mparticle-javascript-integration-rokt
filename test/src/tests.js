@@ -179,11 +179,17 @@ describe('Rokt Forwarder', () => {
         });
 
         it('should filter user attributes through filterUserAttributes function before sending to selectPlacements', async () => {
+            // Mocked filterUserAttributes function will return filtered attributes
+            // based on the config passed in the init method and will ultimately
+            // remove any attributes from the init method that are filtered.
+            // Also, any initial attributes from the init call that have updated
+            // durring runtime should be returned by the filterUserAttribute method.
             window.mParticle.forwarder.filters = {
                 filterUserAttributes: function () {
                     return {
                         'user-attribute': 'user-attribute-value',
                         'unfiltered-attribute': 'unfiltered-value',
+                        'changed-attribute': 'new-value',
                     };
                 },
             };
@@ -196,15 +202,22 @@ describe('Rokt Forwarder', () => {
                 true,
                 null,
                 {
+                    // These should be filtered out
                     'blocked-attribute': 'blocked-value',
                     'initial-user-attribute': 'initial-user-attribute-value',
+
+                    // This should be updated
+                    'changed-attribute': 'changed-value',
                 }
             );
 
             await window.mParticle.forwarder.selectPlacements({
                 identifier: 'test-placement',
                 attributes: {
+                    // This should pass through
                     'unfiltered-attribute': 'unfiltered-value',
+
+                    // This should be filtered out
                     'filtered-attribute': 'filtered-value',
                 },
             });
@@ -215,6 +228,7 @@ describe('Rokt Forwarder', () => {
                 attributes: {
                     'user-attribute': 'user-attribute-value',
                     'unfiltered-attribute': 'unfiltered-value',
+                    'changed-attribute': 'new-value',
                 },
             });
         });
