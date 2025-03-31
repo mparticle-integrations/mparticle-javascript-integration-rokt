@@ -1,5 +1,8 @@
 import resolve from 'rollup-plugin-node-resolve';
 import commonjs from 'rollup-plugin-commonjs';
+import replace from '@rollup/plugin-replace';
+import json from '@rollup/plugin-json';
+import pkg from './package.json';
 
 const kitName = 'Rokt';
 
@@ -14,6 +17,11 @@ const plugins = [
         browser: true
     }),
     commonjs(),
+    json(),
+    replace({
+        'process.env.PACKAGE_VERSION': JSON.stringify(pkg.version),
+        preventAssignment: true
+    })
 ];
 
 export default [
