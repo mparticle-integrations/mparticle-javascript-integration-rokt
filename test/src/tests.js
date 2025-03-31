@@ -1,26 +1,6 @@
 /* eslint-env es6, mocha */
 /* eslint-parser babel-eslint */
 
-const waitForCondition = function async(
-    conditionFn,
-    timeout = 200,
-    interval = 10
-) {
-    return new Promise((resolve, reject) => {
-        const startTime = Date.now();
-
-        (function poll() {
-            if (conditionFn()) {
-                return resolve(undefined);
-            } else if (Date.now() - startTime > timeout) {
-                return reject(new Error('Timeout waiting for condition'));
-            } else {
-                setTimeout(poll, interval);
-            }
-        })();
-    });
-};
-
 describe('Rokt Forwarder', () => {
     var ReportingService = function () {
         var self = this;
