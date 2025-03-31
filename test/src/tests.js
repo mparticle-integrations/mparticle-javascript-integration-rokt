@@ -207,7 +207,7 @@ describe('Rokt Forwarder', () => {
                     'initial-user-attribute': 'initial-user-attribute-value',
 
                     // This should be updated
-                    'changed-attribute': 'changed-value',
+                    'changed-attribute': 'old-value',
                 }
             );
 
