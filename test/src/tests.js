@@ -1,26 +1,6 @@
 /* eslint-env es6, mocha */
 /* eslint-parser babel-eslint */
 
-const waitForCondition = function async(
-    conditionFn,
-    timeout = 200,
-    interval = 10
-) {
-    return new Promise((resolve, reject) => {
-        const startTime = Date.now();
-
-        (function poll() {
-            if (conditionFn()) {
-                return resolve(undefined);
-            } else if (Date.now() - startTime > timeout) {
-                return reject(new Error('Timeout waiting for condition'));
-            } else {
-                setTimeout(poll, interval);
-            }
-        })();
-    });
-};
-
 describe('Rokt Forwarder', () => {
     var ReportingService = function () {
         var self = this;
@@ -60,6 +40,7 @@ describe('Rokt Forwarder', () => {
         var self = this;
 
         this.initializeCalled = false;
+        this.isInitialized = false;
 
         this.accountId = null;
         this.sandbox = null;
@@ -68,6 +49,7 @@ describe('Rokt Forwarder', () => {
         this.createLauncher = function (options) {
             self.accountId = options.accountId;
             self.createLauncherCalled = true;
+            self.isInitialized = true;
 
             return Promise.resolve({
                 then: function (callback) {
@@ -83,29 +65,172 @@ describe('Rokt Forwarder', () => {
 
     beforeEach(() => {});
 
-    it('should initialize the Rokt Web SDK', async () => {
-        window.Rokt = new MockRoktForwarder();
-        window.mParticle.Rokt = window.Rokt;
-        window.mParticle.Rokt.attachKitCalled = false;
-        window.mParticle.Rokt.attachKit = async () => {
-            window.mParticle.Rokt.attachKitCalled = true;
-            Promise.resolve();
-        };
+    describe('#initForwarder', () => {
+        it('should initialize the Rokt Web SDK', async () => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async () => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                Promise.resolve();
+            };
 
-        await mParticle.forwarder.init(
-            {
-                accountId: '123456',
-            },
-            reportService.cb,
-            true
-        );
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
 
-        window.Rokt.accountId.should.equal('123456');
+            window.Rokt.accountId.should.equal('123456');
 
-        window.Rokt.createLauncherCalled.should.equal(true);
+            window.Rokt.createLauncherCalled.should.equal(true);
+        });
+    });
 
-        await waitForCondition(
-            () => window.mParticle.Rokt.attachKitCalled === true
-        );
+    describe('#selectPlacements', () => {
+        beforeEach(() => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKit = async () => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                return Promise.resolve();
+            };
+            window.mParticle.forwarder.launcher = {
+                selectPlacements: function (options) {
+                    window.mParticle.Rokt.selectPlacementsOptions = options;
+                    window.mParticle.Rokt.selectPlacementsCalled = true;
+                },
+            };
+        });
+
+        it('should call launcher.selectPlacements with all passed through options', async () => {
+            window.mParticle.forwarder.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+            };
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await window.mParticle.forwarder.selectPlacements({
+                identifier: 'test-placement',
+                attributes: {
+                    test: 'test',
+                },
+            });
+
+            window.Rokt.selectPlacementsCalled.should.equal(true);
+            window.Rokt.selectPlacementsOptions.should.deepEqual({
+                identifier: 'test-placement',
+                attributes: {
+                    test: 'test',
+                },
+            });
+        });
+
+        it('should call launcher.selectPlacements with filtered user attributes', async () => {
+            window.mParticle.forwarder.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function () {
+                    return {
+                        'user-attribute': 'user-attribute-value',
+                        'unfiltered-attribute': 'unfiltered-value',
+                    };
+                },
+            };
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await window.mParticle.forwarder.selectPlacements({
+                identifier: 'test-placement',
+                attributes: {
+                    'unfiltered-attribute': 'unfiltered-value',
+                    'filtered-attribute': 'filtered-value',
+                },
+            });
+
+            window.Rokt.selectPlacementsCalled.should.equal(true);
+            window.Rokt.selectPlacementsOptions.should.deepEqual({
+                identifier: 'test-placement',
+                attributes: {
+                    'user-attribute': 'user-attribute-value',
+                    'unfiltered-attribute': 'unfiltered-value',
+                },
+            });
+        });
+
+        it('should filter user attributes through filterUserAttributes function before sending to selectPlacements', async () => {
+            // Mocked filterUserAttributes function will return filtered attributes
+            // based on the config passed in the init method and will ultimately
+            // remove any attributes from the init method that are filtered.
+            // Also, any initial attributes from the init call that have updated
+            // durring runtime should be returned by the filterUserAttribute method.
+            window.mParticle.forwarder.filters = {
+                filterUserAttributes: function () {
+                    return {
+                        'user-attribute': 'user-attribute-value',
+                        'unfiltered-attribute': 'unfiltered-value',
+                        'changed-attribute': 'new-value',
+                    };
+                },
+            };
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {
+                    // These should be filtered out
+                    'blocked-attribute': 'blocked-value',
+                    'initial-user-attribute': 'initial-user-attribute-value',
+
+                    // This should be updated
+                    'changed-attribute': 'old-value',
+                }
+            );
+
+            await window.mParticle.forwarder.selectPlacements({
+                identifier: 'test-placement',
+                attributes: {
+                    // This should pass through
+                    'unfiltered-attribute': 'unfiltered-value',
+
+                    // This should be filtered out
+                    'filtered-attribute': 'filtered-value',
+                },
+            });
+
+            window.Rokt.selectPlacementsCalled.should.equal(true);
+            window.Rokt.selectPlacementsOptions.should.deepEqual({
+                identifier: 'test-placement',
+                attributes: {
+                    'user-attribute': 'user-attribute-value',
+                    'unfiltered-attribute': 'unfiltered-value',
+                    'changed-attribute': 'new-value',
+                },
+            });
+        });
     });
 });
