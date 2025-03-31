@@ -95,7 +95,7 @@ describe('Rokt Forwarder', () => {
             window.mParticle.Rokt = window.Rokt;
             window.mParticle.Rokt.attachKit = async () => {
                 window.mParticle.Rokt.attachKitCalled = true;
-                Promise.resolve();
+                return Promise.resolve();
             };
             window.mParticle.forwarder.launcher = {
                 selectPlacements: function (options) {
