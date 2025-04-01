@@ -62,10 +62,11 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId, sandboxMode)
-                        .catch((err) => {
-                            console.error('Error attaching Rokt launcher:', err);
-                        });
+                    attachLauncher(accountId, sandboxMode).catch(function (
+                        err
+                    ) {
+                        console.error('Error attaching Rokt launcher:', err);
+                    });
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
