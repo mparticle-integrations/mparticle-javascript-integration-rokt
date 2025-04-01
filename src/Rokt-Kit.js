@@ -146,7 +146,7 @@ var constructor = function () {
             sandbox: sandboxMode,
             integrationName:
                 'mParticle_' +
-                'wsdk_' +
+                'wsdkv_' +
                 window.mParticle.getVersion() +
                 '_kitv_' +
                 process.env.PACKAGE_VERSION,
