@@ -89,25 +89,32 @@ var constructor = function () {
         var attributes = (options && options.attributes) || {};
         var placementAttributes = mergeObjects(self.userAttributes, attributes);
 
-        var userAttributeFilters = self.filters.userAttributeFilters || [];
+        var filters = self.filters || {};
+        var userAttributeFilters = filters.userAttributeFilters || [];
+        var filteredUser = filters.filteredUser || {};
+        var mpid =
+            filteredUser &&
+            filteredUser.getMPID &&
+            typeof filteredUser.getMPID === 'function'
+                ? filteredUser.getMPID()
+                : null;
 
         var filteredAttributes;
 
-        if (self.filters.filterUserAttributes) {
-            filteredAttributes = self.filters.filterUserAttributes(
+        if (!filters) {
+            console.warn(
+                'Rokt Kit: No filters available, using user attributes'
+            );
+
+            filteredAttributes = placementAttributes;
+        } else if (filters.filterUserAttributes) {
+            filteredAttributes = filters.filterUserAttributes(
                 placementAttributes,
                 userAttributeFilters
             );
-        } else {
-            console.warn(
-                'Rokt Kit: filterUserAttributes are not available, using user attributes'
-            );
-            filteredAttributes = placementAttributes;
         }
 
         self.userAttributes = filteredAttributes;
-
-        var mpid = self.filters.filteredUser.getMPID();
 
         var selectPlacementsAttributes = mergeObjects(filteredAttributes, {
             mpid: mpid,
