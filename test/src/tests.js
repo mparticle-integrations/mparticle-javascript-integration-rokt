@@ -251,21 +251,20 @@ describe('Rokt Forwarder', () => {
             });
         });
 
-        it.skip('should filter user attributes through filterUserAttributes function before sending to selectPlacements', async () => {
+        it('should filter user attributes through filterUserAttributes function before sending to selectPlacements', async () => {
             // Mocked filterUserAttributes function will return filtered attributes
             // based on the config passed in the init method and will ultimately
             // remove any attributes from the init method that are filtered.
             // Also, any initial attributes from the init call that have updated
             // durring runtime should be returned by the filterUserAttribute method.
-            window.mParticle.forwarder.filters = {
-                filterUserAttributes: function () {
+            window.mParticle.forwarder.filters.filterUserAttributes =
+                function () {
                     return {
                         'user-attribute': 'user-attribute-value',
                         'unfiltered-attribute': 'unfiltered-value',
                         'changed-attribute': 'new-value',
                     };
-                },
-            };
+                };
 
             await window.mParticle.forwarder.init(
                 {
