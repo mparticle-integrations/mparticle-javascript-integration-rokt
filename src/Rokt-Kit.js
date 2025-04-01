@@ -101,8 +101,14 @@ var constructor = function () {
 
         self.userAttributes = filteredAttributes;
 
+        var mpid = self.filters.filteredUser.getMPID();
+
+        var selectPlacementsAttributes = mergeObjects(filteredAttributes, {
+            mpid: mpid,
+        });
+
         var selectPlacementsOptions = mergeObjects(options, {
-            attributes: filteredAttributes,
+            attributes: selectPlacementsAttributes,
         });
 
         self.launcher.selectPlacements(selectPlacementsOptions);
@@ -133,6 +139,7 @@ var constructor = function () {
                 // Locally cache the launcher and filters
                 self.launcher = launcher;
                 self.filters = window.mParticle.Rokt.filters;
+                self.filteredUser = window.mParticle.Rokt.filters.filteredUser;
 
                 // Attaches the kit to the Rokt manager
                 window.mParticle.Rokt.attachKit(self);

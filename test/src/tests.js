@@ -1,6 +1,22 @@
 /* eslint-env es6, mocha */
 /* eslint-parser babel-eslint */
 
+const waitForCondition = async (conditionFn, timeout = 200, interval = 10) => {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+
+        (function poll() {
+            if (conditionFn()) {
+                return resolve(undefined);
+            } else if (Date.now() - startTime > timeout) {
+                return reject(new Error('Timeout waiting for condition'));
+            } else {
+                setTimeout(poll, interval);
+            }
+        })();
+    });
+};
+
 describe('Rokt Forwarder', () => {
     var ReportingService = function () {
         var self = this;
@@ -63,29 +79,82 @@ describe('Rokt Forwarder', () => {
 
     before(() => {});
 
-    beforeEach(() => {});
+    beforeEach(() => {
+        window.Rokt = new MockRoktForwarder();
+        window.mParticle.Rokt = window.Rokt;
+    });
+
+    afterEach(() => {
+        window.mParticle.forwarder.userAttributes = {};
+    });
 
     describe('#initForwarder', () => {
-        it('should initialize the Rokt Web SDK', async () => {
+        beforeEach(() => {
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;
             window.mParticle.Rokt.attachKitCalled = false;
-            window.mParticle.Rokt.attachKit = async () => {
+            window.mParticle.Rokt.attachKit = async (kit) => {
                 window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
                 Promise.resolve();
             };
+            window.mParticle.Rokt.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            };
+        });
 
+        it('should initialize the Rokt Web SDK', async () => {
             await mParticle.forwarder.init(
                 {
                     accountId: '123456',
                 },
                 reportService.cb,
-                true
+                true,
+                null,
+                {}
             );
 
             window.Rokt.accountId.should.equal('123456');
 
             window.Rokt.createLauncherCalled.should.equal(true);
+        });
+
+        it('should set the filters on the forwarder', async () => {
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.Rokt.kit.filters.should.deepEqual({
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            });
+
+            window.mParticle.Rokt.kit.filteredUser
+                .getMPID()
+                .should.equal('123');
         });
     });
 
@@ -103,16 +172,20 @@ describe('Rokt Forwarder', () => {
                     window.mParticle.Rokt.selectPlacementsCalled = true;
                 },
             };
-        });
-
-        it('should call launcher.selectPlacements with all passed through options', async () => {
             window.mParticle.forwarder.filters = {
                 userAttributesFilters: [],
                 filterUserAttributes: function (attributes) {
                     return attributes;
                 },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
             };
+        });
 
+        it('should call launcher.selectPlacements with all passed through options', async () => {
             await window.mParticle.forwarder.init(
                 {
                     accountId: '123456',
@@ -135,20 +208,19 @@ describe('Rokt Forwarder', () => {
                 identifier: 'test-placement',
                 attributes: {
                     test: 'test',
+                    mpid: '123',
                 },
             });
         });
 
         it('should call launcher.selectPlacements with filtered user attributes', async () => {
-            window.mParticle.forwarder.filters = {
-                userAttributesFilters: [],
-                filterUserAttributes: function () {
+            window.mParticle.forwarder.filters.filterUserAttributes =
+                function () {
                     return {
                         'user-attribute': 'user-attribute-value',
                         'unfiltered-attribute': 'unfiltered-value',
                     };
-                },
-            };
+                };
 
             await window.mParticle.forwarder.init(
                 {
@@ -174,6 +246,7 @@ describe('Rokt Forwarder', () => {
                 attributes: {
                     'user-attribute': 'user-attribute-value',
                     'unfiltered-attribute': 'unfiltered-value',
+                    mpid: '123',
                 },
             });
         });
@@ -184,15 +257,14 @@ describe('Rokt Forwarder', () => {
             // remove any attributes from the init method that are filtered.
             // Also, any initial attributes from the init call that have updated
             // durring runtime should be returned by the filterUserAttribute method.
-            window.mParticle.forwarder.filters = {
-                filterUserAttributes: function () {
+            window.mParticle.forwarder.filters.filterUserAttributes =
+                function () {
                     return {
                         'user-attribute': 'user-attribute-value',
                         'unfiltered-attribute': 'unfiltered-value',
                         'changed-attribute': 'new-value',
                     };
-                },
-            };
+                };
 
             await window.mParticle.forwarder.init(
                 {
@@ -229,8 +301,88 @@ describe('Rokt Forwarder', () => {
                     'user-attribute': 'user-attribute-value',
                     'unfiltered-attribute': 'unfiltered-value',
                     'changed-attribute': 'new-value',
+                    mpid: '123',
                 },
             });
+        });
+
+        it('should collect mpid and send to launcher.selectPlacements', async () => {
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {
+                    'user-attribute': 'user-attribute-value',
+                }
+            );
+
+            await window.mParticle.forwarder.selectPlacements({
+                identifier: 'test-placement',
+                attributes: {
+                    'user-attribute': 'user-attribute-value',
+                },
+            });
+
+            window.Rokt.selectPlacementsCalled.should.equal(true);
+            window.Rokt.selectPlacementsOptions.should.deepEqual({
+                identifier: 'test-placement',
+                attributes: {
+                    'user-attribute': 'user-attribute-value',
+                    mpid: '123',
+                },
+            });
+        });
+    });
+
+    describe('#setUserAttribute', () => {
+        it('should set the user attribute', async () => {
+            window.mParticle.forwarder.setUserAttribute(
+                'test-attribute',
+                'test-value'
+            );
+
+            window.mParticle.forwarder.userAttributes.should.deepEqual({
+                'test-attribute': 'test-value',
+            });
+        });
+    });
+
+    describe('#removeUserAttribute', () => {
+        it('should remove the user attribute', async () => {
+            window.mParticle.forwarder.setUserAttribute(
+                'test-attribute',
+                'test-value'
+            );
+
+            window.mParticle.forwarder.removeUserAttribute('test-attribute');
+
+            window.mParticle.forwarder.userAttributes.should.deepEqual({});
+        });
+    });
+
+    describe('#onUserIdentified', () => {
+        it('should set the filtered user', async () => {
+            window.mParticle.forwarder.onUserIdentified({
+                getAllUserAttributes: function () {
+                    return {
+                        'test-attribute': 'test-value',
+                    };
+                },
+                getMPID: function () {
+                    return '123';
+                },
+            });
+
+            window.mParticle.forwarder.userAttributes.should.deepEqual({
+                'test-attribute': 'test-value',
+            });
+
+            window.mParticle.forwarder.filteredUser
+                .getMPID()
+                .should.equal('123');
         });
     });
 });
