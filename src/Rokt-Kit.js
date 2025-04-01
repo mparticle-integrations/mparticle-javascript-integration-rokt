@@ -139,6 +139,7 @@ var constructor = function () {
                 // Locally cache the launcher and filters
                 self.launcher = launcher;
                 self.filters = window.mParticle.Rokt.filters;
+                self.filteredUser = window.mParticle.Rokt.filters.filteredUser;
 
                 // Attaches the kit to the Rokt manager
                 window.mParticle.Rokt.attachKit(self);
