@@ -18,29 +18,6 @@ var roktLauncherScript = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
 var name = 'Rokt';
 var moduleId = 181;
 
-function attachLauncher(accountId, sandboxMode) {
-    window.Rokt.createLauncher({
-        accountId: accountId,
-        sandbox: sandboxMode,
-    })
-        .then(function (launcher) {
-            // Assign the launcher to a global variable for later access
-            window.Rokt.currentLauncher = launcher;
-
-            // Locally cache the launcher and filters
-            self.launcher = launcher;
-            self.filters = window.mParticle.Rokt.filters;
-
-            // Attaches the kit to the Rokt manager
-            window.mParticle.Rokt.attachKit(self);
-
-            self.isInitialized = true;
-        })
-        .catch(function (err) {
-            console.error('Error creating Rokt launcher:', err);
-        });
-}
-
 var constructor = function () {
     var self = this;
 
@@ -85,7 +62,11 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId, sandboxMode);
+                    attachLauncher(accountId, sandboxMode).catch(function (
+                        err
+                    ) {
+                        console.error('Error attaching Rokt launcher:', err);
+                    });
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -138,6 +119,29 @@ var constructor = function () {
 
     function removeUserAttribute(key) {
         delete self.userAttributes[key];
+    }
+
+    function attachLauncher(accountId, sandboxMode) {
+        window.Rokt.createLauncher({
+            accountId: accountId,
+            sandbox: sandboxMode,
+        })
+            .then(function (launcher) {
+                // Assign the launcher to a global variable for later access
+                window.Rokt.currentLauncher = launcher;
+
+                // Locally cache the launcher and filters
+                self.launcher = launcher;
+                self.filters = window.mParticle.Rokt.filters;
+
+                // Attaches the kit to the Rokt manager
+                window.mParticle.Rokt.attachKit(self);
+
+                self.isInitialized = true;
+            })
+            .catch(function (err) {
+                console.error('Error creating Rokt launcher:', err);
+            });
     }
 
     // Called by the mParticle Rokt Manager
