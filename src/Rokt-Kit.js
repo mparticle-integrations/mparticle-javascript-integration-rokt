@@ -144,9 +144,12 @@ var constructor = function () {
         window.Rokt.createLauncher({
             accountId: accountId,
             sandbox: sandboxMode,
-            integrationName: process.env.PACKAGE_VERSION
-                ? 'mParticle-' + process.env.PACKAGE_VERSION
-                : 'mParticle',
+            integrationName:
+                'mParticle_' +
+                'wsdk_' +
+                window.mParticle.getVersion() +
+                '_kitv_' +
+                process.env.PACKAGE_VERSION,
         })
             .then(function (launcher) {
                 // Assign the launcher to a global variable for later access
