@@ -62,11 +62,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId, sandboxMode).catch(function (
-                        err
-                    ) {
-                        console.error('Error attaching Rokt launcher:', err);
-                    });
+                    attachLauncher(accountId, sandboxMode);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -93,15 +89,32 @@ var constructor = function () {
         var attributes = (options && options.attributes) || {};
         var placementAttributes = mergeObjects(self.userAttributes, attributes);
 
-        var userAttributeFilters = self.filters.userAttributeFilters;
-        var filteredAttributes = self.filters.filterUserAttributes(
-            placementAttributes,
-            userAttributeFilters
-        );
+        var filters = self.filters || {};
+        var userAttributeFilters = filters.userAttributeFilters || [];
+        var filteredUser = filters.filteredUser || {};
+        var mpid =
+            filteredUser &&
+            filteredUser.getMPID &&
+            typeof filteredUser.getMPID === 'function'
+                ? filteredUser.getMPID()
+                : null;
+
+        var filteredAttributes;
+
+        if (!filters) {
+            console.warn(
+                'Rokt Kit: No filters available, using user attributes'
+            );
+
+            filteredAttributes = placementAttributes;
+        } else if (filters.filterUserAttributes) {
+            filteredAttributes = filters.filterUserAttributes(
+                placementAttributes,
+                userAttributeFilters
+            );
+        }
 
         self.userAttributes = filteredAttributes;
-
-        var mpid = self.filters.filteredUser.getMPID();
 
         var selectPlacementsAttributes = mergeObjects(filteredAttributes, {
             mpid: mpid,
@@ -138,8 +151,21 @@ var constructor = function () {
 
                 // Locally cache the launcher and filters
                 self.launcher = launcher;
-                self.filters = window.mParticle.Rokt.filters;
-                self.filteredUser = window.mParticle.Rokt.filters.filteredUser;
+
+                var roktFilters = window.mParticle.Rokt.filters;
+
+                if (!roktFilters) {
+                    console.warn('Rokt Kit: No filters have been set.');
+                } else {
+                    self.filters = roktFilters;
+                    if (!roktFilters.filteredUser) {
+                        console.warn(
+                            'Rokt Kit: No filtered user has been set.'
+                        );
+                    } else {
+                        self.filteredUser = roktFilters.filteredUser;
+                    }
+                }
 
                 // Attaches the kit to the Rokt manager
                 window.mParticle.Rokt.attachKit(self);
