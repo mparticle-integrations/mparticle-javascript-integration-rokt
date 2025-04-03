@@ -169,7 +169,7 @@ describe('Rokt Forwarder', () => {
             window.mParticle.Rokt.attachKitCalled = false;
             window.mParticle.Rokt.attachKit = async () => {
                 window.mParticle.Rokt.attachKitCalled = true;
-                Promise.resolve();
+                return Promise.resolve();
             };
 
             await mParticle.forwarder.init(
