@@ -147,6 +147,12 @@ var RoktKit = (function (exports) {
             window.Rokt.createLauncher({
                 accountId: accountId,
                 sandbox: sandboxMode,
+                integrationName:
+                    'mParticle_' +
+                    'wsdkv_' +
+                    window.mParticle.getVersion() +
+                    '_kitv_' +
+                    "1.1.0",
             })
                 .then(function (launcher) {
                     // Assign the launcher to a global variable for later access
