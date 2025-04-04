@@ -42,6 +42,9 @@ describe('Rokt Forwarder', () => {
     mParticle.getEnvironment = function () {
         return 'development';
     };
+    mParticle.getVersion = function () {
+        return '1.2.3';
+    };
     mParticle.Identity = {
         getCurrentUser: function () {
             return {
@@ -60,10 +63,12 @@ describe('Rokt Forwarder', () => {
 
         this.accountId = null;
         this.sandbox = null;
+        this.integrationName = null;
 
         this.createLauncherCalled = false;
         this.createLauncher = function (options) {
             self.accountId = options.accountId;
+            self.integrationName = options.integrationName;
             self.createLauncherCalled = true;
             self.isInitialized = true;
 
@@ -155,6 +160,29 @@ describe('Rokt Forwarder', () => {
             window.mParticle.Rokt.kit.filteredUser
                 .getMPID()
                 .should.equal('123');
+        });
+
+        it('should set integrationName in the correct format', async () => {
+            const packageVersion = require('../../package.json').version;
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async () => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                return Promise.resolve();
+            };
+
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
+
+            window.Rokt.integrationName.should.equal(
+                'mParticle_wsdkv_1.2.3_kitv_' + packageVersion
+            );
         });
     });
 
