@@ -209,10 +209,13 @@ var RoktKit = (function (exports) {
                 });
 
             try {
-                if (forwarders.length > 0 || window.optimizely) {
+                if (forwarders.length > 0 && window.optimizely) {
                     // Get the state object
                     var optimizelyState = window.optimizely.get('state');
-                    if (!optimizelyState || !optimizelyState.getActiveExperimentIds) {
+                    if (
+                        !optimizelyState ||
+                        !optimizelyState.getActiveExperimentIds
+                    ) {
                         return {};
                     }
                     // Get active experiment IDs

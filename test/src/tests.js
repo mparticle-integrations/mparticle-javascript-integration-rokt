@@ -427,6 +427,12 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.kit = kit;
                 Promise.resolve();
             };
+            window.mParticle.forwarder.launcher = {
+                selectPlacements: function (options) {
+                    window.mParticle.Rokt.selectPlacementsOptions = options;
+                    window.mParticle.Rokt.selectPlacementsCalled = true;
+                },
+            };
             window.mParticle.Rokt.filters = {
                 userAttributesFilters: [],
                 filterUserAttributes: function (attributes) {
