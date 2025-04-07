@@ -54,7 +54,7 @@ describe('Rokt Forwarder', () => {
             };
         },
     };
-    mParticle._getActiveForwarders = function() {
+    mParticle._getActiveForwarders = function () {
         return [];
     };
     // -------------------START EDITING BELOW:-----------------------
@@ -438,37 +438,39 @@ describe('Rokt Forwarder', () => {
                     },
                 },
             };
-            window.mParticle._getActiveForwarders = function() {
-                return [{
-                    name: 'Optimizely'
-                }];
+            window.mParticle._getActiveForwarders = function () {
+                return [
+                    {
+                        name: 'Optimizely',
+                    },
+                ];
             };
         });
 
         it('should fetch Optimizely experiment data when provider is Optimizely', async () => {
             // Mock Optimizely
             window.optimizely = {
-                get: function(key) {
+                get: function (key) {
                     if (key === 'state') {
                         return {
-                            getActiveExperimentIds: function() {
+                            getActiveExperimentIds: function () {
                                 return ['exp1', 'exp2'];
                             },
-                            getVariationMap: function() {
+                            getVariationMap: function () {
                                 return {
                                     exp1: { id: 'var1' },
-                                    exp2: { id: 'var2' }
+                                    exp2: { id: 'var2' },
                                 };
-                            }
+                            },
                         };
                     }
-                }
+                },
             };
 
             await window.mParticle.forwarder.init(
                 {
                     accountId: '123456',
-                    onboardingExpProvider: 'Optimizely'
+                    onboardingExpProvider: 'Optimizely',
                 },
                 reportService.cb,
                 true,
@@ -479,12 +481,18 @@ describe('Rokt Forwarder', () => {
             await window.mParticle.forwarder.selectPlacements({
                 identifier: 'test-placement',
                 attributes: {
-                    test: 'test'
-                }
+                    test: 'test',
+                },
             });
 
-            window.Rokt.selectPlacementsOptions.attributes.should.have.property('rokt.custom.optimizely.experiment.exp1.variationId', 'var1');
-            window.Rokt.selectPlacementsOptions.attributes.should.have.property('rokt.custom.optimizely.experiment.exp2.variationId', 'var2');
+            window.Rokt.selectPlacementsOptions.attributes.should.have.property(
+                'rokt.custom.optimizely.experiment.exp1.variationId',
+                'var1'
+            );
+            window.Rokt.selectPlacementsOptions.attributes.should.have.property(
+                'rokt.custom.optimizely.experiment.exp2.variationId',
+                'var2'
+            );
         });
 
         it('should return empty object when Optimizely is not available', async () => {
@@ -493,7 +501,7 @@ describe('Rokt Forwarder', () => {
             await window.mParticle.forwarder.init(
                 {
                     accountId: '123456',
-                    onboardingExpProvider: 'Optimizely'
+                    onboardingExpProvider: 'Optimizely',
                 },
                 reportService.cb,
                 true,
@@ -504,32 +512,34 @@ describe('Rokt Forwarder', () => {
             await window.mParticle.forwarder.selectPlacements({
                 identifier: 'test-placement',
                 attributes: {
-                    test: 'test'
-                }
+                    test: 'test',
+                },
             });
 
-            window.Rokt.selectPlacementsOptions.attributes.should.not.have.property('rokt.custom.optimizely');
+            window.Rokt.selectPlacementsOptions.attributes.should.not.have.property(
+                'rokt.custom.optimizely'
+            );
         });
 
         it('should return empty object when Optimizely state is invalid', async () => {
             // Mock invalid Optimizely state
             window.optimizely = {
-                get: function(key) {
+                get: function (key) {
                     if (key === 'state') {
                         return {
                             // Missing getActiveExperimentIds method
-                            getVariationMap: function() {
+                            getVariationMap: function () {
                                 return {};
-                            }
+                            },
                         };
                     }
-                }
+                },
             };
 
             await window.mParticle.forwarder.init(
                 {
                     accountId: '123456',
-                    onboardingExpProvider: 'Optimizely'
+                    onboardingExpProvider: 'Optimizely',
                 },
                 reportService.cb,
                 true,
@@ -540,35 +550,37 @@ describe('Rokt Forwarder', () => {
             await window.mParticle.forwarder.selectPlacements({
                 identifier: 'test-placement',
                 attributes: {
-                    test: 'test'
-                }
+                    test: 'test',
+                },
             });
 
-            window.Rokt.selectPlacementsOptions.attributes.should.not.have.property('rokt.custom.optimizely');
+            window.Rokt.selectPlacementsOptions.attributes.should.not.have.property(
+                'rokt.custom.optimizely'
+            );
         });
 
         it('should not fetch Optimizely data when provider is not Optimizely', async () => {
             window.optimizely = {
-                get: function(key) {
+                get: function (key) {
                     if (key === 'state') {
                         return {
-                            getActiveExperimentIds: function() {
+                            getActiveExperimentIds: function () {
                                 return ['exp1'];
                             },
-                            getVariationMap: function() {
+                            getVariationMap: function () {
                                 return {
-                                    exp1: { id: 'var1' }
+                                    exp1: { id: 'var1' },
                                 };
-                            }
+                            },
                         };
                     }
-                }
+                },
             };
 
             await window.mParticle.forwarder.init(
                 {
                     accountId: '123456',
-                    onboardingExpProvider: 'NotOptimizely'
+                    onboardingExpProvider: 'NotOptimizely',
                 },
                 reportService.cb,
                 true,
@@ -579,11 +591,13 @@ describe('Rokt Forwarder', () => {
             await window.mParticle.forwarder.selectPlacements({
                 identifier: 'test-placement',
                 attributes: {
-                    test: 'test'
-                }
+                    test: 'test',
+                },
             });
 
-            window.Rokt.selectPlacementsOptions.attributes.should.not.have.property('rokt.custom.optimizely');
+            window.Rokt.selectPlacementsOptions.attributes.should.not.have.property(
+                'rokt.custom.optimizely'
+            );
         });
     });
 });
