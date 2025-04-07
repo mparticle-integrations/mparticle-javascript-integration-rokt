@@ -118,26 +118,22 @@ var constructor = function () {
 
         self.userAttributes = filteredAttributes;
 
-        var selectPlacementsAttributes = mergeObjects(filteredAttributes, {
-            mpid: mpid,
-        });
-
-        var selectPlacementsOptions = mergeObjects(options, {
-            attributes: selectPlacementsAttributes,
-        });
-
         var optimizelyAttributes =
             self.onboardingExpProvider === 'Optimizely'
                 ? fetchOptimizely()
                 : {};
 
-        var selectPlacementsOptions = mergeObjects(
-            options,
+        var selectPlacementsAttributes = mergeObjects(
+            filteredAttributes,
+            optimizelyAttributes,
             {
-                attributes: selectPlacementsAttributes,
-            },
-            optimizelyAttributes
+                mpid: mpid,
+            }
         );
+
+        var selectPlacementsOptions = mergeObjects(options, {
+            attributes: selectPlacementsAttributes,
+        });
 
         self.launcher.selectPlacements(selectPlacementsOptions);
     }
