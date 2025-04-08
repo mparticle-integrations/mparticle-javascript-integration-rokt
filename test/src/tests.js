@@ -588,7 +588,7 @@ describe('Rokt Forwarder', () => {
                     getVariationMap: function () {
                         return {};
                     },
-                    // Missing getActiveExperimentIds
+                    // Mocking a scenario for when getActiveExperimentIds() method is missing
                 });
 
                 await initAndSelectPlacements({
