@@ -24,6 +24,7 @@ var constructor = function () {
     self.name = name;
     self.moduleId = moduleId;
     self.isInitialized = false;
+
     self.launcher = null;
     self.filters = {};
     self.filteredUser = {};
@@ -39,6 +40,7 @@ var constructor = function () {
         var accountId = settings.accountId;
         var sandboxMode = window.mParticle.getEnvironment() === 'development';
         self.userAttributes = filteredUserAttributes;
+        self.onboardingExpProvider = settings.onboardingExpProvider;
 
         if (testMode) {
             attachLauncher(accountId, sandboxMode);
@@ -116,9 +118,18 @@ var constructor = function () {
 
         self.userAttributes = filteredAttributes;
 
-        var selectPlacementsAttributes = mergeObjects(filteredAttributes, {
-            mpid: mpid,
-        });
+        var optimizelyAttributes =
+            self.onboardingExpProvider === 'Optimizely'
+                ? fetchOptimizely()
+                : {};
+
+        var selectPlacementsAttributes = mergeObjects(
+            filteredAttributes,
+            optimizelyAttributes,
+            {
+                mpid: mpid,
+            }
+        );
 
         var selectPlacementsOptions = mergeObjects(options, {
             attributes: selectPlacementsAttributes,
@@ -187,6 +198,46 @@ var constructor = function () {
     this.selectPlacements = selectPlacements;
 
     // mParticle Kit Callback Methods
+    function fetchOptimizely() {
+        var forwarders = window.mParticle
+            ._getActiveForwarders()
+            .filter(function (forwarder) {
+                return forwarder.name === 'Optimizely';
+            });
+
+        try {
+            if (forwarders.length > 0 && window.optimizely) {
+                // Get the state object
+                var optimizelyState = window.optimizely.get('state');
+                if (
+                    !optimizelyState ||
+                    !optimizelyState.getActiveExperimentIds
+                ) {
+                    return {};
+                }
+                // Get active experiment IDs
+                var activeExperimentIds =
+                    optimizelyState.getActiveExperimentIds();
+                // Get variations for each active experiment
+                var activeExperiments = activeExperimentIds.reduce(function (
+                    acc,
+                    expId
+                ) {
+                    acc[
+                        'rokt.custom.optimizely.experiment.' +
+                            expId +
+                            '.variationId'
+                    ] = optimizelyState.getVariationMap()[expId].id;
+                    return acc;
+                },
+                {});
+                return activeExperiments;
+            }
+        } catch (error) {
+            console.error('Error fetching Optimizely attributes:', error);
+        }
+        return {};
+    }
     this.init = initForwarder;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
