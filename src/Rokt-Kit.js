@@ -18,6 +18,12 @@ var roktLauncherScript = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
 var name = 'Rokt';
 var moduleId = 181;
 
+var OnboardingExpProvider = {
+    OPTIMIZELY_FEATURE_EXP: 'OptimizelyFeatureExp',
+    OPTIMIZELY_WEB: 'OptimizelyWeb',
+    NONE: 'None',
+};
+
 var constructor = function () {
     var self = this;
 
@@ -118,14 +124,43 @@ var constructor = function () {
 
         self.userAttributes = filteredAttributes;
 
-        var optimizelyAttributes =
-            self.onboardingExpProvider === 'Optimizely'
-                ? fetchOptimizely()
-                : {};
+        var experimentAttributes = {};
+        switch (self.onboardingExpProvider) {
+            case OnboardingExpProvider.OPTIMIZELY_WEB:
+                experimentAttributes = fetchOptimizelyWebAllocations();
+                break;
+            case OnboardingExpProvider.OPTIMIZELY_FEATURE_EXP:
+                userId = filteredAttributes['optimizely.userId'];
+                attributes = Object.keys(filteredAttributes)
+                    .filter(function (key) {
+                        return key.indexOf('optimizely.attributes') === 0;
+                    })
+                    .reduce(function (obj, key) {
+                        obj[key] = filteredAttributes[key];
+                        return obj;
+                    }, {});
+
+                // Remove all optimizely.* keys from filteredAttributes
+                filteredAttributes = Object.keys(filteredAttributes)
+                    .filter(function (key) {
+                        return key.indexOf('optimizely.') !== 0;
+                    })
+                    .reduce(function (obj, key) {
+                        obj[key] = filteredAttributes[key];
+                        return obj;
+                    }, {});
+                experimentAttributes = fetchOptimizelyFeatureExpAllocations(
+                    userId,
+                    attributes
+                );
+                break;
+            case OnboardingExpProvider.NONE:
+                break;
+        }
 
         var selectPlacementsAttributes = mergeObjects(
             filteredAttributes,
-            optimizelyAttributes,
+            experimentAttributes,
             {
                 mpid: mpid,
             }
@@ -198,7 +233,7 @@ var constructor = function () {
     this.selectPlacements = selectPlacements;
 
     // mParticle Kit Callback Methods
-    function fetchOptimizely() {
+    function fetchOptimizelyWebAllocations() {
         var forwarders = window.mParticle
             ._getActiveForwarders()
             .filter(function (forwarder) {
@@ -238,6 +273,39 @@ var constructor = function () {
         }
         return {};
     }
+
+    function fetchOptimizelyFeatureExpAllocations(userId, attributes) {
+        var forwarders = window.mParticle
+            ._getActiveForwarders()
+            .filter(function (forwarder) {
+                return forwarder.name === 'Optimizely';
+            });
+
+        if (forwarders.length > 0 && window.optimizelyClient) {
+            var user = window.optimizelyClient.createUserContext(
+                userId,
+                attributes
+            );
+            var config = window.optimizelyClient.getOptimizelyConfig();
+
+            var assignedVariations = {};
+
+            // Iterate through all experiments in the datafile
+            for (var experimentKey in config.experimentsMap) {
+                var decision = user.decide(experimentKey);
+
+                if (decision && decision.variationKey) {
+                    assignedVariations[
+                        'rokt.custom.optimizely.experiment.' +
+                            experimentKey +
+                            '.variationId'
+                    ] = decision.variationKey;
+                }
+            }
+        }
+        return assignedVariations;
+    }
+
     this.init = initForwarder;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
@@ -305,4 +373,5 @@ if (window && window.mParticle && window.mParticle.addForwarder) {
 
 module.exports = {
     register: register,
+    OnboardingExpProvider: OnboardingExpProvider,
 };
