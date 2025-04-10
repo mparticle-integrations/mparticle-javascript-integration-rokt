@@ -1,6 +1,9 @@
 /* eslint-env es6, mocha */
 /* eslint-parser babel-eslint */
 
+var OnboardingExpProvider =
+    require('../../src/Rokt-Kit.js').OnboardingExpProvider;
+
 const waitForCondition = async (conditionFn, timeout = 200, interval = 10) => {
     return new Promise((resolve, reject) => {
         const startTime = Date.now();
@@ -509,7 +512,7 @@ describe('Rokt Forwarder', () => {
                 });
 
                 await initAndSelectPlacements({
-                    onboardingExpProvider: 'Optimizely',
+                    onboardingExpProvider: OnboardingExpProvider.OPTIMIZELY_WEB,
                 });
 
                 window.Rokt.selectPlacementsOptions.attributes.should.have.property(
@@ -525,7 +528,7 @@ describe('Rokt Forwarder', () => {
                 });
 
                 await initAndSelectPlacements({
-                    onboardingExpProvider: 'Optimizely',
+                    onboardingExpProvider: OnboardingExpProvider.OPTIMIZELY_WEB,
                 });
 
                 const attributes =
@@ -546,7 +549,7 @@ describe('Rokt Forwarder', () => {
                 delete window.optimizely;
 
                 await initAndSelectPlacements({
-                    onboardingExpProvider: 'Optimizely',
+                    onboardingExpProvider: OnboardingExpProvider.OPTIMIZELY_WEB,
                 });
 
                 window.Rokt.selectPlacementsOptions.attributes.should.not.have.property(
@@ -558,7 +561,7 @@ describe('Rokt Forwarder', () => {
                 setupInvalidOptimizelyMock(undefined);
 
                 await initAndSelectPlacements({
-                    onboardingExpProvider: 'Optimizely',
+                    onboardingExpProvider: OnboardingExpProvider.OPTIMIZELY_WEB,
                 });
 
                 window.Rokt.selectPlacementsOptions.attributes.should.not.have.property(
@@ -575,7 +578,7 @@ describe('Rokt Forwarder', () => {
                 });
 
                 await initAndSelectPlacements({
-                    onboardingExpProvider: 'Optimizely',
+                    onboardingExpProvider: OnboardingExpProvider.OPTIMIZELY_WEB,
                 });
 
                 window.Rokt.selectPlacementsOptions.attributes.should.not.have.property(
@@ -592,7 +595,7 @@ describe('Rokt Forwarder', () => {
                 });
 
                 await initAndSelectPlacements({
-                    onboardingExpProvider: 'Optimizely',
+                    onboardingExpProvider: OnboardingExpProvider.OPTIMIZELY_WEB,
                 });
 
                 window.Rokt.selectPlacementsOptions.attributes.should.not.have.property(
@@ -608,7 +611,7 @@ describe('Rokt Forwarder', () => {
                 });
 
                 await initAndSelectPlacements({
-                    onboardingExpProvider: 'NotOptimizely',
+                    onboardingExpProvider: OnboardingExpProvider.NONE,
                 });
 
                 window.Rokt.selectPlacementsOptions.attributes.should.not.have.property(
