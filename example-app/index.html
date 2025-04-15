@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>mParticle Core Web Snippet Sample App</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            button {
+                background-color: #4CAF50;
+                border: none;
+                color: white;
+                padding: 15px 32px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 16px;
+                margin: 4px 2px;
+                cursor: pointer;
+                border-radius: 4px;
+            }
+            #console {
+                margin-top: 20px;
+                padding: 10px;
+                background-color: #f5f5f5;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                height: 200px;
+                overflow-y: auto;
+                font-family: monospace;
+            }
+            .error { color: red; }
+            .success { color: green; }
+            .info { color: blue; }
+        </style>
+
+        <!-- Load mParticle Bundle -->
+        <script type="text/javascript">
+            // configure the SDK
+            window.mParticle = {
+                config: {
+                    // If you are doing local development, set this to false
+                    requestConfig: false,
+                    flags: {},
+                    logLevel: 'verbose',
+                    isDevelopmentMode: true,
+                },
+            };
+
+            // Set up logging to display in UI
+            (function() {
+                // Store original console methods
+                const origConsole = {
+                    log: console.log,
+                    error: console.error,
+                    warn: console.warn,
+                    info: console.info
+                };
+
+                // Add message to console element
+                function addToConsole(msg, type) {
+                    setTimeout(function() {
+                        const consoleEl = document.getElementById('console');
+                        if (!consoleEl) return;
+
+                        const entry = document.createElement('div');
+                        entry.className = type || '';
+                        entry.textContent = typeof msg === 'object' ? JSON.stringify(msg) : msg;
+                        consoleEl.appendChild(entry);
+                        consoleEl.scrollTop = consoleEl.scrollHeight;
+                    }, 0);
+                }
+
+                // Override console methods
+                console.log = function() {
+                    addToConsole(arguments[0], '');
+                    origConsole.log.apply(console, arguments);
+                };
+
+                console.error = function() {
+                    addToConsole(arguments[0], 'error');
+                    origConsole.error.apply(console, arguments);
+                };
+
+                console.info = function() {
+                    addToConsole(arguments[0], 'info');
+                    origConsole.info.apply(console, arguments);
+                };
+
+                console.warn = function() {
+                    addToConsole(arguments[0], 'warn');
+                    origConsole.warn.apply(console, arguments);
+                };
+            })();
+        </script>
+    </head>
+    <body>
+        <h1>mParticle Core Web Snippet Sample App</h1>
+
+        <p>View the developer console for debug information</p>
+
+        <button id="js-log-event">Fire Event</button>
+        <button id="js-show-offer">Show Rokt Offer</button>
+
+        <!-- Rokt Placeholder Div -->
+        <div id="rokt-placeholder"></div>
+
+        <!-- Console output for debugging -->
+        <h3>Console Output</h3>
+        <div id="console"></div>
+
+        <!-- mParticle Snippet -->
+        <script src="src/snippet.js"></script>
+
+        <!-- Load Rokt Kit from parent dist directory -->
+        <script src="../dist/Rokt-Kit.iife.js"></script>
+
+        <!-- App Initialization -->
+        <script>
+            // Initialize Rokt and event handlers when document is ready
+            document.addEventListener('DOMContentLoaded', function() {
+                console.info('Page loaded - initializing Rokt');
+
+                // Initialize mParticle Rokt namespace
+                window.mParticle.ready(function() {
+                    console.info('mParticle is ready');
+
+                    // Set up Rokt namespace
+                    window.mParticle.Rokt = window.mParticle.Rokt || {};
+
+                    // Initialize Rokt Kit
+                    if (window.mParticleRokt && window.mParticleRokt.register) {
+                        window.mParticleRokt.register({
+                            kits: {}
+                        });
+                        console.info('Registered Rokt Kit with mParticle');
+                    }
+
+                    // Add event listeners
+                    setupEventHandlers();
+                });
+            });
+
+            function setupEventHandlers() {
+                // Standard event handler
+                var logEventButton = document.getElementById('js-log-event');
+                if (logEventButton) {
+                    logEventButton.addEventListener('click', function() {
+                        console.log('Firing test event');
+                        window.mParticle.logEvent('Test Event', window.mParticle.EventType.Other);
+                    });
+                }
+
+                // Rokt offer display handler
+                var showOfferButton = document.getElementById('js-show-offer');
+                if (showOfferButton) {
+                    showOfferButton.addEventListener('click', function() {
+                        console.log('Show offer button clicked - requesting Rokt placement');
+                        showRoktOffer();
+                    });
+                }
+            }
+
+            function showRoktOffer() {
+                console.log('Checking Rokt availability...');
+                console.log('window.mParticle:', window.mParticle);
+                console.log('window.Rokt:', window.Rokt);
+
+                // Check if we can use mParticle.Rokt directly
+                if (window.mParticle && window.mParticle.Rokt && window.mParticle.Rokt.selectPlacements) {
+                    console.info('Using mParticle.Rokt.selectPlacements');
+
+                    window.mParticle.Rokt.selectPlacements({
+                        identifier: 'e2e-mp-embedded-layout',
+                        attributes: {
+                            clientType: 'DesktopWeb',
+                            country: 'AU',
+                            'rokt.testsession': 'true',
+                            userAgent: navigator.userAgent
+                        }
+                    });
+                }
+            }
+        </script>
+    </body>
+</html>
