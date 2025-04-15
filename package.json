@@ -11,8 +11,8 @@
   "scripts": {
     "build": "rollup --config rollup.config.js",
     "build:test": "rollup --config rollup.test.config.js",
-    "lint": "eslint src/ test/src/",
-    "lint:fix": "eslint src/ test/src/ --fix",
+    "lint": "eslint src/ test/src/ example-app/",
+    "lint:fix": "eslint src/ test/src/  example-app/ --fix",
     "watch": "rollup --config rollup.config.js -w",
     "watch:test": "rollup --config rollup.test.config.js -w",
     "test": "npm run build && npm run build:test && karma start test/karma.config.js",

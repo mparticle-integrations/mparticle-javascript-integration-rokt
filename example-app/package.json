@@ -1,0 +1,13 @@
+{
+  "name": "rokt-kit-example-app",
+  "version": "1.0.0",
+  "description": "Example app for mParticle Rokt Kit integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@mparticle/web-sdk": "^2.36.0",
+    "express": "^4.18.2"
+  }
+}
