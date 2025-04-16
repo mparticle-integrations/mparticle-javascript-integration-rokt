@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.2.0...v1.2.1) (2025-04-16)
+
+
+### Bug Fixes
+
+* Remove sandbox mode on rokt kit ([#22](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/22)) ([58f8ae5](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/58f8ae5112d6d944090f7b9c336bc02b39ed227b))
+
 # [1.2.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.1.0...v1.2.0) (2025-04-08)
 
 
