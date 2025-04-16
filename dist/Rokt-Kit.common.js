@@ -36,18 +36,17 @@ var constructor = function () {
 
     function initForwarder(
         settings,
-        service,
+        _service,
         testMode,
-        trackerId,
+        _trackerId,
         filteredUserAttributes
     ) {
         var accountId = settings.accountId;
-        var sandboxMode = window.mParticle.getEnvironment() === 'development';
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
         if (testMode) {
-            attachLauncher(accountId, sandboxMode);
+            attachLauncher(accountId);
             return;
         }
 
@@ -68,7 +67,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId, sandboxMode);
+                    attachLauncher(accountId);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -155,16 +154,15 @@ var constructor = function () {
         delete self.userAttributes[key];
     }
 
-    function attachLauncher(accountId, sandboxMode) {
+    function attachLauncher(accountId) {
         window.Rokt.createLauncher({
             accountId: accountId,
-            sandbox: sandboxMode,
             integrationName:
                 'mParticle_' +
                 'wsdkv_' +
                 window.mParticle.getVersion() +
                 '_kitv_' +
-                "1.2.0",
+                "1.2.1",
         })
             .then(function (launcher) {
                 // Assign the launcher to a global variable for later access
