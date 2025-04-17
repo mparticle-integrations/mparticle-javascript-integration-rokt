@@ -30,6 +30,19 @@ var constructor = function () {
     self.filteredUser = {};
     self.userAttributes = {};
 
+    /**
+     * Passes attributes to the Rokt Web SDK for server-side hashing
+     * @param {Object} attributes - The attributes to be hashed
+     * @returns {Object} The hashed attributes from the launcher
+     */
+    function hashedAttributes(attributes) {
+        if (!isInitialized()) {
+            console.error('Rokt Kit: Not initialized');
+            return null;
+        }
+        return self.launcher.hashedAttributes(attributes);
+    }
+
     function initForwarder(
         settings,
         _service,
@@ -192,8 +205,6 @@ var constructor = function () {
             });
     }
 
-    // Called by the mParticle Rokt Manager
-    this.selectPlacements = selectPlacements;
 
     // mParticle Kit Callback Methods
     function fetchOptimizely() {
@@ -236,10 +247,29 @@ var constructor = function () {
         }
         return {};
     }
+
+
+    // Called by the mParticle Rokt Manager
+    this.selectPlacements = selectPlacements;
+    this.hashedAttributes = hashedAttributes;
+
+    // Kit Callback Methods
     this.init = initForwarder;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
     this.removeUserAttribute = removeUserAttribute;
+
+    /**
+     * Checks if the kit is properly initialized and ready for use.
+     * Both conditions must be true:
+     * 1. self.isInitialized - Set after successful initialization of the kit
+     * 2. self.launcher - The Rokt launcher instance must be available
+     * @returns {boolean} Whether the kit is fully initialized
+     */
+    function isInitialized() {
+        return !!(self.isInitialized && self.launcher);
+    }
+
 };
 
 function getId() {

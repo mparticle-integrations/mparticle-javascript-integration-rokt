@@ -189,6 +189,121 @@ describe('Rokt Forwarder', () => {
         });
     });
 
+    describe('#hashedAttributes', () => {
+        beforeEach(() => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+            window.mParticle.forwarder.launcher = {
+                hashedAttributes: function (attributes) {
+                    window.mParticle.Rokt.hashedAttributesOptions = attributes;
+                    window.mParticle.Rokt.hashedAttributesCalled = true;
+
+                    // Mocking the hashedAttributes method to show that
+                    // the attributes will be transformed by the launcher's
+                    // hashedAttributes method.
+                    return Promise.resolve({
+                        'test-attribute': 'hashed-value',
+                    });
+                },
+            };
+        });
+
+        it('should call launcher.hashedAttributes with passed through attributes when fully initialized', function () {
+            // Ensure both initialization conditions are met
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = {
+                hashedAttributes: function (attributes) {
+                    window.mParticle.Rokt.hashedAttributesOptions = attributes;
+                    window.mParticle.Rokt.hashedAttributesCalled = true;
+                    return {
+                        'test-attribute': 'hashed-value',
+                    };
+                },
+            };
+
+            var attributes = {
+                'test-attribute': 'test-value',
+            };
+
+            window.mParticle.forwarder.hashedAttributes(attributes);
+
+            window.Rokt.hashedAttributesCalled.should.equal(true);
+            window.Rokt.hashedAttributesOptions.should.deepEqual(attributes);
+        });
+
+        it('should return null when launcher exists but kit is not initialized', function () {
+            // Set launcher but ensure isInitialized is false
+            window.mParticle.forwarder.isInitialized = false;
+            window.mParticle.forwarder.launcher = {
+                hashedAttributes: function () {},
+            };
+
+            var result = window.mParticle.forwarder.hashedAttributes({
+                'test-attribute': 'test-value',
+            });
+
+            (result === null).should.equal(true);
+        });
+
+        it('should log an error when called before initialization', function () {
+            var errorLogged = false;
+            var errorMessage = null;
+            window.console.error = function (message) {
+                errorLogged = true;
+                errorMessage = message;
+            };
+
+            // Ensure kit is not initialized
+            window.mParticle.forwarder.isInitialized = false;
+            window.mParticle.forwarder.launcher = null;
+
+            window.mParticle.forwarder.hashedAttributes({
+                'test-attribute': 'test-value',
+            });
+
+            errorLogged.should.equal(true);
+            errorMessage.should.equal('Rokt Kit: Not initialized');
+        });
+
+        it('should return null when kit is initialized but launcher is missing', function () {
+            // Mock isInitialized but remove launcher
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = null;
+
+            var result = window.mParticle.forwarder.hashedAttributes({
+                'test-attribute': 'test-value',
+            });
+
+            (result === null).should.equal(true);
+        });
+
+        it('should return hashed attributes from launcher', async () => {
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            const result = await window.mParticle.forwarder.hashedAttributes({
+                'test-attribute': 'test-value',
+            });
+
+            result.should.deepEqual({
+                'test-attribute': 'hashed-value',
+            });
+        });
+    });
+
     describe('#selectPlacements', () => {
         beforeEach(() => {
             window.Rokt = new MockRoktForwarder();
