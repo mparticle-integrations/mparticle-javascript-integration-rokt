@@ -267,7 +267,6 @@ var constructor = function () {
     function isInitialized() {
         return !!(self.isInitialized && self.launcher);
     }
-
 };
 
 function getId() {
