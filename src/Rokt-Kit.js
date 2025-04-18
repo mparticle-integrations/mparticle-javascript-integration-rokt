@@ -205,7 +205,6 @@ var constructor = function () {
             });
     }
 
-
     // mParticle Kit Callback Methods
     function fetchOptimizely() {
         var forwarders = window.mParticle
