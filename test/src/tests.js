@@ -189,7 +189,7 @@ describe('Rokt Forwarder', () => {
         });
     });
 
-    describe('#hashedAttributes', () => {
+    describe('#hashAttributes', () => {
         beforeEach(() => {
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;
@@ -200,13 +200,13 @@ describe('Rokt Forwarder', () => {
                 Promise.resolve();
             };
             window.mParticle.forwarder.launcher = {
-                hashedAttributes: function (attributes) {
-                    window.mParticle.Rokt.hashedAttributesOptions = attributes;
-                    window.mParticle.Rokt.hashedAttributesCalled = true;
+                hashAttributes: function (attributes) {
+                    window.mParticle.Rokt.hashAttributesOptions = attributes;
+                    window.mParticle.Rokt.hashAttributesCalled = true;
 
-                    // Mocking the hashedAttributes method to show that
+                    // Mocking the hashAttributes method to show that
                     // the attributes will be transformed by the launcher's
-                    // hashedAttributes method.
+                    // hashAttributes method.
                     return Promise.resolve({
                         'test-attribute': 'hashed-value',
                     });
@@ -214,13 +214,13 @@ describe('Rokt Forwarder', () => {
             };
         });
 
-        it('should call launcher.hashedAttributes with passed through attributes when fully initialized', function () {
+        it('should call launcher.hashAttributes with passed through attributes when fully initialized', function () {
             // Ensure both initialization conditions are met
             window.mParticle.forwarder.isInitialized = true;
             window.mParticle.forwarder.launcher = {
-                hashedAttributes: function (attributes) {
-                    window.mParticle.Rokt.hashedAttributesOptions = attributes;
-                    window.mParticle.Rokt.hashedAttributesCalled = true;
+                hashAttributes: function (attributes) {
+                    window.mParticle.Rokt.hashAttributesOptions = attributes;
+                    window.mParticle.Rokt.hashAttributesCalled = true;
                     return {
                         'test-attribute': 'hashed-value',
                     };
@@ -231,20 +231,20 @@ describe('Rokt Forwarder', () => {
                 'test-attribute': 'test-value',
             };
 
-            window.mParticle.forwarder.hashedAttributes(attributes);
+            window.mParticle.forwarder.hashAttributes(attributes);
 
-            window.Rokt.hashedAttributesCalled.should.equal(true);
-            window.Rokt.hashedAttributesOptions.should.deepEqual(attributes);
+            window.Rokt.hashAttributesCalled.should.equal(true);
+            window.Rokt.hashAttributesOptions.should.deepEqual(attributes);
         });
 
         it('should return null when launcher exists but kit is not initialized', function () {
             // Set launcher but ensure isInitialized is false
             window.mParticle.forwarder.isInitialized = false;
             window.mParticle.forwarder.launcher = {
-                hashedAttributes: function () {},
+                hashAttributes: function () {},
             };
 
-            var result = window.mParticle.forwarder.hashedAttributes({
+            var result = window.mParticle.forwarder.hashAttributes({
                 'test-attribute': 'test-value',
             });
 
@@ -263,7 +263,7 @@ describe('Rokt Forwarder', () => {
             window.mParticle.forwarder.isInitialized = false;
             window.mParticle.forwarder.launcher = null;
 
-            window.mParticle.forwarder.hashedAttributes({
+            window.mParticle.forwarder.hashAttributes({
                 'test-attribute': 'test-value',
             });
 
@@ -276,7 +276,7 @@ describe('Rokt Forwarder', () => {
             window.mParticle.forwarder.isInitialized = true;
             window.mParticle.forwarder.launcher = null;
 
-            var result = window.mParticle.forwarder.hashedAttributes({
+            var result = window.mParticle.forwarder.hashAttributes({
                 'test-attribute': 'test-value',
             });
 
@@ -294,7 +294,7 @@ describe('Rokt Forwarder', () => {
                 {}
             );
 
-            const result = await window.mParticle.forwarder.hashedAttributes({
+            const result = await window.mParticle.forwarder.hashAttributes({
                 'test-attribute': 'test-value',
             });
 

@@ -33,14 +33,14 @@ var constructor = function () {
     /**
      * Passes attributes to the Rokt Web SDK for server-side hashing
      * @param {Object} attributes - The attributes to be hashed
-     * @returns {Object} The hashed attributes from the launcher
+     * @returns {Object|null} The hashed attributes from the launcher, or `null` if the kit is not initialized
      */
-    function hashedAttributes(attributes) {
+    function hashAttributes(attributes) {
         if (!isInitialized()) {
             console.error('Rokt Kit: Not initialized');
             return null;
         }
-        return self.launcher.hashedAttributes(attributes);
+        return self.launcher.hashAttributes(attributes);
     }
 
     function initForwarder(
@@ -248,10 +248,9 @@ var constructor = function () {
         return {};
     }
 
-
     // Called by the mParticle Rokt Manager
     this.selectPlacements = selectPlacements;
-    this.hashedAttributes = hashedAttributes;
+    this.hashAttributes = hashAttributes;
 
     // Kit Callback Methods
     this.init = initForwarder;
