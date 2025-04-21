@@ -32,6 +32,7 @@ var constructor = function () {
 
     /**
      * Passes attributes to the Rokt Web SDK for server-side hashing
+     * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher#hash-attributes
      * @param {Object} attributes - The attributes to be hashed
      * @returns {Promise<Object|null>} A Promise resolving to the
      * hashed attributes from the launcher, or `null` if the kit is not initialized
@@ -95,12 +96,15 @@ var constructor = function () {
         }
     }
 
+    /**
+     * Selects placements for Rokt Web SDK with merged attributes, filters, and experimentation options
+     * @see https://docs.rokt.com/developers/integration-guides/web/library/select-placements-options/
+     * @param {Object} options - The options object for selecting placements containing:
+     * - identifier {string}: The placement identifier
+     * - attributes {Object}: Optional attributes to merge with existing attributes
+     * @returns {Promise<void>} A Promise resolving to the Rokt launcher's selectPlacements method with processed attributes
+     */
     function selectPlacements(options) {
-        // https://docs.rokt.com/developers/integration-guides/web/library/select-placements-options/
-        // options should contain:
-        // - identifier
-        // - attributes
-
         var attributes = (options && options.attributes) || {};
         var placementAttributes = mergeObjects(self.userAttributes, attributes);
 
