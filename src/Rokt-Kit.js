@@ -33,7 +33,8 @@ var constructor = function () {
     /**
      * Passes attributes to the Rokt Web SDK for server-side hashing
      * @param {Object} attributes - The attributes to be hashed
-     * @returns {Object|null} The hashed attributes from the launcher, or `null` if the kit is not initialized
+     * @returns {Promise<Object|null>} A Promise resolving to the
+     * hashed attributes from the launcher, or `null` if the kit is not initialized
      */
     function hashAttributes(attributes) {
         if (!isInitialized()) {
