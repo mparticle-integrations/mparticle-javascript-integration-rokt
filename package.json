@@ -14,7 +14,7 @@
     "lint": "eslint src/ test/src/",
     "lint:fix": "eslint src/ test/src/ --fix",
     "watch": "rollup --config rollup.config.js -w",
-    "watch:test": "rollup --config rollup.test.config.js -w",
+    "watch:tests": "rollup --config rollup.test.config.js -w",
     "test": "npm run build && npm run build:test && karma start test/karma.config.js",
     "test:debug": "npm run build && npm run build:test && DEBUG=true karma start test/karma.config.js"
   },

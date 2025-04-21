@@ -201,15 +201,20 @@ describe('Rokt Forwarder', () => {
             };
             window.mParticle.forwarder.launcher = {
                 hashAttributes: function (attributes) {
-                    window.mParticle.Rokt.hashAttributesOptions = attributes;
-                    window.mParticle.Rokt.hashAttributesCalled = true;
-
                     // Mocking the hashAttributes method to show that
                     // the attributes will be transformed by the launcher's
                     // hashAttributes method.
-                    return Promise.resolve({
-                        'test-attribute': 'hashed-value',
-                    });
+                    const hashedAttributes = {};
+                    for (const key in attributes) {
+                        if (attributes.hasOwnProperty(key)) {
+                            hashedAttributes[key + '-hash'] =
+                                'hashed-' + attributes[key];
+                        }
+                    }
+                    window.mParticle.Rokt.hashedAttributes = hashedAttributes;
+                    window.mParticle.Rokt.hashAttributesCalled = true;
+
+                    return Promise.resolve(hashedAttributes);
                 },
             };
         });
@@ -283,6 +288,25 @@ describe('Rokt Forwarder', () => {
             (result === null).should.equal(true);
         });
 
+        it('should log an error when kit is initialized but launcher is missing', function () {
+            var errorLogged = false;
+            var errorMessage = null;
+            window.console.error = function (message) {
+                errorLogged = true;
+                errorMessage = message;
+            };
+
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = null;
+
+            window.mParticle.forwarder.hashAttributes({
+                'test-attribute': 'test-value',
+            });
+
+            errorLogged.should.equal(true);
+            errorMessage.should.equal('Rokt Kit: Not initialized');
+        });
+
         it('should return hashed attributes from launcher', async () => {
             await window.mParticle.forwarder.init(
                 {
@@ -299,7 +323,7 @@ describe('Rokt Forwarder', () => {
             });
 
             result.should.deepEqual({
-                'test-attribute': 'hashed-value',
+                'test-attribute-hash': 'hashed-test-value',
             });
         });
     });
