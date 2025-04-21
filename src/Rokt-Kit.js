@@ -31,7 +31,7 @@ var constructor = function () {
     self.userAttributes = {};
 
     /**
-     * Passes attributes to the Rokt Web SDK for server-side hashing
+     * Passes attributes to the Rokt Web SDK for client-side hashing
      * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher#hash-attributes
      * @param {Object} attributes - The attributes to be hashed
      * @returns {Promise<Object|null>} A Promise resolving to the
