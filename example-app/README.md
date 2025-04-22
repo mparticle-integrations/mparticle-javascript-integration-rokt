@@ -1,55 +1,82 @@
-# Rokt Kit Snippet Example
+# mParticle Rokt Kit Example App
 
-This is a simple example application that demonstrates the integration between mParticle and Rokt using the snippet approach.
-
-## Overview
-
-This example shows how to:
-
-1. Initialize the mParticle Web SDK using the standard snippet approach
-2. Load and register the Rokt Kit with mParticle
-3. Display the Rokt Layout when a button is clicked
+This is an example web application that demonstrates the integration of the mParticle Rokt Kit using webpack.
 
 ## Setup
 
-1. Build the Rokt Kit by running the following command in the root directory:
-   ```
-   npm run build
-   ```
+1. Clone the repository
+2. Build the parent project first to create the Rokt Kit:
+```
+cd ..
+npm run build
+```
+3. Install dependencies in the example app:
+```
+cd example-app
+npm install
+```
+4. Set up your environment variables:
+```
+cp .env.example .env
+```
+5. Update the `.env` file with your actual Rokt API key and Account ID:
+```
+ROKT_API_KEY=your-api-key-here
+ROKT_ACCOUNT_ID=your-account-id-here
+```
 
-2. Navigate to the example app directory:
-   ```
-   cd example-app
-   ```
+## Development
 
-3. Install the dependencies:
-   ```
-   npm install
-   ```
+To start the development server with hot-reloading:
+```
+npm start
+```
 
-4. Open `index.html` and replace the API key placeholders with your mParticle API key:
-   - Look for `'REPLACE_WITH_API_KEY'` in two places and update with your API key
+This will open the application in your default browser at http://localhost:3000.
 
-5. Start the example server:
-   ```
-   npm start
-   ```
+## Building for Production
 
-6. Open your browser and navigate to http://localhost:3000
+To build the application for production (this will automatically build the parent project first):
+```
+npm run build
+```
 
-## Usage
+This will create a `dist` directory with the bundled application.
 
-The example app provides a simple UI with a button that, when clicked, triggers the display of the Rokt Layout component.
+## Project Structure
 
-1. Click the "Show Rokt Layout" button
-2. If everything is set up correctly, the Rokt Layout should be displayed
-3. Check the console output in the app for logs and any potential errors
+- `src/` - Source code directory
+  - `index.html` - HTML template
+  - `index.js` - Main JavaScript file
+  - `styles.css` - CSS styles
+- `dist/` - Production build output (created after running build)
+- `.env` - Environment variables (not tracked in git)
+- `.env.example` - Example environment variables template
+- `.gitignore` - Git ignore configuration
+- `webpack.config.js` - Webpack configuration
+- `package.json` - Project dependencies and scripts
+- `../dist/Rokt-Kit.iife.js` - Rokt Kit integration from parent project
 
-## Troubleshooting
+## Environment Variables
 
-If the Rokt Layout isn't displaying:
+The application uses the following environment variables:
 
-1. Make sure you've correctly set your mParticle API key
-2. Check the console output for any error messages
-3. Verify that the Rokt Kit has been properly initialized by checking the logs
-4. Ensure that your Rokt account is properly configured with placements
+- `ROKT_API_KEY`: Your mParticle API key for Rokt integration
+- `ROKT_ACCOUNT_ID`: Your Rokt Account ID used for configuring the Rokt kit
+
+These variables should be stored in a `.env` file that is not committed to version control.
+
+## Features
+
+- Webpack bundling for modern JavaScript development
+- CSS loading with style-loader and css-loader
+- Development server with hot reloading
+- Production build optimization
+- Integration with the parent project's Rokt Kit
+- Environment variable configuration for secure API key management
+
+## Using the Example App
+
+1. Click the "Fire Event" button to trigger a test event in mParticle
+2. Click the "Show Rokt Offer" button to display a Rokt placement
+3. Check the console output area at the bottom of the page for debug information
