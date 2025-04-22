@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.2.1...v1.3.0) (2025-04-22)
+
+
+### Features
+
+* Add hashAttributes method ([#24](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/24)) ([8418e83](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/8418e83d58be17c51921019f81ddbeba726dd82c))
+
 ## [1.2.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.2.0...v1.2.1) (2025-04-16)
 
 
