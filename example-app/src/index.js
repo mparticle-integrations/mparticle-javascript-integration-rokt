@@ -110,6 +110,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const mParticleConfig = {
             // App details
             appName: 'Rokt Kit Example App',
+            requestConfig: false,
             identifyRequest: {
                 userIdentities: {
                     email: "d.vader@example.com"
@@ -119,8 +120,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             isDevelopmentMode: true,
             logLevel: 'verbose',
 
-            // Set the loaded Rokt Kit as a sideloaded kit
-            sideloadedKits: [mpRoktKit],
             kitConfigs: []
         };
 
