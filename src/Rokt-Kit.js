@@ -199,7 +199,13 @@ var constructor = function () {
         return self.launcher.selectPlacements(selectPlacementsOptions);
     }
 
-    // TODO: Add JSDocs
+    /**
+     * Sets extension data for Rokt Web SDK
+     * @param {Object} partnerExtensionData - The extension data object containing:
+     * - [extensionName] {string}: Name of the extension
+     * - [extensionName].options {Object}: Key-value pairs of options for the extension
+     * @returns {void} Nothing is returned
+     */
     function setExtensionData(partnerExtensionData) {
         if (!isInitialized()) {
             console.error('Rokt Kit: Not initialized');
@@ -254,9 +260,6 @@ var constructor = function () {
                 }
                 // Attaches the kit to the Rokt manager
                 window.mParticle.Rokt.attachKit(self);
-
-                // TODO: Add to Core SDK
-                window.mParticle.Rokt.setExtensionData = self.setExtensionData;
 
                 self.isInitialized = true;
             })
