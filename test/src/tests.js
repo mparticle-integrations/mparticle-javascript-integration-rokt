@@ -63,12 +63,11 @@ describe('Rokt Forwarder', () => {
 
         this.initializeCalled = false;
         this.isInitialized = false;
-
         this.accountId = null;
         this.sandbox = null;
         this.integrationName = null;
-
         this.createLauncherCalled = false;
+
         this.createLauncher = function (options) {
             self.accountId = options.accountId;
             self.integrationName = options.integrationName;
@@ -753,6 +752,112 @@ describe('Rokt Forwarder', () => {
                 window.Rokt.selectPlacementsOptions.attributes.should.not.have.property(
                     'rokt.custom.optimizely'
                 );
+            });
+        });
+    });
+
+    describe('#generateLauncherScript', () => {
+        const baseUrl = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
+
+        beforeEach(() => {
+            window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
+        });
+
+        it('should return base URL when no extensions are provided', () => {
+            const url =
+                window.mParticle.forwarder.testHelpers.generateLauncherScript(
+                    []
+                );
+            url.should.equal(baseUrl);
+        });
+
+        it('should return base URL when extensions is null or undefined', () => {
+            window.mParticle.forwarder.testHelpers
+                .generateLauncherScript(null)
+                .should.equal(baseUrl);
+
+            window.mParticle.forwarder.testHelpers
+                .generateLauncherScript(undefined)
+                .should.equal(baseUrl);
+        });
+
+        it('should correctly append a single extension', () => {
+            const url =
+                window.mParticle.forwarder.testHelpers.generateLauncherScript([
+                    'cos-extension-detection',
+                ]);
+            url.should.equal(baseUrl + '?extensions=cos-extension-detection');
+        });
+
+        it('should correctly append multiple extensions', () => {
+            const url =
+                window.mParticle.forwarder.testHelpers.generateLauncherScript([
+                    'cos-extension-detection',
+                    'experiment-monitoring',
+                    'sponsored-payments-apple-pay',
+                ]);
+            url.should.equal(
+                baseUrl +
+                    '?extensions=cos-extension-detection,' +
+                    'experiment-monitoring,' +
+                    'sponsored-payments-apple-pay'
+            );
+        });
+    });
+
+    describe('#vNextExtensions', () => {
+        beforeEach(() => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+        });
+
+        describe('extractvNextExtensions', () => {
+            it('should correctly map known extension names to their query parameters', async () => {
+                await mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        vNextExtensions:
+                            '[{&quot;value&quot;:&quot;Coupon on Signup Extension Detection&quot;},' +
+                            '{&quot;value&quot;:&quot;Experiment Monitoring&quot;},' +
+                            '{&quot;value&quot;:&quot;Sponsored Payments Apple Pay&quot;},' +
+                            '{&quot;value&quot;:&quot;Realtime Conversion Promotion&quot;}]',
+                    },
+                    reportService.cb,
+                    true
+                );
+
+                window.mParticle.forwarder.vNextExtensions.should.deepEqual([
+                    'cos-extension-detection',
+                    'experiment-monitoring',
+                    'sponsored-payments-apple-pay',
+                    'realtime-conversion-promotion',
+                ]);
+            });
+
+            it('should ignore unknown or invalid extensions', async () => {
+                await mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        vNextExtensions:
+                            '[{&quot;value&quot;:&quot;Unknown Extension&quot;},' +
+                            '{&quot;value&quot;:&quot;Experiment Monitoring&quot;},' +
+                            '{&quot;invalid_key&quot;:&quot;Invalid Format&quot;},' +
+                            '{&quot;value&quot;:&quot;Sponsored Payments Apple Pay&quot;}]',
+                    },
+                    reportService.cb,
+                    true
+                );
+
+                window.mParticle.forwarder.vNextExtensions.should.deepEqual([
+                    'experiment-monitoring',
+                    'sponsored-payments-apple-pay',
+                ]);
             });
         });
     });
