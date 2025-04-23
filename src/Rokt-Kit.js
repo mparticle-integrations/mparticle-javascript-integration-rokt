@@ -371,13 +371,11 @@ function parseSettingsString(settingsString) {
 }
 
 function extractvNextExtensions(settingsString) {
-    var vNextExtensionSettings = settingsString
-        ? parseSettingsString(settingsString)
-        : [];
+    var settings = settingsString ? parseSettingsString(settingsString) : [];
 
     var vNextExtensions = [];
-    for (var i in vNextExtensionSettings) {
-        var extensionName = vNextExtensionSettings[i].value;
+    for (var i in settings) {
+        var extensionName = settings[i].value;
         var mappedExtension = VNEXT_EXTENSIONS[extensionName];
         if (mappedExtension) {
             vNextExtensions.push(mappedExtension);
