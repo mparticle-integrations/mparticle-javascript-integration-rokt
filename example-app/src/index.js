@@ -101,9 +101,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     console.info('Page loaded - initializing Rokt');
     console.log('RoktKit', RoktKit);
     try {
-        // Create a properly wrapped sideloaded kit
-        const mpRoktKit = new mParticle.MPSideloadedKit(RoktKit);
-
         console.log('Rokt Account ID:', process.env.ROKT_ACCOUNT_ID);
 
         // Define mParticle configuration (following React example pattern)
