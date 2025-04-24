@@ -819,45 +819,33 @@ describe('Rokt Forwarder', () => {
 
         describe('extractvNextExtensions', () => {
             it('should correctly map known extension names to their query parameters', async () => {
-                await mParticle.forwarder.init(
-                    {
-                        accountId: '123456',
-                        vNextExtensions:
-                            '[{&quot;value&quot;:&quot;Coupon on Signup Extension Detection&quot;},' +
+                window.mParticle.forwarder.testHelpers
+                    .extractvNextExtensions(
+                        '[{&quot;value&quot;:&quot;Coupon on Signup Extension Detection&quot;},' +
                             '{&quot;value&quot;:&quot;Experiment Monitoring&quot;},' +
                             '{&quot;value&quot;:&quot;Sponsored Payments Apple Pay&quot;},' +
-                            '{&quot;value&quot;:&quot;Realtime Conversion Promotion&quot;}]',
-                    },
-                    reportService.cb,
-                    true
-                );
-
-                window.mParticle.forwarder.vNextExtensions.should.deepEqual([
-                    'cos-extension-detection',
-                    'experiment-monitoring',
-                    'sponsored-payments-apple-pay',
-                    'realtime-conversion-promotion',
-                ]);
+                            '{&quot;value&quot;:&quot;Realtime Conversion Promotion&quot;}]'
+                    )
+                    .should.deepEqual([
+                        'cos-extension-detection',
+                        'experiment-monitoring',
+                        'sponsored-payments-apple-pay',
+                        'realtime-conversion-promotion',
+                    ]);
             });
 
             it('should ignore unknown or invalid extensions', async () => {
-                await mParticle.forwarder.init(
-                    {
-                        accountId: '123456',
-                        vNextExtensions:
-                            '[{&quot;value&quot;:&quot;Unknown Extension&quot;},' +
+                window.mParticle.forwarder.testHelpers
+                    .extractvNextExtensions(
+                        '[{&quot;value&quot;:&quot;Unknown Extension&quot;},' +
                             '{&quot;value&quot;:&quot;Experiment Monitoring&quot;},' +
                             '{&quot;invalid_key&quot;:&quot;Invalid Format&quot;},' +
-                            '{&quot;value&quot;:&quot;Sponsored Payments Apple Pay&quot;}]',
-                    },
-                    reportService.cb,
-                    true
-                );
-
-                window.mParticle.forwarder.vNextExtensions.should.deepEqual([
-                    'experiment-monitoring',
-                    'sponsored-payments-apple-pay',
-                ]);
+                            '{&quot;value&quot;:&quot;Sponsored Payments Apple Pay&quot;}]'
+                    )
+                    .should.deepEqual([
+                        'experiment-monitoring',
+                        'sponsored-payments-apple-pay',
+                    ]);
             });
         });
     });

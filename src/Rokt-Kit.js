@@ -25,7 +25,6 @@ var VNEXT_EXTENSIONS = {
 
 var constructor = function () {
     var self = this;
-    var roktLauncherScript = '';
 
     self.name = name;
     self.moduleId = moduleId;
@@ -50,6 +49,13 @@ var constructor = function () {
         return baseUrl + '?extensions=' + extensions.join(',');
     }
 
+    /**
+     * Passes attributes to the Rokt Web SDK for client-side hashing
+     * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher#hash-attributes
+     * @param {Object} attributes - The attributes to be hashed
+     * @returns {Promise<Object|null>} A Promise resolving to the
+     * hashed attributes from the launcher, or `null` if the kit is not initialized
+     */
     function hashAttributes(attributes) {
         if (!isInitialized()) {
             console.error('Rokt Kit: Not initialized');
@@ -66,16 +72,15 @@ var constructor = function () {
         filteredUserAttributes
     ) {
         var accountId = settings.accountId;
+        var vNextExtensions = extractvNextExtensions(settings.vNextExtensions);
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
-        self.vNextExtensions = extractvNextExtensions(settings.vNextExtensions);
-
-        roktLauncherScript = generateLauncherScript(self.vNextExtensions);
 
         if (testMode) {
             // Initialize test helpers only in test mode
             self.testHelpers = {
                 generateLauncherScript: generateLauncherScript,
+                extractvNextExtensions: extractvNextExtensions,
             };
             attachLauncher(accountId);
             return;
@@ -85,7 +90,7 @@ var constructor = function () {
             var target = document.head || document.body;
             var script = document.createElement('script');
             script.type = 'text/javascript';
-            script.src = roktLauncherScript;
+            script.src = generateLauncherScript(vNextExtensions);
             script.async = true;
             script.crossOrigin = 'anonymous';
             script.fetchPriority = 'high';
@@ -188,9 +193,6 @@ var constructor = function () {
             return;
         }
 
-        // TODO: Should we check if select placements has been called?
-        // Some extensions seem to need that to happen first
-        // TODO: Should we attach the Rokt SDK to the kit as well?
         window.Rokt.setExtensionData(partnerExtensionData);
     }
 
@@ -243,6 +245,7 @@ var constructor = function () {
                 window.mParticle.Rokt.attachKit(self);
 
                 self.isInitialized = true;
+                console.warn('Rokt TRACE: launcher called');
             })
             .catch(function (err) {
                 console.error('Error creating Rokt launcher:', err);
