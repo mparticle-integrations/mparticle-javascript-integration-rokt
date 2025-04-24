@@ -81,7 +81,7 @@ function showRoktOffer() {
     if (mParticle && mParticle.Rokt) {
         console.info('Using mParticle.Rokt.kit.selectPlacements');
 
-        mParticle.Rokt.kit.selectPlacements({
+        mParticle.Rokt.selectPlacements({
             identifier: 'e2e-mp-embedded-layout',
             attributes: {
                 clientType: 'DesktopWeb',
