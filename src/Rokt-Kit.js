@@ -249,7 +249,6 @@ var constructor = function () {
                 window.mParticle.Rokt.attachKit(self);
 
                 self.isInitialized = true;
-                console.warn('Rokt TRACE: launcher called');
             })
             .catch(function (err) {
                 console.error('Error creating Rokt launcher:', err);
