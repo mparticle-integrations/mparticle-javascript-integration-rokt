@@ -2,7 +2,12 @@
     "root": true,
     "env": {
         "browser": true,
-        "node": true
+        "node": true,
+        "es6": true
+    },
+    "parserOptions": {
+        "ecmaVersion": 2020,
+        "sourceType": "module"
     },
     "globals": {
         "mParticle": true,
@@ -26,5 +31,6 @@
         "no-useless-escape": "off",
         "no-unexpected-multiline": "off",
         "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }]
-    }
+    },
+    "ignorePatterns": ["**/dist/**", "**/node_modules/**"]
 }
