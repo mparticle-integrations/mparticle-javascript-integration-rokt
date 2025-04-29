@@ -379,7 +379,7 @@ function extractRoktExtensions(settingsString) {
     var settings = settingsString ? parseSettingsString(settingsString) : [];
 
     var roktExtensions = [];
-    for (var i in settings) {
+    for (var i = 0; i < settings.length; i++) {
         var extensionName = settings[i].value;
         var mappedExtension = ROKT_EXTENSIONS[extensionName];
         if (mappedExtension) {
