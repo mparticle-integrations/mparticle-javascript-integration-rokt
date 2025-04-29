@@ -20,8 +20,8 @@ var ROKT_EXTENSIONS = {
     'Coupon on Signup Extension Detection': 'cos-extension-detection',
     'Experiment Monitoring': 'experiment-monitoring',
     'Sponsored Payments Apple Pay': 'sponsored-payments-apple-pay',
-    'Realtime Conversion Promotion': 'realtime-conversion-promotion',
-};
+    'Realtime Conversion Promotion': 'realtime-conversion-promotion'
+}
 
 var constructor = function () {
     var self = this;
@@ -285,6 +285,8 @@ var constructor = function () {
                     return acc;
                 },
                 {});
+                var visitorId = window.optimizely.get('visitor').visitorId;
+                activeExperiments['rokt.clientcustomerid'] = visitorId;
                 return activeExperiments;
             }
         } catch (error) {
