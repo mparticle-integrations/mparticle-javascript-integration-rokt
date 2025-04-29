@@ -82,7 +82,7 @@ function showRoktOffer() {
         console.info('Using mParticle.Rokt.kit.selectPlacements');
 
         mParticle.Rokt.selectPlacements({
-            identifier: 'e2e-mp-embedded-layout',
+            identifier: 'mp-layout-3',
             attributes: {
                 clientType: 'DesktopWeb',
                 country: 'AU',
