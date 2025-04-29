@@ -16,7 +16,7 @@
 var name = 'Rokt';
 var moduleId = 181;
 
-var VNEXT_EXTENSIONS = {
+var ROKT_EXTENSIONS = {
     'Coupon on Signup Extension Detection': 'cos-extension-detection',
     'Experiment Monitoring': 'experiment-monitoring',
     'Sponsored Payments Apple Pay': 'sponsored-payments-apple-pay',
@@ -78,7 +78,7 @@ var constructor = function () {
         filteredUserAttributes
     ) {
         var accountId = settings.accountId;
-        var vNextExtensions = extractvNextExtensions(settings.vNextExtensions);
+        var roktExtensions = extractRoktExtensions(settings.roktExtensions);
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
         var domain = window.mParticle.Rokt.domain;
@@ -90,7 +90,7 @@ var constructor = function () {
         if (testMode) {
             self.testHelpers = {
                 generateLauncherScript: generateLauncherScript,
-                extractvNextExtensions: extractvNextExtensions,
+                extractRoktExtensions: extractRoktExtensions,
             };
             attachLauncher(accountId, launcherOptions);
             return;
@@ -100,7 +100,7 @@ var constructor = function () {
             var target = document.head || document.body;
             var script = document.createElement('script');
             script.type = 'text/javascript';
-            script.src = generateLauncherScript(domain, vNextExtensions);
+            script.src = generateLauncherScript(domain, roktExtensions);
             script.async = true;
             script.crossOrigin = 'anonymous';
             script.fetchPriority = 'high';
@@ -406,19 +406,19 @@ function parseSettingsString(settingsString) {
     }
 }
 
-function extractvNextExtensions(settingsString) {
+function extractRoktExtensions(settingsString) {
     var settings = settingsString ? parseSettingsString(settingsString) : [];
 
-    var vNextExtensions = [];
+    var roktExtensions = [];
     for (var i in settings) {
         var extensionName = settings[i].value;
-        var mappedExtension = VNEXT_EXTENSIONS[extensionName];
+        var mappedExtension = ROKT_EXTENSIONS[extensionName];
         if (mappedExtension) {
-            vNextExtensions.push(mappedExtension);
+            roktExtensions.push(mappedExtension);
         }
     }
 
-    return vNextExtensions;
+    return roktExtensions;
 }
 
 if (window && window.mParticle && window.mParticle.addForwarder) {

@@ -1249,16 +1249,16 @@ describe('Rokt Forwarder', () => {
         });
     });
 
-    describe('#vNextExtensions', () => {
+    describe('#roktExtensions', () => {
         beforeEach(() => {
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;
         });
 
-        describe('extractvNextExtensions', () => {
+        describe('extractRoktExtensions', () => {
             it('should correctly map known extension names to their query parameters', async () => {
                 window.mParticle.forwarder.testHelpers
-                    .extractvNextExtensions(
+                    .extractRoktExtensions(
                         '[{&quot;value&quot;:&quot;Coupon on Signup Extension Detection&quot;},' +
                             '{&quot;value&quot;:&quot;Experiment Monitoring&quot;},' +
                             '{&quot;value&quot;:&quot;Sponsored Payments Apple Pay&quot;},' +
@@ -1274,7 +1274,7 @@ describe('Rokt Forwarder', () => {
 
             it('should ignore unknown or invalid extensions', async () => {
                 window.mParticle.forwarder.testHelpers
-                    .extractvNextExtensions(
+                    .extractRoktExtensions(
                         '[{&quot;value&quot;:&quot;Unknown Extension&quot;},' +
                             '{&quot;value&quot;:&quot;Experiment Monitoring&quot;},' +
                             '{&quot;invalid_key&quot;:&quot;Invalid Format&quot;},' +
