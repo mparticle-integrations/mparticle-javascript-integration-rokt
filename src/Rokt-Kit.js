@@ -160,14 +160,11 @@ var constructor = function () {
 
         self.userAttributes = filteredAttributes;
 
-        var optimizelyAttributes =
-            self.onboardingExpProvider === 'Optimizely'
-                ? fetchOptimizely()
-                : {};
+        var experimentAttributes = formatExperimentAttributes(attributes);
 
         var selectPlacementsAttributes = mergeObjects(
             filteredAttributes,
-            optimizelyAttributes,
+            experimentAttributes,
             {
                 mpid: mpid,
             }
@@ -251,6 +248,22 @@ var constructor = function () {
             });
     }
 
+    function formatExperimentAttributes(attributes) {
+        var PREFIX = 'rokt.partnerexperiment.';
+        var EXPERIMENT_ID_KEY = PREFIX + 'experimentid';
+        var BUCKET_ID_KEY = PREFIX + 'bucketid';
+        var USER_ID_KEY = PREFIX + 'userid';
+
+        if (self.onboardingExpProvider === 'Optimizely') {
+            return fetchOptimizely(attributes);
+        }
+
+        var result = {};
+        result[PREFIX + attributes[EXPERIMENT_ID_KEY] + '.bucketid'] =
+            attributes[BUCKET_ID_KEY];
+        result['rokt.clientcustomerid'] = attributes[USER_ID_KEY];
+        return result;
+    }
     // mParticle Kit Callback Methods
     function fetchOptimizely() {
         var forwarders = window.mParticle
@@ -277,11 +290,8 @@ var constructor = function () {
                     acc,
                     expId
                 ) {
-                    acc[
-                        'rokt.custom.optimizely.experiment.' +
-                            expId +
-                            '.variationId'
-                    ] = optimizelyState.getVariationMap()[expId].id;
+                    acc['rokt.partnerexperiment.' + expId + '.bucketid'] =
+                        optimizelyState.getVariationMap()[expId].id;
                     return acc;
                 },
                 {});
