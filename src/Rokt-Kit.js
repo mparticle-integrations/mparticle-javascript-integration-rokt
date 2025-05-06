@@ -62,7 +62,8 @@ var constructor = function () {
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
-        var customIntegrationName = customFlags && customFlags['Rokt.integrationName'];
+        var customIntegrationName =
+            customFlags && customFlags['Rokt.integrationName'];
         self.integrationName = generateIntegrationName(customIntegrationName);
 
         if (testMode) {
@@ -279,12 +280,9 @@ var constructor = function () {
 };
 
 function generateIntegrationName(customIntegrationName) {
-    var name =
-        'mParticle_' +
-        'wsdkv_' +
-        window.mParticle.getVersion() +
-        '_kitv_' +
-        process.env.PACKAGE_VERSION;
+    var coreSdkVersion = window.mParticle.getVersion();
+    var kitVersion = process.env.PACKAGE_VERSION;
+    var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
         name += '_' + customIntegrationName;
