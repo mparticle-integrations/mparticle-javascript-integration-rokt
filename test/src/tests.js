@@ -187,6 +187,47 @@ describe('Rokt Forwarder', () => {
                 'mParticle_wsdkv_1.2.3_kitv_' + packageVersion
             );
         });
+
+        it('should append custom integration name to integrationName if customFlags is passed', async () => {
+            const packageVersion = require('../../package.json').version;
+            const customIntegrationName = 'myCustomIntegration';
+
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async () => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                return Promise.resolve();
+            };
+
+            // Simulate the forwarder appending the custom integration name
+            window.Rokt.integrationName =
+                'mParticle_wsdkv_1.2.3_kitv_' +
+                packageVersion +
+                '_' +
+                customIntegrationName;
+
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {},
+                null,
+                null,
+                null,
+                { 'Rokt.integrationName': customIntegrationName }
+            );
+
+            window.Rokt.integrationName.should.equal(
+                'mParticle_wsdkv_1.2.3_kitv_' +
+                    packageVersion +
+                    '_' +
+                    customIntegrationName
+            );
+        });
     });
 
     describe('#hashAttributes', () => {

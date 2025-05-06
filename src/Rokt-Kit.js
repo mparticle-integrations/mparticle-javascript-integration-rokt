@@ -30,6 +30,8 @@ var constructor = function () {
     self.filteredUser = {};
     self.userAttributes = {};
 
+    self.integrationName = null;
+
     /**
      * Passes attributes to the Rokt Web SDK for client-side hashing
      * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher#hash-attributes
@@ -50,14 +52,21 @@ var constructor = function () {
         _service,
         testMode,
         _trackerId,
-        filteredUserAttributes
+        filteredUserAttributes,
+        filteredUserIdentities,
+        appVersion,
+        appName,
+        customFlags
     ) {
         var accountId = settings.accountId;
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
+        var customIntegrationName = customFlags && customFlags['Rokt.integrationName'];
+        self.integrationName = generateIntegrationName(customIntegrationName);
+
         if (testMode) {
-            attachLauncher(accountId);
+            attachLauncher(accountId, self.integrationName);
             return;
         }
 
@@ -78,7 +87,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId);
+                    attachLauncher(accountId, self.integrationName);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -168,15 +177,10 @@ var constructor = function () {
         delete self.userAttributes[key];
     }
 
-    function attachLauncher(accountId) {
+    function attachLauncher(accountId, integrationName) {
         window.Rokt.createLauncher({
             accountId: accountId,
-            integrationName:
-                'mParticle_' +
-                'wsdkv_' +
-                window.mParticle.getVersion() +
-                '_kitv_' +
-                process.env.PACKAGE_VERSION,
+            integrationName: integrationName,
         })
             .then(function (launcher) {
                 // Assign the launcher to a global variable for later access
@@ -273,6 +277,20 @@ var constructor = function () {
         return !!(self.isInitialized && self.launcher);
     }
 };
+
+function generateIntegrationName(customIntegrationName) {
+    var name =
+        'mParticle_' +
+        'wsdkv_' +
+        window.mParticle.getVersion() +
+        '_kitv_' +
+        process.env.PACKAGE_VERSION;
+
+    if (customIntegrationName) {
+        name += '_' + customIntegrationName;
+    }
+    return name;
+}
 
 function getId() {
     return moduleId;
