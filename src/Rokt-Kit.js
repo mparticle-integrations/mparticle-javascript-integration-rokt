@@ -30,8 +30,6 @@ var constructor = function () {
     self.filteredUser = {};
     self.userAttributes = {};
 
-    self.integrationName = null;
-
     /**
      * Passes attributes to the Rokt Web SDK for client-side hashing
      * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher#hash-attributes
@@ -64,10 +62,10 @@ var constructor = function () {
 
         var customIntegrationName =
             customFlags && customFlags['Rokt.integrationName'];
-        self.integrationName = generateIntegrationName(customIntegrationName);
+        var integrationName = generateIntegrationName(customIntegrationName);
 
         if (testMode) {
-            attachLauncher(accountId, self.integrationName);
+            attachLauncher(accountId, integrationName);
             return;
         }
 
@@ -88,7 +86,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId, self.integrationName);
+                    attachLauncher(accountId, integrationName);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
