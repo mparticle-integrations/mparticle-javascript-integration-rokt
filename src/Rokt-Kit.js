@@ -50,14 +50,22 @@ var constructor = function () {
         _service,
         testMode,
         _trackerId,
-        filteredUserAttributes
+        filteredUserAttributes,
+        filteredUserIdentities,
+        appVersion,
+        appName,
+        customFlags
     ) {
         var accountId = settings.accountId;
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
+        var customIntegrationName =
+            customFlags && customFlags['Rokt.integrationName'];
+        var integrationName = generateIntegrationName(customIntegrationName);
+
         if (testMode) {
-            attachLauncher(accountId);
+            attachLauncher(accountId, integrationName);
             return;
         }
 
@@ -78,7 +86,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId);
+                    attachLauncher(accountId, integrationName);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -168,15 +176,10 @@ var constructor = function () {
         delete self.userAttributes[key];
     }
 
-    function attachLauncher(accountId) {
+    function attachLauncher(accountId, integrationName) {
         window.Rokt.createLauncher({
             accountId: accountId,
-            integrationName:
-                'mParticle_' +
-                'wsdkv_' +
-                window.mParticle.getVersion() +
-                '_kitv_' +
-                process.env.PACKAGE_VERSION,
+            integrationName: integrationName,
         })
             .then(function (launcher) {
                 // Assign the launcher to a global variable for later access
@@ -273,6 +276,17 @@ var constructor = function () {
         return !!(self.isInitialized && self.launcher);
     }
 };
+
+function generateIntegrationName(customIntegrationName) {
+    var coreSdkVersion = window.mParticle.getVersion();
+    var kitVersion = process.env.PACKAGE_VERSION;
+    var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
+
+    if (customIntegrationName) {
+        name += '_' + customIntegrationName;
+    }
+    return name;
+}
 
 function getId() {
     return moduleId;
