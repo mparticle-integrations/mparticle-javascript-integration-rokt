@@ -67,11 +67,15 @@ describe('Rokt Forwarder', () => {
         this.accountId = null;
         this.sandbox = null;
         this.integrationName = null;
+        this.noFunctional = null;
+        this.noTargeting = null;
 
         this.createLauncherCalled = false;
         this.createLauncher = function (options) {
             self.accountId = options.accountId;
             self.integrationName = options.integrationName;
+            self.noFunctional = options.noFunctional;
+            self.noTargeting = options.noTargeting;
             self.createLauncherCalled = true;
             self.isInitialized = true;
 
@@ -131,8 +135,60 @@ describe('Rokt Forwarder', () => {
             );
 
             window.Rokt.accountId.should.equal('123456');
+            window.Rokt.createLauncherCalled.should.equal(true);
+        });
+
+        it('should set optional settings from customFlags', async () => {
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {},
+                null,
+                null,
+                null,
+                {
+                    'Rokt.integrationName': 'customName',
+                    'Rokt.noFunctional': true,
+                    'Rokt.noTargeting': true,
+                }
+            );
+
+            var expectedIntegrationName =
+                'mParticle_wsdkv_1.2.3_kitv_' +
+                require('../../package.json').version +
+                '_customName';
 
             window.Rokt.createLauncherCalled.should.equal(true);
+            window.Rokt.accountId.should.equal('123456');
+            window.Rokt.integrationName.should.equal(expectedIntegrationName);
+            window.Rokt.noFunctional.should.equal(true);
+            window.Rokt.noTargeting.should.equal(true);
+        });
+
+        it('should not set optional settings when not in customFlags', async () => {
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            var expectedIntegrationName =
+                'mParticle_wsdkv_1.2.3_kitv_' +
+                require('../../package.json').version;
+
+            window.Rokt.createLauncherCalled.should.equal(true);
+            window.Rokt.accountId.should.equal('123456');
+            window.Rokt.integrationName.should.equal(expectedIntegrationName);
+            (window.Rokt.noFunctional === undefined).should.equal(true);
+            (window.Rokt.noTargeting === undefined).should.equal(true);
         });
 
         it('should set the filters on the forwarder', async () => {

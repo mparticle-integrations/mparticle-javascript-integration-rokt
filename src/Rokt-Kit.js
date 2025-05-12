@@ -60,12 +60,19 @@ var constructor = function () {
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
-        var customIntegrationName =
+        var integrationName =
             customFlags && customFlags['Rokt.integrationName'];
-        var integrationName = generateIntegrationName(customIntegrationName);
+        var noFunctional = customFlags && customFlags['Rokt.noFunctional'];
+        var noTargeting = customFlags && customFlags['Rokt.noTargeting'];
+
+        var launcherOptions = {
+            integrationName: generateIntegrationName(integrationName),
+            noFunctional: noFunctional,
+            noTargeting: noTargeting,
+        };
 
         if (testMode) {
-            attachLauncher(accountId, integrationName);
+            attachLauncher(accountId, launcherOptions);
             return;
         }
 
@@ -86,7 +93,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId, integrationName);
+                    attachLauncher(accountId, launcherOptions);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -176,11 +183,13 @@ var constructor = function () {
         delete self.userAttributes[key];
     }
 
-    function attachLauncher(accountId, integrationName) {
-        window.Rokt.createLauncher({
-            accountId: accountId,
-            integrationName: integrationName,
-        })
+    function attachLauncher(accountId, launcherOptions) {
+        var options = mergeObjects(
+            { accountId: accountId },
+            launcherOptions || {}
+        );
+
+        window.Rokt.createLauncher(options)
             .then(function (launcher) {
                 // Assign the launcher to a global variable for later access
                 window.Rokt.currentLauncher = launcher;
