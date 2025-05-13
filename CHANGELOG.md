@@ -1,3 +1,11 @@
+## [1.3.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.3.0...v1.3.1) (2025-05-13)
+
+
+### Bug Fixes
+
+* Update attachLauncher to use options object for integration settings ([#29](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/29)) ([a6ad782](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/a6ad782730930b1b746f8a5ba2f20ebeb98b23b3))
+* Update integrationName to support postfix ([#28](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/28)) ([1180363](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/11803639b7bdefc9757f7cd8b592e93d3cfabe28))
+
 # [1.3.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.2.1...v1.3.0) (2025-04-22)
 
 
