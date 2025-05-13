@@ -54,14 +54,29 @@ var constructor = function () {
         _service,
         testMode,
         _trackerId,
-        filteredUserAttributes
+        filteredUserAttributes,
+        filteredUserIdentities,
+        appVersion,
+        appName,
+        customFlags
     ) {
         var accountId = settings.accountId;
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
+        var integrationName =
+            customFlags && customFlags['Rokt.integrationName'];
+        var noFunctional = customFlags && customFlags['Rokt.noFunctional'];
+        var noTargeting = customFlags && customFlags['Rokt.noTargeting'];
+
+        var launcherOptions = {
+            integrationName: generateIntegrationName(integrationName),
+            noFunctional: noFunctional,
+            noTargeting: noTargeting,
+        };
+
         if (testMode) {
-            attachLauncher(accountId);
+            attachLauncher(accountId, launcherOptions);
             return;
         }
 
@@ -82,7 +97,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId);
+                    attachLauncher(accountId, launcherOptions);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -172,16 +187,13 @@ var constructor = function () {
         delete self.userAttributes[key];
     }
 
-    function attachLauncher(accountId) {
-        window.Rokt.createLauncher({
-            accountId: accountId,
-            integrationName:
-                'mParticle_' +
-                'wsdkv_' +
-                window.mParticle.getVersion() +
-                '_kitv_' +
-                "1.3.0",
-        })
+    function attachLauncher(accountId, launcherOptions) {
+        var options = mergeObjects(
+            { accountId: accountId },
+            launcherOptions || {}
+        );
+
+        window.Rokt.createLauncher(options)
             .then(function (launcher) {
                 // Assign the launcher to a global variable for later access
                 window.Rokt.currentLauncher = launcher;
@@ -277,6 +289,17 @@ var constructor = function () {
         return !!(self.isInitialized && self.launcher);
     }
 };
+
+function generateIntegrationName(customIntegrationName) {
+    var coreSdkVersion = window.mParticle.getVersion();
+    var kitVersion = "1.3.1";
+    var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
+
+    if (customIntegrationName) {
+        name += '_' + customIntegrationName;
+    }
+    return name;
+}
 
 function getId() {
     return moduleId;
