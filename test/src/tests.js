@@ -98,6 +98,7 @@ describe('Rokt Forwarder', () => {
 
     afterEach(() => {
         window.mParticle.forwarder.userAttributes = {};
+        delete window.mParticle.forwarder.launcherOptions;
     });
 
     describe('#initForwarder', () => {
@@ -138,7 +139,13 @@ describe('Rokt Forwarder', () => {
             window.Rokt.createLauncherCalled.should.equal(true);
         });
 
-        it('should set optional settings from customFlags', async () => {
+        it('should set optional settings from launcherOptions', async () => {
+            mParticle.forwarder.launcherOptions = {
+                integrationName: 'customName',
+                noFunctional: true,
+                noTargeting: true,
+            };
+
             await mParticle.forwarder.init(
                 {
                     accountId: '123456',
@@ -149,12 +156,7 @@ describe('Rokt Forwarder', () => {
                 {},
                 null,
                 null,
-                null,
-                {
-                    'Rokt.integrationName': 'customName',
-                    'Rokt.noFunctional': true,
-                    'Rokt.noTargeting': true,
-                }
+                null
             );
 
             var expectedIntegrationName =
@@ -254,6 +256,9 @@ describe('Rokt Forwarder', () => {
             window.mParticle.Rokt.attachKit = async () => {
                 window.mParticle.Rokt.attachKitCalled = true;
                 return Promise.resolve();
+            };
+            mParticle.forwarder.launcherOptions = {
+                integrationName: customIntegrationName,
             };
 
             // Simulate the forwarder appending the custom integration name

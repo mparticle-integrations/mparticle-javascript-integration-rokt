@@ -29,6 +29,7 @@ var constructor = function () {
     self.filters = {};
     self.filteredUser = {};
     self.userAttributes = {};
+    self.launcherOptions = {};
 
     /**
      * Passes attributes to the Rokt Web SDK for client-side hashing
@@ -51,25 +52,19 @@ var constructor = function () {
         testMode,
         _trackerId,
         filteredUserAttributes,
-        filteredUserIdentities,
-        appVersion,
-        appName,
-        customFlags
+        _filteredUserIdentities,
+        _appVersion,
+        _appName,
+        _customFlags
     ) {
         var accountId = settings.accountId;
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
-        var integrationName =
-            customFlags && customFlags['Rokt.integrationName'];
-        var noFunctional = customFlags && customFlags['Rokt.noFunctional'];
-        var noTargeting = customFlags && customFlags['Rokt.noTargeting'];
-
-        var launcherOptions = {
-            integrationName: generateIntegrationName(integrationName),
-            noFunctional: noFunctional,
-            noTargeting: noTargeting,
-        };
+        var launcherOptions = self.launcherOptions || {};
+        launcherOptions.integrationName = generateIntegrationName(
+            launcherOptions.integrationName
+        );
 
         if (testMode) {
             attachLauncher(accountId, launcherOptions);
