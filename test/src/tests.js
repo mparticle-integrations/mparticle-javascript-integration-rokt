@@ -99,6 +99,7 @@ describe('Rokt Forwarder', () => {
     afterEach(() => {
         window.mParticle.forwarder.userAttributes = {};
         delete window.mParticle.forwarder.launcherOptions;
+        delete window.mParticle.Rokt.launcherOptions;
     });
 
     describe('#initForwarder', () => {
