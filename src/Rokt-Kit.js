@@ -61,7 +61,7 @@ var constructor = function () {
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
-        var launcherOptions = self.launcherOptions || {};
+        var launcherOptions = window.mParticle.Rokt.launcherOptions || {};
         launcherOptions.integrationName = generateIntegrationName(
             launcherOptions.integrationName
         );
