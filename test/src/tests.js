@@ -278,7 +278,7 @@ describe('Rokt Forwarder', () => {
                 {},
                 null,
                 null,
-                null,
+                null
             );
 
             window.Rokt.integrationName.should.equal(
