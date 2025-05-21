@@ -140,7 +140,7 @@ describe('Rokt Forwarder', () => {
         });
 
         it('should set optional settings from launcherOptions', async () => {
-            mParticle.forwarder.launcherOptions = {
+            window.mParticle.Rokt.launcherOptions = {
                 integrationName: 'customName',
                 noFunctional: true,
                 noTargeting: true,
@@ -246,7 +246,7 @@ describe('Rokt Forwarder', () => {
             );
         });
 
-        it('should append custom integration name to integrationName if customFlags is passed', async () => {
+        it('should append custom integration name to integrationName if passed in launcherOptions', async () => {
             const packageVersion = require('../../package.json').version;
             const customIntegrationName = 'myCustomIntegration';
 
@@ -257,7 +257,7 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.attachKitCalled = true;
                 return Promise.resolve();
             };
-            mParticle.forwarder.launcherOptions = {
+            window.mParticle.Rokt.launcherOptions = {
                 integrationName: customIntegrationName,
             };
 
@@ -279,7 +279,6 @@ describe('Rokt Forwarder', () => {
                 null,
                 null,
                 null,
-                { 'Rokt.integrationName': customIntegrationName }
             );
 
             window.Rokt.integrationName.should.equal(
