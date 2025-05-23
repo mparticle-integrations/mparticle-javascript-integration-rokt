@@ -98,6 +98,8 @@ describe('Rokt Forwarder', () => {
 
     afterEach(() => {
         window.mParticle.forwarder.userAttributes = {};
+        delete window.mParticle.forwarder.launcherOptions;
+        delete window.mParticle.Rokt.launcherOptions;
     });
 
     describe('#initForwarder', () => {
@@ -138,7 +140,13 @@ describe('Rokt Forwarder', () => {
             window.Rokt.createLauncherCalled.should.equal(true);
         });
 
-        it('should set optional settings from customFlags', async () => {
+        it('should set optional settings from launcherOptions', async () => {
+            window.mParticle.Rokt.launcherOptions = {
+                integrationName: 'customName',
+                noFunctional: true,
+                noTargeting: true,
+            };
+
             await mParticle.forwarder.init(
                 {
                     accountId: '123456',
@@ -149,12 +157,7 @@ describe('Rokt Forwarder', () => {
                 {},
                 null,
                 null,
-                null,
-                {
-                    'Rokt.integrationName': 'customName',
-                    'Rokt.noFunctional': true,
-                    'Rokt.noTargeting': true,
-                }
+                null
             );
 
             var expectedIntegrationName =
@@ -244,7 +247,7 @@ describe('Rokt Forwarder', () => {
             );
         });
 
-        it('should append custom integration name to integrationName if customFlags is passed', async () => {
+        it('should append custom integration name to integrationName if passed in launcherOptions', async () => {
             const packageVersion = require('../../package.json').version;
             const customIntegrationName = 'myCustomIntegration';
 
@@ -254,6 +257,9 @@ describe('Rokt Forwarder', () => {
             window.mParticle.Rokt.attachKit = async () => {
                 window.mParticle.Rokt.attachKitCalled = true;
                 return Promise.resolve();
+            };
+            window.mParticle.Rokt.launcherOptions = {
+                integrationName: customIntegrationName,
             };
 
             // Simulate the forwarder appending the custom integration name
@@ -273,8 +279,7 @@ describe('Rokt Forwarder', () => {
                 {},
                 null,
                 null,
-                null,
-                { 'Rokt.integrationName': customIntegrationName }
+                null
             );
 
             window.Rokt.integrationName.should.equal(
