@@ -167,7 +167,7 @@ var constructor = function () {
             attributes: selectPlacementsAttributes,
         });
 
-        self.launcher.selectPlacements(selectPlacementsOptions);
+        return self.launcher.selectPlacements(selectPlacementsOptions);
     }
 
     function onUserIdentified(filteredUser) {
