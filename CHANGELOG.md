@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.3.1...v1.3.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* return the select placements call ([#31](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/31)) ([38b4903](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/38b490337daca1dede7ba2fb5e1b3804092e25f9))
+
 ## [1.3.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.3.0...v1.3.1) (2025-05-13)
 
 
