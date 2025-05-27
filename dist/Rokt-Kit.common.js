@@ -171,7 +171,7 @@ var constructor = function () {
             attributes: selectPlacementsAttributes,
         });
 
-        self.launcher.selectPlacements(selectPlacementsOptions);
+        return self.launcher.selectPlacements(selectPlacementsOptions);
     }
 
     function onUserIdentified(filteredUser) {
@@ -292,7 +292,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.3.1";
+    var kitVersion = "1.3.2";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
