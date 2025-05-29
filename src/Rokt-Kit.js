@@ -29,7 +29,6 @@ var constructor = function () {
     self.filters = {};
     self.filteredUser = {};
     self.userAttributes = {};
-    self.launcherOptions = {};
 
     /**
      * Passes attributes to the Rokt Web SDK for client-side hashing
@@ -61,13 +60,16 @@ var constructor = function () {
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
+        var managerOptions = window.mParticle.Rokt.managerOptions || {};
+        var sandbox = managerOptions.sandbox || false;
+
         var launcherOptions = window.mParticle.Rokt.launcherOptions || {};
         launcherOptions.integrationName = generateIntegrationName(
             launcherOptions.integrationName
         );
 
         if (testMode) {
-            attachLauncher(accountId, launcherOptions);
+            attachLauncher(accountId, sandbox, launcherOptions);
             return;
         }
 
@@ -88,7 +90,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId, launcherOptions);
+                    attachLauncher(accountId, sandbox, launcherOptions);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -178,9 +180,12 @@ var constructor = function () {
         delete self.userAttributes[key];
     }
 
-    function attachLauncher(accountId, launcherOptions) {
+    function attachLauncher(accountId, sandbox, launcherOptions) {
         var options = mergeObjects(
-            { accountId: accountId },
+            {
+                accountId: accountId,
+                sandbox: sandbox,
+            },
             launcherOptions || {}
         );
 
