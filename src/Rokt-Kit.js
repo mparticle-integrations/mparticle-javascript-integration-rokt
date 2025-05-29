@@ -50,11 +50,7 @@ var constructor = function () {
         _service,
         testMode,
         _trackerId,
-        filteredUserAttributes,
-        _filteredUserIdentities,
-        _appVersion,
-        _appName,
-        _customFlags
+        filteredUserAttributes
     ) {
         var accountId = settings.accountId;
         self.userAttributes = filteredUserAttributes;
