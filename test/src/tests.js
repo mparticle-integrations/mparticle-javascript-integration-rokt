@@ -151,7 +151,7 @@ describe('Rokt Forwarder', () => {
                     accountId: '123456',
                 },
                 reportService.cb,
-                true,
+                true
             );
 
             window.Rokt.createLauncherCalled.should.equal(true);
@@ -168,7 +168,7 @@ describe('Rokt Forwarder', () => {
                     accountId: '123456',
                 },
                 reportService.cb,
-                true,
+                true
             );
 
             window.Rokt.createLauncherCalled.should.equal(true);
