@@ -11,12 +11,13 @@
   "scripts": {
     "build": "rollup --config rollup.config.js",
     "build:test": "rollup --config rollup.test.config.js",
-    "lint": "eslint src/ test/src/",
-    "lint:fix": "eslint src/ test/src/ --fix",
+    "lint": "eslint src/ test/src/ example-app/src/ example-app/webpack.config.js",
+    "lint:fix": "eslint src/ test/src/ example-app/src/ example-app/webpack.config.js --fix",
     "watch": "rollup --config rollup.config.js -w",
     "watch:tests": "rollup --config rollup.test.config.js -w",
     "test": "npm run build && npm run build:test && karma start test/karma.config.js",
-    "test:debug": "npm run build && npm run build:test && DEBUG=true karma start test/karma.config.js"
+    "test:debug": "npm run build && npm run build:test && DEBUG=true karma start test/karma.config.js",
+    "start:example": "cd example-app && npx http-server -o"
   },
   "publishConfig": {
     "access": "public"
