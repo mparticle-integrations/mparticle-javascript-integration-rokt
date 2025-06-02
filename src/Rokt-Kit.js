@@ -117,6 +117,65 @@ var constructor = function () {
     }
 
     /**
+     * Gets the string representation of an identity type
+     * @param {number} identityType - The identity type number
+     * @returns {string} The human readable string for the identity type
+     */
+    function getIdentityName(identityType) {
+        var identityTypes = {
+            0: 'other',
+            1: 'customerid',
+            2: 'facebook',
+            3: 'twitter',
+            4: 'google',
+            5: 'microsoft',
+            6: 'yahoo',
+            7: 'email',
+            9: 'facebookcustomaudienceid',
+            10: 'other2',
+            11: 'other3',
+            12: 'other4',
+            13: 'other5',
+            14: 'other6',
+            15: 'other7',
+            16: 'other8',
+            17: 'other9',
+            18: 'other10',
+            19: 'mobile_number',
+            20: 'phone_number_2',
+            21: 'phone_number_3',
+        };
+        return identityTypes[identityType] || 'unknown';
+    }
+
+    /**
+     * Adds user identities to the attributes object
+     * @param {Object} attributes - The attributes object to add identities to
+     * @param {Object} filteredUser - The filtered user object containing identities
+     * @returns {Object} The attributes object with added identities
+     */
+    function addIdentityAttributes(attributes, filteredUser) {
+        if (!filteredUser || !filteredUser.getUserIdentities) {
+            return attributes;
+        }
+
+        var userIdentities = filteredUser.getUserIdentities();
+        if (!userIdentities) {
+            return attributes;
+        }
+
+        for (var identityType in userIdentities) {
+            if (userIdentities.hasOwnProperty(identityType)) {
+                var identityValue = userIdentities[identityType];
+                var identityKey = getIdentityName(parseInt(identityType));
+                attributes[identityKey] = identityValue;
+            }
+        }
+
+        return attributes;
+    }
+
+    /**
      * Selects placements for Rokt Web SDK with merged attributes, filters, and experimentation options
      * @see https://docs.rokt.com/developers/integration-guides/web/library/select-placements-options/
      * @param {Object} options - The options object for selecting placements containing:
@@ -160,6 +219,12 @@ var constructor = function () {
                 ? fetchOptimizely()
                 : {};
 
+        // Add user identities to the attributes
+        filteredAttributes = addIdentityAttributes(
+            filteredAttributes,
+            filteredUser
+        );
+
         var selectPlacementsAttributes = mergeObjects(
             filteredAttributes,
             optimizelyAttributes,
@@ -177,6 +242,7 @@ var constructor = function () {
 
     function onUserIdentified(filteredUser) {
         self.filteredUser = filteredUser;
+        self.filters.filteredUser = filteredUser;
         self.userAttributes = filteredUser.getAllUserAttributes();
     }
 
@@ -200,7 +266,6 @@ var constructor = function () {
             .then(function (launcher) {
                 // Assign the launcher to a global variable for later access
                 window.Rokt.currentLauncher = launcher;
-
                 // Locally cache the launcher and filters
                 self.launcher = launcher;
 
@@ -218,7 +283,6 @@ var constructor = function () {
                         self.filteredUser = roktFilters.filteredUser;
                     }
                 }
-
                 // Attaches the kit to the Rokt manager
                 window.mParticle.Rokt.attachKit(self);
 
