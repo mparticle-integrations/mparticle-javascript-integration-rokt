@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.3.2...v1.4.0) (2025-06-02)
+
+
+### Features
+
+* Expose Rokt launcher config options ([#30](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/30)) ([6cf2344](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/6cf234425621922614d3f8908e624211f4d7b485))
+
 ## [1.3.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.3.1...v1.3.2) (2025-05-27)
 
 
