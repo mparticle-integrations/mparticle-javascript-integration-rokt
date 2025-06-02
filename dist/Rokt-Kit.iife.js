@@ -53,29 +53,22 @@ var RoktKit = (function (exports) {
             _service,
             testMode,
             _trackerId,
-            filteredUserAttributes,
-            filteredUserIdentities,
-            appVersion,
-            appName,
-            customFlags
+            filteredUserAttributes
         ) {
             var accountId = settings.accountId;
             self.userAttributes = filteredUserAttributes;
             self.onboardingExpProvider = settings.onboardingExpProvider;
 
-            var integrationName =
-                customFlags && customFlags['Rokt.integrationName'];
-            var noFunctional = customFlags && customFlags['Rokt.noFunctional'];
-            var noTargeting = customFlags && customFlags['Rokt.noTargeting'];
+            var managerOptions = window.mParticle.Rokt.managerOptions || {};
+            var sandbox = managerOptions.sandbox || false;
 
-            var launcherOptions = {
-                integrationName: generateIntegrationName(integrationName),
-                noFunctional: noFunctional,
-                noTargeting: noTargeting,
-            };
+            var launcherOptions = window.mParticle.Rokt.launcherOptions || {};
+            launcherOptions.integrationName = generateIntegrationName(
+                launcherOptions.integrationName
+            );
 
             if (testMode) {
-                attachLauncher(accountId, launcherOptions);
+                attachLauncher(accountId, sandbox, launcherOptions);
                 return;
             }
 
@@ -96,7 +89,7 @@ var RoktKit = (function (exports) {
                         typeof window.Rokt.createLauncher === 'function' &&
                         window.Rokt.currentLauncher === undefined
                     ) {
-                        attachLauncher(accountId, launcherOptions);
+                        attachLauncher(accountId, sandbox, launcherOptions);
                     } else {
                         console.error(
                             'Rokt object is not available after script load.'
@@ -186,9 +179,12 @@ var RoktKit = (function (exports) {
             delete self.userAttributes[key];
         }
 
-        function attachLauncher(accountId, launcherOptions) {
+        function attachLauncher(accountId, sandbox, launcherOptions) {
             var options = mergeObjects(
-                { accountId: accountId },
+                {
+                    accountId: accountId,
+                    sandbox: sandbox,
+                },
                 launcherOptions || {}
             );
 
@@ -291,7 +287,7 @@ var RoktKit = (function (exports) {
 
     function generateIntegrationName(customIntegrationName) {
         var coreSdkVersion = window.mParticle.getVersion();
-        var kitVersion = "1.3.2";
+        var kitVersion = "1.4.0";
         var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
         if (customIntegrationName) {
