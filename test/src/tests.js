@@ -141,8 +141,8 @@ describe('Rokt Forwarder', () => {
             window.Rokt.createLauncherCalled.should.equal(true);
         });
 
-        it('should set sandbox to true if sandbox is true in managerOptions', async () => {
-            window.mParticle.Rokt.managerOptions = {
+        it('should set sandbox to true if sandbox is true in launcherOptions', async () => {
+            window.mParticle.Rokt.launcherOptions = {
                 sandbox: true,
             };
 
@@ -158,8 +158,8 @@ describe('Rokt Forwarder', () => {
             window.Rokt.sandbox.should.equal(true);
         });
 
-        it('should set sandbox to false if sandbox is false in managerOptions', async () => {
-            window.mParticle.Rokt.managerOptions = {
+        it('should set sandbox to false if sandbox is false in launcherOptions', async () => {
+            window.mParticle.Rokt.launcherOptions = {
                 sandbox: false,
             };
 
