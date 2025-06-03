@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.4.0...v1.4.1) (2025-06-03)
+
+
+### Bug Fixes
+
+* Revise sandbox setting ([#32](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/32)) ([f79830b](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/f79830b5dec2430a8c5c815640457c53037ff3ce))
+
 # [1.4.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.3.2...v1.4.0) (2025-06-02)
 
 
