@@ -60,16 +60,13 @@ var constructor = function () {
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
 
-        var managerOptions = window.mParticle.Rokt.managerOptions || {};
-        var sandbox = managerOptions.sandbox || false;
-
         var launcherOptions = window.mParticle.Rokt.launcherOptions || {};
         launcherOptions.integrationName = generateIntegrationName(
             launcherOptions.integrationName
         );
 
         if (testMode) {
-            attachLauncher(accountId, sandbox, launcherOptions);
+            attachLauncher(accountId, launcherOptions);
             return;
         }
 
@@ -90,7 +87,7 @@ var constructor = function () {
                     typeof window.Rokt.createLauncher === 'function' &&
                     window.Rokt.currentLauncher === undefined
                 ) {
-                    attachLauncher(accountId, sandbox, launcherOptions);
+                    attachLauncher(accountId, launcherOptions);
                 } else {
                     console.error(
                         'Rokt object is not available after script load.'
@@ -180,11 +177,10 @@ var constructor = function () {
         delete self.userAttributes[key];
     }
 
-    function attachLauncher(accountId, sandbox, launcherOptions) {
+    function attachLauncher(accountId, launcherOptions) {
         var options = mergeObjects(
             {
                 accountId: accountId,
-                sandbox: sandbox,
             },
             launcherOptions || {}
         );
@@ -288,7 +284,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.4.0";
+    var kitVersion = "1.4.1";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
