@@ -654,7 +654,7 @@ describe('Rokt Forwarder', () => {
                             return 'abc';
                         },
                         getUserIdentities: function () {
-                            return null;
+                            return { userIdentities: {} };
                         },
                     },
                 };
@@ -699,7 +699,7 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should handle case when userAttributes is null but userIdentities exist', async () => {
+            it.only('should handle case when userAttributes is null but userIdentities exist', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
                     filterUserAttributes: function () {

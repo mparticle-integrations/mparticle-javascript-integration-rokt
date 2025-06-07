@@ -117,38 +117,6 @@ var constructor = function () {
     }
 
     /**
-     * Gets the string representation of an identity type
-     * @param {number} identityType - The identity type number
-     * @returns {string} The human readable string for the identity type
-     */
-    function getIdentityName(identityType) {
-        var identityTypes = {
-            0: 'other',
-            1: 'customerid',
-            2: 'facebook',
-            3: 'twitter',
-            4: 'google',
-            5: 'microsoft',
-            6: 'yahoo',
-            7: 'email',
-            9: 'facebookcustomaudienceid',
-            10: 'other2',
-            11: 'other3',
-            12: 'other4',
-            13: 'other5',
-            14: 'other6',
-            15: 'other7',
-            16: 'other8',
-            17: 'other9',
-            18: 'other10',
-            19: 'mobile_number',
-            20: 'phone_number_2',
-            21: 'phone_number_3',
-        };
-        return identityTypes[identityType] || 'unknown';
-    }
-
-    /**
      * Adds user identities to the attributes object
      * @param {Object} attributes - The attributes object to add identities to
      * @param {Object} filteredUser - The filtered user object containing identities
@@ -159,15 +127,14 @@ var constructor = function () {
             return attributes;
         }
 
-        var userIdentities = filteredUser.getUserIdentities();
+        var userIdentities = filteredUser.getUserIdentities().userIdentities;
         if (!userIdentities) {
             return attributes;
         }
 
-        for (var identityType in userIdentities) {
-            if (userIdentities.hasOwnProperty(identityType)) {
-                var identityValue = userIdentities[identityType];
-                var identityKey = getIdentityName(parseInt(identityType));
+        for (var identityKey in userIdentities) {
+            if (userIdentities.hasOwnProperty(identityKey)) {
+                var identityValue = userIdentities[identityKey];
                 attributes[identityKey] = identityValue;
             }
         }
