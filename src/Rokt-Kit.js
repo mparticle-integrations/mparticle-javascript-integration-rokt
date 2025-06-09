@@ -33,7 +33,7 @@ var constructor = function () {
 
     /**
      * Generates the Rokt launcher script URL with optional domain override
-     * @param {Array<string>} extensions - List of extension query parameters to append
+     * @param {string} domain - The CNAME domain to use for overriding the launcher url
      * @returns {string} The complete launcher script URL
      */
     function generateLauncherScript(domain) {
