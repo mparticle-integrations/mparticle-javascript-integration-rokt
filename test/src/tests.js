@@ -871,4 +871,32 @@ describe('Rokt Forwarder', () => {
             });
         });
     });
+
+    describe('#generateLauncherScript', () => {
+        const baseUrl = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
+
+        beforeEach(() => {
+            window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
+        });
+
+        it('should return base URL when no domain is passed', () => {
+            const url =
+                window.mParticle.forwarder.testHelpers.generateLauncherScript();
+            url.should.equal(baseUrl);
+        });
+
+        it('should return a base URL with CNAME when domain is passed', () => {
+            window.mParticle.forwarder.testHelpers
+                .generateLauncherScript('cname.rokt.com')
+                .should.equal(
+                    'https://cname.rokt.com/wsdk/integrations/launcher.js'
+                );
+        });
+    });
 });
