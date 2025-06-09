@@ -37,7 +37,7 @@ var constructor = function () {
      * @returns {string} The complete launcher script URL
      */
     function generateLauncherScript(domain) {
-        // If a customer is using a CNAME, a domain will be passed. If not, we use the default domain.
+        // Override domain if a customer is using a CNAME
         if (!domain) {
             domain = 'apps.rokt.com';
         }
