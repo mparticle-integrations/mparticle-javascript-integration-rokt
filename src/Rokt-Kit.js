@@ -32,7 +32,7 @@ var constructor = function () {
     self.userAttributes = {};
 
     /**
-     * Generates the Rokt launcher script URL with optional extensions
+     * Generates the Rokt launcher script URL with optional domain override
      * @param {Array<string>} extensions - List of extension query parameters to append
      * @returns {string} The complete launcher script URL
      */
