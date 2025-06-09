@@ -891,7 +891,7 @@ describe('Rokt Forwarder', () => {
             url.should.equal(baseUrl);
         });
 
-        it('should return a base URL with CNAME when domain is passed', () => {
+        it('should return an updated base URL with CNAME when domain is passed', () => {
             window.mParticle.forwarder.testHelpers
                 .generateLauncherScript('cname.rokt.com')
                 .should.equal(
