@@ -13,9 +13,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-
-
-
 var name = 'Rokt';
 var moduleId = 181;
 
@@ -78,7 +75,7 @@ var constructor = function () {
 
         if (testMode) {
             self.testHelpers = {
-                generateLauncherScript: generateLauncherScript
+                generateLauncherScript: generateLauncherScript,
             };
             attachLauncher(accountId, launcherOptions);
             return;
