@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.4.1...v1.5.0) (2025-06-10)
+
+
+### Features
+
+* Support CNAME for launcher.js ([#34](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/34)) ([58efaaa](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/58efaaad92e91994a0829ffdd4ac843d89c0dcec))
+
 ## [1.4.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.4.0...v1.4.1) (2025-06-03)
 
 
