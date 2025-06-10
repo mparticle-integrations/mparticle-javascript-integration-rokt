@@ -36,11 +36,10 @@ var constructor = function () {
      * @param {string} domain - The CNAME domain to use for overriding the launcher url
      * @returns {string} The complete launcher script URL
      */
-    function generateLauncherScript(domain) {
+    function generateLauncherScript(_domain) {
         // Override domain if a customer is using a CNAME
-        if (!domain) {
-            domain = 'apps.rokt.com';
-        }
+        // If a customer is using a CNAME, a domain will be passed. If not, we use the default domain.
+        var domain = typeof _domain !== 'undefined' ? _domain : 'apps.rokt.com';
         var protocol = 'https://';
         var launcherPath = '/wsdk/integrations/launcher.js';
 
