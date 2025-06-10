@@ -17,8 +17,6 @@ Object.defineProperty(exports, '__esModule', { value: true });
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-var roktLauncherScript = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
-
 var name = 'Rokt';
 var moduleId = 181;
 
@@ -34,6 +32,20 @@ var constructor = function () {
     self.filteredUser = {};
     self.userAttributes = {};
 
+    /**
+     * Generates the Rokt launcher script URL with optional domain override
+     * @param {string} domain - The CNAME domain to use for overriding the launcher url
+     * @returns {string} The complete launcher script URL
+     */
+    function generateLauncherScript(_domain) {
+        // Override domain if a customer is using a CNAME
+        // If a customer is using a CNAME, a domain will be passed. If not, we use the default domain.
+        var domain = typeof _domain !== 'undefined' ? _domain : 'apps.rokt.com';
+        var protocol = 'https://';
+        var launcherPath = '/wsdk/integrations/launcher.js';
+
+        return [protocol, domain, launcherPath].join('');
+    }
     /**
      * Passes attributes to the Rokt Web SDK for client-side hashing
      * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher#hash-attributes
@@ -59,13 +71,16 @@ var constructor = function () {
         var accountId = settings.accountId;
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
-
+        var domain = window.mParticle.Rokt.domain;
         var launcherOptions = window.mParticle.Rokt.launcherOptions || {};
         launcherOptions.integrationName = generateIntegrationName(
             launcherOptions.integrationName
         );
 
         if (testMode) {
+            self.testHelpers = {
+                generateLauncherScript: generateLauncherScript,
+            };
             attachLauncher(accountId, launcherOptions);
             return;
         }
@@ -74,7 +89,7 @@ var constructor = function () {
             var target = document.head || document.body;
             var script = document.createElement('script');
             script.type = 'text/javascript';
-            script.src = roktLauncherScript;
+            script.src = generateLauncherScript(domain);
             script.async = true;
             script.crossOrigin = 'anonymous';
             script.fetchPriority = 'high';
@@ -284,7 +299,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.4.1";
+    var kitVersion = "1.5.0";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
