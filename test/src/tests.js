@@ -222,7 +222,6 @@ describe('Rokt Forwarder', () => {
             await waitForCondition(() => {
                 return window.mParticle.forwarder.isInitialized;
             });
-            // await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
             window.mParticle.Rokt.kit.filters.should.deepEqual({
                 userAttributesFilters: [],
@@ -663,7 +662,8 @@ describe('Rokt Forwarder', () => {
                 window.Rokt.createLauncher = async function () {
                     return Promise.resolve({
                         selectPlacements: function (options) {
-                            window.mParticle.Rokt.selectPlacementsOptions = options;
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
                             window.mParticle.Rokt.selectPlacementsCalled = true;
                         },
                     });
