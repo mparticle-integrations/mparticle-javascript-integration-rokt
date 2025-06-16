@@ -25,7 +25,6 @@ var constructor = function () {
 
     self.launcher = null;
     self.filters = {};
-    self.filteredUser = {};
     self.userAttributes = {};
 
     /**
@@ -115,31 +114,17 @@ var constructor = function () {
             console.warn('Unable to find Rokt on the page');
         }
     }
-
     /**
-     * Adds user identities to the attributes object
-     * @param {Object} attributes - The attributes object to add identities to
+     * Returns the user identities from the filtered user, if any
      * @param {Object} filteredUser - The filtered user object containing identities
-     * @returns {Object} The attributes object with added identities
+     * @returns {Object} The user identities from the filtered user
      */
-    function addIdentityAttributes(attributes, filteredUser) {
+    function returnUserIdentities(filteredUser) {
         if (!filteredUser || !filteredUser.getUserIdentities) {
-            return attributes;
+            return {};
         }
 
-        var userIdentities = filteredUser.getUserIdentities().userIdentities;
-        if (!userIdentities) {
-            return attributes;
-        }
-
-        for (var identityKey in userIdentities) {
-            if (userIdentities.hasOwnProperty(identityKey)) {
-                var identityValue = userIdentities[identityKey];
-                attributes[identityKey] = identityValue;
-            }
-        }
-
-        return attributes;
+        return filteredUser.getUserIdentities().userIdentities;
     }
 
     /**
@@ -186,14 +171,11 @@ var constructor = function () {
                 ? fetchOptimizely()
                 : {};
 
-        // Add user identities to the attributes
-        filteredAttributes = addIdentityAttributes(
-            filteredAttributes,
-            filteredUser
-        );
+        var filteredUserIdentities = returnUserIdentities(filteredUser);
 
         var selectPlacementsAttributes = mergeObjects(
             filteredAttributes,
+            filteredUserIdentities,
             optimizelyAttributes,
             {
                 mpid: mpid,
@@ -208,7 +190,6 @@ var constructor = function () {
     }
 
     function onUserIdentified(filteredUser) {
-        self.filteredUser = filteredUser;
         self.filters.filteredUser = filteredUser;
         self.userAttributes = filteredUser.getAllUserAttributes();
     }
@@ -246,8 +227,6 @@ var constructor = function () {
                         console.warn(
                             'Rokt Kit: No filtered user has been set.'
                         );
-                    } else {
-                        self.filteredUser = roktFilters.filteredUser;
                     }
                 }
                 // Attaches the kit to the Rokt manager

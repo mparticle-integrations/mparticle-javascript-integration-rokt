@@ -235,7 +235,7 @@ describe('Rokt Forwarder', () => {
                 },
             });
 
-            window.mParticle.Rokt.kit.filteredUser
+            window.mParticle.Rokt.kit.filters.filteredUser
                 .getMPID()
                 .should.equal('123');
         });
@@ -971,9 +971,8 @@ describe('Rokt Forwarder', () => {
                 'test-attribute': 'test-value',
             });
 
-            window.mParticle.forwarder.filteredUser
-                .getMPID()
-                .should.equal('123');
+            window.mParticle.forwarder.filters.filteredUser
+                .getMPID().should.equal('123');
         });
     });
 
