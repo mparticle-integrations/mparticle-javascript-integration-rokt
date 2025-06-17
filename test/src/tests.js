@@ -699,7 +699,7 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should handle case when userAttributes is null but userIdentities exist', async () => {
+            it('should send userIdentities when userAttributes is null but userIdentities exists', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
                     filterUserAttributes: function () {
@@ -758,7 +758,7 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should handle case when both userAttributes and userIdentities exist', async () => {
+            it('should send userAttributes and userIdentities if both exist', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
                     filterUserAttributes: function (attributes) {
@@ -822,7 +822,7 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should handle case when filteredUser is null', async () => {
+            it('should not send userIdentities if filteredUser is null', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
                     filterUserAttributes: function (attributes) {
@@ -872,7 +872,7 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should handle case when getUserIdentities function does not exist', async () => {
+            it('should not send userIdentities if getUserIdentities function does not exist', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
                     filterUserAttributes: function (attributes) {
