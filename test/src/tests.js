@@ -646,7 +646,7 @@ describe('Rokt Forwarder', () => {
                 };
             });
 
-            it('should handle case when userIdentities is null but userAttributes exist', async () => {
+            it('should send userAttributes if userIdentities is null but userAttributes exists', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
                     filterUserAttributes: function (attributes) {
