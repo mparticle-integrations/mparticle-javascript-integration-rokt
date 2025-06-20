@@ -218,7 +218,10 @@ describe('Rokt Forwarder', () => {
                 {}
             );
 
-            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+            // Wait for initialization to complete (after launcher is created)
+            await waitForCondition(() => {
+                return window.mParticle.forwarder.isInitialized;
+            });
 
             window.mParticle.Rokt.kit.filters.should.deepEqual({
                 userAttributesFilters: [],
@@ -232,7 +235,7 @@ describe('Rokt Forwarder', () => {
                 },
             });
 
-            window.mParticle.Rokt.kit.filteredUser
+            window.mParticle.Rokt.kit.filters.filteredUser
                 .getMPID()
                 .should.equal('123');
         });
@@ -470,154 +473,462 @@ describe('Rokt Forwarder', () => {
             };
         });
 
-        it('should call launcher.selectPlacements with all passed through options', async () => {
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                },
-                reportService.cb,
-                true,
-                null,
-                {}
-            );
+        describe('Default initialization', () => {
+            it('should call launcher.selectPlacements with all passed through options', async () => {
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
 
-            await window.mParticle.forwarder.selectPlacements({
-                identifier: 'test-placement',
-                attributes: {
-                    test: 'test',
-                },
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        test: 'test',
+                    },
+                });
+
+                window.Rokt.selectPlacementsCalled.should.equal(true);
+                window.Rokt.selectPlacementsOptions.should.deepEqual({
+                    identifier: 'test-placement',
+                    attributes: {
+                        test: 'test',
+                        mpid: '123',
+                    },
+                });
             });
 
-            window.Rokt.selectPlacementsCalled.should.equal(true);
-            window.Rokt.selectPlacementsOptions.should.deepEqual({
-                identifier: 'test-placement',
-                attributes: {
-                    test: 'test',
-                    mpid: '123',
-                },
+            it('should collect mpid and send to launcher.selectPlacements', async () => {
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'user-attribute': 'user-attribute-value',
+                    }
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        'user-attribute': 'user-attribute-value',
+                    },
+                });
+
+                window.Rokt.selectPlacementsCalled.should.equal(true);
+                window.Rokt.selectPlacementsOptions.should.deepEqual({
+                    identifier: 'test-placement',
+                    attributes: {
+                        'user-attribute': 'user-attribute-value',
+                        mpid: '123',
+                    },
+                });
             });
         });
 
-        it('should call launcher.selectPlacements with filtered user attributes', async () => {
-            window.mParticle.forwarder.filters.filterUserAttributes =
-                function () {
-                    return {
+        describe('User Attributes', () => {
+            it('should call launcher.selectPlacements with filtered user attributes', async () => {
+                window.mParticle.forwarder.filters.filterUserAttributes =
+                    function () {
+                        return {
+                            'user-attribute': 'user-attribute-value',
+                            'unfiltered-attribute': 'unfiltered-value',
+                        };
+                    };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        'unfiltered-attribute': 'unfiltered-value',
+                        'filtered-attribute': 'filtered-value',
+                    },
+                });
+
+                window.Rokt.selectPlacementsCalled.should.equal(true);
+                window.Rokt.selectPlacementsOptions.should.deepEqual({
+                    identifier: 'test-placement',
+                    attributes: {
                         'user-attribute': 'user-attribute-value',
                         'unfiltered-attribute': 'unfiltered-value',
+                        mpid: '123',
+                    },
+                });
+            });
+
+            it('should filter user attributes through filterUserAttributes function before sending to selectPlacements', async () => {
+                // Mocked filterUserAttributes function will return filtered attributes
+                // based on the config passed in the init method and will ultimately
+                // remove any attributes from the init method that are filtered.
+                // Also, any initial attributes from the init call that have updated
+                // durring runtime should be returned by the filterUserAttribute method.
+                window.mParticle.forwarder.filters.filterUserAttributes =
+                    function () {
+                        return {
+                            'user-attribute': 'user-attribute-value',
+                            'unfiltered-attribute': 'unfiltered-value',
+                            'changed-attribute': 'new-value',
+                        };
                     };
-                };
 
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                },
-                reportService.cb,
-                true,
-                null,
-                {}
-            );
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        // These should be filtered out
+                        'blocked-attribute': 'blocked-value',
+                        'initial-user-attribute':
+                            'initial-user-attribute-value',
 
-            await window.mParticle.forwarder.selectPlacements({
-                identifier: 'test-placement',
-                attributes: {
-                    'unfiltered-attribute': 'unfiltered-value',
-                    'filtered-attribute': 'filtered-value',
-                },
-            });
+                        // This should be updated
+                        'changed-attribute': 'old-value',
+                    }
+                );
 
-            window.Rokt.selectPlacementsCalled.should.equal(true);
-            window.Rokt.selectPlacementsOptions.should.deepEqual({
-                identifier: 'test-placement',
-                attributes: {
-                    'user-attribute': 'user-attribute-value',
-                    'unfiltered-attribute': 'unfiltered-value',
-                    mpid: '123',
-                },
-            });
-        });
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        // This should pass through
+                        'unfiltered-attribute': 'unfiltered-value',
 
-        it('should filter user attributes through filterUserAttributes function before sending to selectPlacements', async () => {
-            // Mocked filterUserAttributes function will return filtered attributes
-            // based on the config passed in the init method and will ultimately
-            // remove any attributes from the init method that are filtered.
-            // Also, any initial attributes from the init call that have updated
-            // durring runtime should be returned by the filterUserAttribute method.
-            window.mParticle.forwarder.filters.filterUserAttributes =
-                function () {
-                    return {
+                        // This should be filtered out
+                        'filtered-attribute': 'filtered-value',
+                    },
+                });
+
+                window.Rokt.selectPlacementsCalled.should.equal(true);
+                window.Rokt.selectPlacementsOptions.should.deepEqual({
+                    identifier: 'test-placement',
+                    attributes: {
                         'user-attribute': 'user-attribute-value',
                         'unfiltered-attribute': 'unfiltered-value',
                         'changed-attribute': 'new-value',
-                    };
-                };
-
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                },
-                reportService.cb,
-                true,
-                null,
-                {
-                    // These should be filtered out
-                    'blocked-attribute': 'blocked-value',
-                    'initial-user-attribute': 'initial-user-attribute-value',
-
-                    // This should be updated
-                    'changed-attribute': 'old-value',
-                }
-            );
-
-            await window.mParticle.forwarder.selectPlacements({
-                identifier: 'test-placement',
-                attributes: {
-                    // This should pass through
-                    'unfiltered-attribute': 'unfiltered-value',
-
-                    // This should be filtered out
-                    'filtered-attribute': 'filtered-value',
-                },
-            });
-
-            window.Rokt.selectPlacementsCalled.should.equal(true);
-            window.Rokt.selectPlacementsOptions.should.deepEqual({
-                identifier: 'test-placement',
-                attributes: {
-                    'user-attribute': 'user-attribute-value',
-                    'unfiltered-attribute': 'unfiltered-value',
-                    'changed-attribute': 'new-value',
-                    mpid: '123',
-                },
+                        mpid: '123',
+                    },
+                });
             });
         });
 
-        it('should collect mpid and send to launcher.selectPlacements', async () => {
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                },
-                reportService.cb,
-                true,
-                null,
-                {
-                    'user-attribute': 'user-attribute-value',
-                }
-            );
-
-            await window.mParticle.forwarder.selectPlacements({
-                identifier: 'test-placement',
-                attributes: {
-                    'user-attribute': 'user-attribute-value',
-                },
+        describe('Identity handling', () => {
+            beforeEach(() => {
+                window.Rokt = new MockRoktForwarder();
+                window.mParticle.Rokt = window.Rokt;
+                window.mParticle.Rokt.attachKitCalled = false;
+                window.mParticle.Rokt.attachKit = async (kit) => {
+                    window.mParticle.Rokt.attachKitCalled = true;
+                    window.mParticle.Rokt.kit = kit;
+                    Promise.resolve();
+                };
+                window.mParticle.forwarder.launcher = {
+                    selectPlacements: function (options) {
+                        window.mParticle.Rokt.selectPlacementsOptions = options;
+                        window.mParticle.Rokt.selectPlacementsCalled = true;
+                    },
+                };
             });
 
-            window.Rokt.selectPlacementsCalled.should.equal(true);
-            window.Rokt.selectPlacementsOptions.should.deepEqual({
-                identifier: 'test-placement',
-                attributes: {
-                    'user-attribute': 'user-attribute-value',
-                    mpid: '123',
-                },
+            it('should send userAttributes if userIdentities is null but userAttributes exists', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return 'abc';
+                        },
+                        getUserIdentities: function () {
+                            return { userIdentities: {} };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'test-attribute': 'test-value',
+                    }
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        'test-attribute': 'test-value',
+                        mpid: 'abc',
+                    }
+                );
+            });
+
+            it('should send userIdentities when userAttributes is null but userIdentities exists', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function () {
+                        return {};
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '234';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer123',
+                                    email: 'test@example.com',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        customerid: 'customer123',
+                        email: 'test@example.com',
+                        mpid: '234',
+                    }
+                );
+            });
+
+            it('should send userAttributes and userIdentities if both exist', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '123';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer123',
+                                    email: 'test@example.com',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'test-attribute': 'test-value',
+                    }
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        'test-attribute': 'test-value',
+                        customerid: 'customer123',
+                        email: 'test@example.com',
+                        mpid: '123',
+                    }
+                );
+            });
+
+            it('should not send userIdentities if filteredUser is null', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: null,
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'test-attribute': 'test-value',
+                    }
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        'test-attribute': 'test-value',
+                        mpid: null,
+                    }
+                );
+            });
+
+            it('should not send userIdentities if getUserIdentities function does not exist', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '123';
+                        },
+                        // getUserIdentities is intentionally missing
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'test-attribute': 'test-value',
+                    }
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        'test-attribute': 'test-value',
+                        mpid: '123',
+                    }
+                );
             });
         });
     });
@@ -665,7 +976,7 @@ describe('Rokt Forwarder', () => {
                 'test-attribute': 'test-value',
             });
 
-            window.mParticle.forwarder.filteredUser
+            window.mParticle.forwarder.filters.filteredUser
                 .getMPID()
                 .should.equal('123');
         });

@@ -25,7 +25,6 @@ var constructor = function () {
 
     self.launcher = null;
     self.filters = {};
-    self.filteredUser = {};
     self.userAttributes = {};
 
     /**
@@ -115,6 +114,18 @@ var constructor = function () {
             console.warn('Unable to find Rokt on the page');
         }
     }
+    /**
+     * Returns the user identities from the filtered user, if any
+     * @param {Object} filteredUser - The filtered user object containing identities
+     * @returns {Object} The user identities from the filtered user
+     */
+    function returnUserIdentities(filteredUser) {
+        if (!filteredUser || !filteredUser.getUserIdentities) {
+            return {};
+        }
+
+        return filteredUser.getUserIdentities().userIdentities;
+    }
 
     /**
      * Selects placements for Rokt Web SDK with merged attributes, filters, and experimentation options
@@ -160,8 +171,11 @@ var constructor = function () {
                 ? fetchOptimizely()
                 : {};
 
+        var filteredUserIdentities = returnUserIdentities(filteredUser);
+
         var selectPlacementsAttributes = mergeObjects(
             filteredAttributes,
+            filteredUserIdentities,
             optimizelyAttributes,
             {
                 mpid: mpid,
@@ -176,7 +190,7 @@ var constructor = function () {
     }
 
     function onUserIdentified(filteredUser) {
-        self.filteredUser = filteredUser;
+        self.filters.filteredUser = filteredUser;
         self.userAttributes = filteredUser.getAllUserAttributes();
     }
 
@@ -200,7 +214,6 @@ var constructor = function () {
             .then(function (launcher) {
                 // Assign the launcher to a global variable for later access
                 window.Rokt.currentLauncher = launcher;
-
                 // Locally cache the launcher and filters
                 self.launcher = launcher;
 
@@ -214,11 +227,8 @@ var constructor = function () {
                         console.warn(
                             'Rokt Kit: No filtered user has been set.'
                         );
-                    } else {
-                        self.filteredUser = roktFilters.filteredUser;
                     }
                 }
-
                 // Attaches the kit to the Rokt manager
                 window.mParticle.Rokt.attachKit(self);
 
