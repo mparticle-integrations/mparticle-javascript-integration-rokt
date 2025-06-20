@@ -597,7 +597,8 @@ describe('Rokt Forwarder', () => {
                     {
                         // These should be filtered out
                         'blocked-attribute': 'blocked-value',
-                        'initial-user-attribute': 'initial-user-attribute-value',
+                        'initial-user-attribute':
+                            'initial-user-attribute-value',
 
                         // This should be updated
                         'changed-attribute': 'old-value',
