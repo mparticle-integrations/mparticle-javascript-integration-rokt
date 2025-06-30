@@ -41,7 +41,7 @@ var constructor = function () {
      * @param {Array<string>} extensions - List of extension query parameters to append
      * @returns {string} The complete launcher script URL
      */
-    function generateLauncherScript(_domain,extensions) {
+    function generateLauncherScript(_domain, extensions) {
         // Override domain if a customer is using a CNAME
         // If a customer is using a CNAME, a domain will be passed. If not, we use the default domain.
         var domain = typeof _domain !== 'undefined' ? _domain : 'apps.rokt.com';
