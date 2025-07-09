@@ -16,13 +16,6 @@
 var name = 'Rokt';
 var moduleId = 181;
 
-var ROKT_EXTENSIONS = {
-    'Coupon on Signup Extension Detection': 'cos-extension-detection',
-    'Experiment Monitoring': 'experiment-monitoring',
-    'Sponsored Payments Apple Pay': 'sponsored-payments-apple-pay',
-    'Realtime Conversion Promotion': 'realtime-conversion-promotion',
-};
-
 var constructor = function () {
     var self = this;
 
@@ -411,11 +404,7 @@ function extractRoktExtensions(settingsString) {
 
     var roktExtensions = [];
     for (var i = 0; i < settings.length; i++) {
-        var extensionName = settings[i].value;
-        var mappedExtension = ROKT_EXTENSIONS[extensionName];
-        if (mappedExtension) {
-            roktExtensions.push(mappedExtension);
-        }
+        roktExtensions.push(settings[i].value);
     }
 
     return roktExtensions;
