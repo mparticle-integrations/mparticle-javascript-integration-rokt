@@ -1,6 +1,10 @@
 /* eslint-env es6, mocha */
 /* eslint-parser babel-eslint */
 
+const packageVersion = require('../../package.json').version;
+const sdkVersion = 'mParticle_wsdkv_1.2.3';
+const kitVersion = 'kitv_' + packageVersion;
+
 const waitForCondition = async (conditionFn, timeout = 200, interval = 10) => {
     return new Promise((resolve, reject) => {
         const startTime = Date.now();
@@ -195,10 +199,7 @@ describe('Rokt Forwarder', () => {
                 null
             );
 
-            var expectedIntegrationName =
-                'mParticle_wsdkv_1.2.3_kitv_' +
-                require('../../package.json').version +
-                '_customName';
+            const expectedIntegrationName = `${sdkVersion}_${kitVersion}_customName`;
 
             window.Rokt.createLauncherCalled.should.equal(true);
             window.Rokt.accountId.should.equal('123456');
@@ -241,7 +242,6 @@ describe('Rokt Forwarder', () => {
         });
 
         it('should set integrationName in the correct format', async () => {
-            const packageVersion = require('../../package.json').version;
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;
             window.mParticle.Rokt.attachKitCalled = false;
@@ -259,13 +259,12 @@ describe('Rokt Forwarder', () => {
             );
 
             window.Rokt.integrationName.should.equal(
-                'mParticle_wsdkv_1.2.3_kitv_' + packageVersion
+                `${sdkVersion}_${kitVersion}`
             );
         });
 
-        it('should append custom integration name to integrationName if passed in launcherOptions', async () => {
-            const packageVersion = require('../../package.json').version;
-            const customIntegrationName = 'myCustomIntegration';
+        it('should not mutate the global launcherOptions object during initialization', async () => {
+            const originalIntegrationName = 'globalIntegrationName';
 
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;
@@ -274,16 +273,16 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.attachKitCalled = true;
                 return Promise.resolve();
             };
+
+            // Set up the global launcherOptions with a custom integration name
             window.mParticle.Rokt.launcherOptions = {
-                integrationName: customIntegrationName,
+                integrationName: originalIntegrationName,
+                sandbox: true,
             };
 
-            // Simulate the forwarder appending the custom integration name
-            window.Rokt.integrationName =
-                'mParticle_wsdkv_1.2.3_kitv_' +
-                packageVersion +
-                '_' +
-                customIntegrationName;
+            // Store reference to verify it doesn't get mutated
+            const originalLauncherOptions =
+                window.mParticle.Rokt.launcherOptions;
 
             await mParticle.forwarder.init(
                 {
@@ -298,12 +297,14 @@ describe('Rokt Forwarder', () => {
                 null
             );
 
-            window.Rokt.integrationName.should.equal(
-                'mParticle_wsdkv_1.2.3_kitv_' +
-                    packageVersion +
-                    '_' +
-                    customIntegrationName
+            originalLauncherOptions.integrationName.should.equal(
+                'globalIntegrationName'
             );
+            originalLauncherOptions.sandbox.should.equal(true);
+
+            // Verify the kit still gets the processed integration name
+            const expectedProcessedName = `${sdkVersion}_${kitVersion}_${originalIntegrationName}`;
+            window.Rokt.integrationName.should.equal(expectedProcessedName);
         });
     });
 
