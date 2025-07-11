@@ -26,21 +26,28 @@ var constructor = function () {
     self.launcher = null;
     self.filters = {};
     self.userAttributes = {};
+    self.testHelpers = null;
 
     /**
-     * Generates the Rokt launcher script URL with optional domain override
+     * Generates the Rokt launcher script URL with optional domain override and extensions
      * @param {string} domain - The CNAME domain to use for overriding the launcher url
+     * @param {Array<string>} extensions - List of extension query parameters to append
      * @returns {string} The complete launcher script URL
      */
-    function generateLauncherScript(_domain) {
+    function generateLauncherScript(_domain, extensions) {
         // Override domain if a customer is using a CNAME
         // If a customer is using a CNAME, a domain will be passed. If not, we use the default domain.
         var domain = typeof _domain !== 'undefined' ? _domain : 'apps.rokt.com';
         var protocol = 'https://';
         var launcherPath = '/wsdk/integrations/launcher.js';
+        var baseUrl = [protocol, domain, launcherPath].join('');
 
-        return [protocol, domain, launcherPath].join('');
+        if (!extensions || extensions.length === 0) {
+            return baseUrl;
+        }
+        return baseUrl + '?extensions=' + extensions.join(',');
     }
+
     /**
      * Passes attributes to the Rokt Web SDK for client-side hashing
      * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher#hash-attributes
@@ -64,6 +71,7 @@ var constructor = function () {
         filteredUserAttributes
     ) {
         var accountId = settings.accountId;
+        var roktExtensions = extractRoktExtensions(settings.roktExtensions);
         self.userAttributes = filteredUserAttributes;
         self.onboardingExpProvider = settings.onboardingExpProvider;
         var domain = window.mParticle.Rokt.domain;
@@ -78,6 +86,7 @@ var constructor = function () {
         if (testMode) {
             self.testHelpers = {
                 generateLauncherScript: generateLauncherScript,
+                extractRoktExtensions: extractRoktExtensions,
             };
             attachLauncher(accountId, launcherOptions);
             return;
@@ -87,7 +96,7 @@ var constructor = function () {
             var target = document.head || document.body;
             var script = document.createElement('script');
             script.type = 'text/javascript';
-            script.src = generateLauncherScript(domain);
+            script.src = generateLauncherScript(domain, roktExtensions);
             script.async = true;
             script.crossOrigin = 'anonymous';
             script.fetchPriority = 'high';
@@ -192,6 +201,22 @@ var constructor = function () {
         return self.launcher.selectPlacements(selectPlacementsOptions);
     }
 
+    /**
+     * Sets extension data for Rokt Web SDK
+     * @param {Object} partnerExtensionData - The extension data object containing:
+     * - [extensionName] {string}: Name of the extension
+     * - [extensionName].options {Object}: Key-value pairs of options for the extension
+     * @returns {void} Nothing is returned
+     */
+    function setExtensionData(partnerExtensionData) {
+        if (!isInitialized()) {
+            console.error('Rokt Kit: Not initialized');
+            return;
+        }
+
+        window.Rokt.setExtensionData(partnerExtensionData);
+    }
+
     function onUserIdentified(filteredUser) {
         self.filters.filteredUser = filteredUser;
         self.userAttributes = filteredUser.getAllUserAttributes();
@@ -290,6 +315,7 @@ var constructor = function () {
 
     // Kit Callback Methods
     this.init = initForwarder;
+    this.setExtensionData = setExtensionData;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
     this.removeUserAttribute = removeUserAttribute;
@@ -366,6 +392,25 @@ function mergeObjects() {
         }
     }
     return resObj;
+}
+
+function parseSettingsString(settingsString) {
+    try {
+        return JSON.parse(settingsString.replace(/&quot;/g, '"'));
+    } catch (error) {
+        throw new Error('Settings string contains invalid JSON');
+    }
+}
+
+function extractRoktExtensions(settingsString) {
+    var settings = settingsString ? parseSettingsString(settingsString) : [];
+
+    var roktExtensions = [];
+    for (var i = 0; i < settings.length; i++) {
+        roktExtensions.push(settings[i].value);
+    }
+
+    return roktExtensions;
 }
 
 if (window && window.mParticle && window.mParticle.addForwarder) {

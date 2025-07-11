@@ -67,14 +67,11 @@ describe('Rokt Forwarder', () => {
 
         this.initializeCalled = false;
         this.isInitialized = false;
-
         this.accountId = null;
         this.sandbox = null;
         this.integrationName = null;
-        this.noFunctional = null;
-        this.noTargeting = null;
-
         this.createLauncherCalled = false;
+
         this.createLauncher = function (options) {
             self.accountId = options.accountId;
             self.integrationName = options.integrationName;
@@ -1209,6 +1206,79 @@ describe('Rokt Forwarder', () => {
                 .should.equal(
                     'https://cname.rokt.com/wsdk/integrations/launcher.js'
                 );
+        });
+
+        it('should return base URL when no extensions are provided', () => {
+            const url =
+                window.mParticle.forwarder.testHelpers.generateLauncherScript();
+            url.should.equal(baseUrl);
+        });
+
+        it('should return base URL when extensions is null or undefined', () => {
+            window.mParticle.forwarder.testHelpers
+                .generateLauncherScript(undefined, null)
+                .should.equal(baseUrl);
+
+            window.mParticle.forwarder.testHelpers
+                .generateLauncherScript(undefined, undefined)
+                .should.equal(baseUrl);
+        });
+
+        it('should correctly append a single extension', () => {
+            const url =
+                window.mParticle.forwarder.testHelpers.generateLauncherScript(
+                    undefined,
+                    ['cos-extension-detection']
+                );
+            url.should.equal(baseUrl + '?extensions=cos-extension-detection');
+        });
+
+        it('should correctly append multiple extensions', () => {
+            const url =
+                window.mParticle.forwarder.testHelpers.generateLauncherScript(
+                    undefined,
+                    [
+                        'cos-extension-detection',
+                        'experiment-monitoring',
+                        'sponsored-payments-apple-pay',
+                    ]
+                );
+            url.should.equal(
+                baseUrl +
+                    '?extensions=cos-extension-detection,' +
+                    'experiment-monitoring,' +
+                    'sponsored-payments-apple-pay'
+            );
+        });
+    });
+
+    describe('#roktExtensions', () => {
+        beforeEach(async () => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
+        });
+
+        describe('extractRoktExtensions', () => {
+            it('should correctly map known extension names to their query parameters', async () => {
+                const settingsString =
+                    '[{&quot;jsmap&quot;:null,&quot;map&quot;:null,&quot;maptype&quot;:&quot;StaticList&quot;,&quot;value&quot;:&quot;cos-extension-detection&quot;},{&quot;jsmap&quot;:null,&quot;map&quot;:null,&quot;maptype&quot;:&quot;StaticList&quot;,&quot;value&quot;:&quot;experiment-monitoring&quot;}]';
+                const expectedExtensions = [
+                    'cos-extension-detection',
+                    'experiment-monitoring',
+                ];
+
+                window.mParticle.forwarder.testHelpers
+                    .extractRoktExtensions(settingsString)
+                    .should.deepEqual(expectedExtensions);
+            });
         });
     });
 });
