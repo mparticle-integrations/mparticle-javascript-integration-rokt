@@ -404,7 +404,7 @@ function parseSettingsString(settingsString) {
 }
 
 function extractRoktExtensions(settingsString) {
-    var settings = parseSettingsString(settingsString);
+    var settings = settingsString ? parseSettingsString(settingsString) : [];
     var roktExtensions = [];
 
     for (var i = 0; i < settings.length; i++) {
