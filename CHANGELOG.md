@@ -1,3 +1,16 @@
+# [1.6.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.5.0...v1.6.0) (2025-07-14)
+
+
+### Bug Fixes
+
+* Prevent mutation of global launcherOptions during initialization ([#36](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/36)) ([0f36fac](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/0f36facf257cc08eea118205454ef76ef973d581))
+
+
+### Features
+
+* Add Extensions to Rokt Kit ([#26](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/26)) ([73e9696](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/73e96969e40e919aa119aa7bdd79aa93ae320cd2))
+* Support adding identities to select placement attributes ([#35](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/35)) ([f9595ea](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/f9595ea8cb629634b7e7bc9f92dc9186ea64f9a9))
+
 # [1.5.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.4.1...v1.5.0) (2025-06-10)
 
 
