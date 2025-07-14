@@ -1280,5 +1280,19 @@ describe('Rokt Forwarder', () => {
                     .should.deepEqual(expectedExtensions);
             });
         });
+
+        it('should handle invalid setting strings', () => {
+            window.mParticle.forwarder.testHelpers
+                .extractRoktExtensions('NONE')
+                .should.deepEqual([]);
+
+            window.mParticle.forwarder.testHelpers
+                .extractRoktExtensions(undefined)
+                .should.deepEqual([]);
+
+            window.mParticle.forwarder.testHelpers
+                .extractRoktExtensions(null)
+                .should.deepEqual([]);
+        });
     });
 });
