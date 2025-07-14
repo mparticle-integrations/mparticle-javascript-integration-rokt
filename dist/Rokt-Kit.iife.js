@@ -28,23 +28,29 @@ var RoktKit = (function (exports) {
 
         self.launcher = null;
         self.filters = {};
-        self.filteredUser = {};
         self.userAttributes = {};
+        self.testHelpers = null;
 
         /**
-         * Generates the Rokt launcher script URL with optional domain override
+         * Generates the Rokt launcher script URL with optional domain override and extensions
          * @param {string} domain - The CNAME domain to use for overriding the launcher url
+         * @param {Array<string>} extensions - List of extension query parameters to append
          * @returns {string} The complete launcher script URL
          */
-        function generateLauncherScript(_domain) {
+        function generateLauncherScript(_domain, extensions) {
             // Override domain if a customer is using a CNAME
             // If a customer is using a CNAME, a domain will be passed. If not, we use the default domain.
             var domain = typeof _domain !== 'undefined' ? _domain : 'apps.rokt.com';
             var protocol = 'https://';
             var launcherPath = '/wsdk/integrations/launcher.js';
+            var baseUrl = [protocol, domain, launcherPath].join('');
 
-            return [protocol, domain, launcherPath].join('');
+            if (!extensions || extensions.length === 0) {
+                return baseUrl;
+            }
+            return baseUrl + '?extensions=' + extensions.join(',');
         }
+
         /**
          * Passes attributes to the Rokt Web SDK for client-side hashing
          * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher#hash-attributes
@@ -68,10 +74,14 @@ var RoktKit = (function (exports) {
             filteredUserAttributes
         ) {
             var accountId = settings.accountId;
+            var roktExtensions = extractRoktExtensions(settings.roktExtensions);
             self.userAttributes = filteredUserAttributes;
             self.onboardingExpProvider = settings.onboardingExpProvider;
             var domain = window.mParticle.Rokt.domain;
-            var launcherOptions = window.mParticle.Rokt.launcherOptions || {};
+            var launcherOptions = mergeObjects(
+                {},
+                window.mParticle.Rokt.launcherOptions || {}
+            );
             launcherOptions.integrationName = generateIntegrationName(
                 launcherOptions.integrationName
             );
@@ -79,6 +89,7 @@ var RoktKit = (function (exports) {
             if (testMode) {
                 self.testHelpers = {
                     generateLauncherScript: generateLauncherScript,
+                    extractRoktExtensions: extractRoktExtensions,
                 };
                 attachLauncher(accountId, launcherOptions);
                 return;
@@ -88,7 +99,7 @@ var RoktKit = (function (exports) {
                 var target = document.head || document.body;
                 var script = document.createElement('script');
                 script.type = 'text/javascript';
-                script.src = generateLauncherScript(domain);
+                script.src = generateLauncherScript(domain, roktExtensions);
                 script.async = true;
                 script.crossOrigin = 'anonymous';
                 script.fetchPriority = 'high';
@@ -117,6 +128,18 @@ var RoktKit = (function (exports) {
             } else {
                 console.warn('Unable to find Rokt on the page');
             }
+        }
+        /**
+         * Returns the user identities from the filtered user, if any
+         * @param {Object} filteredUser - The filtered user object containing identities
+         * @returns {Object} The user identities from the filtered user
+         */
+        function returnUserIdentities(filteredUser) {
+            if (!filteredUser || !filteredUser.getUserIdentities) {
+                return {};
+            }
+
+            return filteredUser.getUserIdentities().userIdentities;
         }
 
         /**
@@ -163,8 +186,11 @@ var RoktKit = (function (exports) {
                     ? fetchOptimizely()
                     : {};
 
+            var filteredUserIdentities = returnUserIdentities(filteredUser);
+
             var selectPlacementsAttributes = mergeObjects(
                 filteredAttributes,
+                filteredUserIdentities,
                 optimizelyAttributes,
                 {
                     mpid: mpid,
@@ -178,8 +204,24 @@ var RoktKit = (function (exports) {
             return self.launcher.selectPlacements(selectPlacementsOptions);
         }
 
+        /**
+         * Sets extension data for Rokt Web SDK
+         * @param {Object} partnerExtensionData - The extension data object containing:
+         * - [extensionName] {string}: Name of the extension
+         * - [extensionName].options {Object}: Key-value pairs of options for the extension
+         * @returns {void} Nothing is returned
+         */
+        function setExtensionData(partnerExtensionData) {
+            if (!isInitialized()) {
+                console.error('Rokt Kit: Not initialized');
+                return;
+            }
+
+            window.Rokt.setExtensionData(partnerExtensionData);
+        }
+
         function onUserIdentified(filteredUser) {
-            self.filteredUser = filteredUser;
+            self.filters.filteredUser = filteredUser;
             self.userAttributes = filteredUser.getAllUserAttributes();
         }
 
@@ -203,7 +245,6 @@ var RoktKit = (function (exports) {
                 .then(function (launcher) {
                     // Assign the launcher to a global variable for later access
                     window.Rokt.currentLauncher = launcher;
-
                     // Locally cache the launcher and filters
                     self.launcher = launcher;
 
@@ -217,11 +258,8 @@ var RoktKit = (function (exports) {
                             console.warn(
                                 'Rokt Kit: No filtered user has been set.'
                             );
-                        } else {
-                            self.filteredUser = roktFilters.filteredUser;
                         }
                     }
-
                     // Attaches the kit to the Rokt manager
                     window.mParticle.Rokt.attachKit(self);
 
@@ -280,6 +318,7 @@ var RoktKit = (function (exports) {
 
         // Kit Callback Methods
         this.init = initForwarder;
+        this.setExtensionData = setExtensionData;
         this.setUserAttribute = setUserAttribute;
         this.onUserIdentified = onUserIdentified;
         this.removeUserAttribute = removeUserAttribute;
@@ -298,7 +337,7 @@ var RoktKit = (function (exports) {
 
     function generateIntegrationName(customIntegrationName) {
         var coreSdkVersion = window.mParticle.getVersion();
-        var kitVersion = "1.5.0";
+        var kitVersion = "1.6.0";
         var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
         if (customIntegrationName) {
@@ -356,6 +395,25 @@ var RoktKit = (function (exports) {
             }
         }
         return resObj;
+    }
+
+    function parseSettingsString(settingsString) {
+        try {
+            return JSON.parse(settingsString.replace(/&quot;/g, '"'));
+        } catch (error) {
+            throw new Error('Settings string contains invalid JSON');
+        }
+    }
+
+    function extractRoktExtensions(settingsString) {
+        var settings = settingsString ? parseSettingsString(settingsString) : [];
+
+        var roktExtensions = [];
+        for (var i = 0; i < settings.length; i++) {
+            roktExtensions.push(settings[i].value);
+        }
+
+        return roktExtensions;
     }
 
     if (window && window.mParticle && window.mParticle.addForwarder) {
