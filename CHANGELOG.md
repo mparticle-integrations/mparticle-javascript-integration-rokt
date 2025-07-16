@@ -1,3 +1,10 @@
+# [1.6.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.6.0...v1.6.1) (2025-07-16)
+
+### Bug Fixes
+
+* Handle Invalid Extension Settings ([#37](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/pull/37)) ([fff87ac](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/fff87ac213f836cd6b74bf5367663d262ac51d72))
+
+
 # [1.6.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.5.0...v1.6.0) (2025-07-14)
 
 
