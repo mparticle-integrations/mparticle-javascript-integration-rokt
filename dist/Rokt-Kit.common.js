@@ -338,7 +338,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.6.0";
+    var kitVersion = "1.6.1";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
@@ -402,14 +402,15 @@ function parseSettingsString(settingsString) {
     try {
         return JSON.parse(settingsString.replace(/&quot;/g, '"'));
     } catch (error) {
-        throw new Error('Settings string contains invalid JSON');
+        console.error('Settings string contains invalid JSON');
     }
+    return [];
 }
 
 function extractRoktExtensions(settingsString) {
     var settings = settingsString ? parseSettingsString(settingsString) : [];
-
     var roktExtensions = [];
+
     for (var i = 0; i < settings.length; i++) {
         roktExtensions.push(settings[i].value);
     }
