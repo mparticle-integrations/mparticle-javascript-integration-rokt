@@ -928,6 +928,197 @@ describe('Rokt Forwarder', () => {
                     }
                 );
             });
+
+            it('should map other userIdentities to emailsha256', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function () {
+                        return {};
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '234';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer123',
+                                    other: 'sha256-test@gmail.com',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        customerid: 'customer123',
+                        emailsha256: 'sha256-test@gmail.com',
+                        mpid: '234',
+                    }
+                );
+            });
+
+            it('should map other to emailsha256 when other is passed through selectPlacements', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '123';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer123',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'test-attribute': 'test-value',
+                    }
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        other: 'sha256-test@gmail.com',
+                    },
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        'test-attribute': 'test-value',
+                        customerid: 'customer123',
+                        emailsha256: 'sha256-test@gmail.com',
+                        mpid: '123',
+                    }
+                );
+            });
+
+            it('should prioritize other passed to selectPlacements over other in userIdentities', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '123';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer123',
+                                    other: 'not-prioritized-from-userIdentities@gmail.com',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'test-attribute': 'test-value',
+                    }
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        other: 'prioritized-from-selectPlacements@gmail.com',
+                    },
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        'test-attribute': 'test-value',
+                        customerid: 'customer123',
+                        emailsha256:
+                            'prioritized-from-selectPlacements@gmail.com',
+                        mpid: '123',
+                    }
+                );
+            });
         });
     });
 
