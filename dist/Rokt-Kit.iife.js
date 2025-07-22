@@ -21,6 +21,8 @@ var RoktKit = (function (exports) {
 
     var constructor = function () {
         var self = this;
+        var EMAIL_SHA256_IDENTITY = 'emailsha256';
+        var OTHER_IDENTITY = 'other';
 
         self.name = name;
         self.moduleId = moduleId;
@@ -139,7 +141,19 @@ var RoktKit = (function (exports) {
                 return {};
             }
 
-            return filteredUser.getUserIdentities().userIdentities;
+            var userIdentities = filteredUser.getUserIdentities().userIdentities;
+
+            return replaceOtherWithEmailsha256(userIdentities);
+        }
+
+        function replaceOtherWithEmailsha256(_data) {
+            var data = mergeObjects({}, _data || {});
+            if (_data.hasOwnProperty(OTHER_IDENTITY)) {
+                data[EMAIL_SHA256_IDENTITY] = _data[OTHER_IDENTITY];
+                delete data[OTHER_IDENTITY];
+            }
+
+            return data;
         }
 
         /**
@@ -189,8 +203,8 @@ var RoktKit = (function (exports) {
             var filteredUserIdentities = returnUserIdentities(filteredUser);
 
             var selectPlacementsAttributes = mergeObjects(
-                filteredAttributes,
                 filteredUserIdentities,
+                replaceOtherWithEmailsha256(filteredAttributes),
                 optimizelyAttributes,
                 {
                     mpid: mpid,
@@ -337,7 +351,7 @@ var RoktKit = (function (exports) {
 
     function generateIntegrationName(customIntegrationName) {
         var coreSdkVersion = window.mParticle.getVersion();
-        var kitVersion = "1.6.1";
+        var kitVersion = "1.6.2";
         var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
         if (customIntegrationName) {
