@@ -1,3 +1,10 @@
+## [1.6.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.6.1...v1.6.2) (2025-07-22)
+
+
+### Bug Fixes
+
+* map other in selectPlacements to emailsha256 ([#38](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/38)) ([c0e9482](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/c0e94824925bc2024b69f6bbc1e07d62ea5e1bad))
+
 # [1.6.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.6.0...v1.6.1) (2025-07-16)
 
 ### Bug Fixes
