@@ -58,7 +58,7 @@ var constructor = function () {
      * hashed attributes from the launcher, or `null` if the kit is not initialized
      */
     function hashAttributes(attributes) {
-        if (!isInitialized()) {
+        if (!isInitialized) {
             console.error('Rokt Kit: Not initialized');
             return null;
         }
@@ -223,7 +223,7 @@ var constructor = function () {
      * @returns {void} Nothing is returned
      */
     function setExtensionData(partnerExtensionData) {
-        if (!isInitialized()) {
+        if (!isInitialized) {
             console.error('Rokt Kit: Not initialized');
             return;
         }
