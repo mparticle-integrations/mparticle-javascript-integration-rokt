@@ -1,3 +1,10 @@
+## [1.6.3](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.6.2...v1.6.3) (2025-08-12)
+
+
+### Bug Fixes
+
+* Correct isInitialized check in hashAttributes and setExtensionData functions ([#39](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/39)) ([3a13833](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/3a13833582e1efc61e7c803ef6f4a8be2ed5de84))
+
 ## [1.6.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.6.1...v1.6.2) (2025-07-22)
 
 
