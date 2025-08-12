@@ -457,7 +457,6 @@ describe('Rokt Forwarder', () => {
             window.mParticle.Rokt = window.Rokt;
             window.mParticle.Rokt.attachKitCalled = false;
             window.mParticle.Rokt.attachKit = async (kit) => {
-                console.log('Rokt Kit: attachKit called');
                 window.mParticle.Rokt.attachKitCalled = true;
                 window.mParticle.Rokt.kit = kit;
 
