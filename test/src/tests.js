@@ -456,6 +456,10 @@ describe('Rokt Forwarder', () => {
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;
             window.mParticle.Rokt.attachKitCalled = false;
+
+            // Set attachKit as async to allow for await calls in the test
+            // This is necessary to simiulate a race condition between the
+            // core sdk and the Rokt forwarder
             window.mParticle.Rokt.attachKit = async (kit) => {
                 window.mParticle.Rokt.attachKitCalled = true;
                 window.mParticle.Rokt.kit = kit;
@@ -507,6 +511,11 @@ describe('Rokt Forwarder', () => {
             window.mParticle.forwarder.isInitialized.should.equal(true);
         });
 
+        // This test is to ensure the kit is initialized before attaching to the Rokt manager
+        // so we can ensure that the Rokt Manager's message queue is processed and that
+        // all the isReady() checks are properly handled in by the Rokt Manager.
+        // This is to validate in case a bug that was found in the Rokt Manager's
+        // queueing logic regresses.
         it('should initialize the kit before calling queued messages', async () => {
             let queuedMessageCalled = false;
             let wasKitInitializedFirst = false;
