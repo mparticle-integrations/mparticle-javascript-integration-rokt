@@ -444,6 +444,113 @@ describe('Rokt Forwarder', () => {
         });
     });
 
+    describe('#attachLauncher', () => {
+        let mockMessageQueue;
+
+        beforeEach(() => {
+            mockMessageQueue = [];
+
+            // Reset forwarder state between tests
+            window.mParticle.forwarder.isInitialized = false;
+
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+
+            // Set attachKit as async to allow for await calls in the test
+            // This is necessary to simiulate a race condition between the
+            // core sdk and the Rokt forwarder
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+
+                // Call queued messages
+                mockMessageQueue.forEach((message) => message());
+                mockMessageQueue = [];
+
+                return Promise.resolve();
+            };
+            window.mParticle.Rokt.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            };
+        });
+
+        it('should call attachKit', async () => {
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.Rokt.attachKitCalled.should.equal(true);
+        });
+
+        it('should set isInitialized to true', async () => {
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.isInitialized.should.equal(true);
+        });
+
+        // This test is to ensure the kit is initialized before attaching to the Rokt manager
+        // so we can ensure that the Rokt Manager's message queue is processed and that
+        // all the isReady() checks are properly handled in by the Rokt Manager.
+        // This is to validate in case a bug that was found in the Rokt Manager's
+        // queueing logic regresses.
+        it('should initialize the kit before calling queued messages', async () => {
+            let queuedMessageCalled = false;
+            let wasKitInitializedFirst = false;
+
+            const queuedMessage = () => {
+                wasKitInitializedFirst =
+                    window.mParticle.Rokt.kit &&
+                    window.mParticle.Rokt.kit.isInitialized;
+                queuedMessageCalled = true;
+            };
+
+            mockMessageQueue.push(queuedMessage);
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            window.mParticle.forwarder.isInitialized.should.equal(false);
+            queuedMessageCalled.should.equal(false);
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.isInitialized.should.equal(true);
+            queuedMessageCalled.should.equal(true);
+
+            wasKitInitializedFirst.should.equal(true);
+
+            mockMessageQueue.length.should.equal(0);
+        });
+    });
+
     describe('#selectPlacements', () => {
         beforeEach(() => {
             window.Rokt = new MockRoktForwarder();
