@@ -20,6 +20,7 @@ var constructor = function () {
     var self = this;
     var EMAIL_SHA256_IDENTITY = 'emailsha256';
     var OTHER_IDENTITY = 'other';
+    var EMAIL_IDENTITY = 'email';
 
     self.name = name;
     self.moduleId = moduleId;
@@ -140,18 +141,28 @@ var constructor = function () {
 
         var userIdentities = filteredUser.getUserIdentities().userIdentities;
 
-        return replaceOtherWithEmailsha256(userIdentities);
+        return replaceOtherIdentityWithEmailsha256(userIdentities);
     }
 
-    function replaceOtherWithEmailsha256(_data) {
+    function replaceOtherIdentityWithEmailsha256(_data) {
         var data = mergeObjects({}, _data || {});
         if (_data.hasOwnProperty(OTHER_IDENTITY)) {
             data[EMAIL_SHA256_IDENTITY] = _data[OTHER_IDENTITY];
             delete data[OTHER_IDENTITY];
+            delete data[EMAIL_IDENTITY];
         }
 
         return data;
     }
+
+    // function replaceEmailIdentityWithEmailsha256(_data) {
+    //     var data = mergeObjects({}, _data || {});
+    //     if (_data.hasOwnProperty(EMAIL_SHA256_IDENTITY)) {
+    //         delete data[EMAIL_IDENTITY];
+    //     }
+
+    //     return data;
+    // }
 
     /**
      * Selects placements for Rokt Web SDK with merged attributes, filters, and experimentation options
@@ -198,16 +209,17 @@ var constructor = function () {
                 : {};
 
         var filteredUserIdentities = returnUserIdentities(filteredUser);
+        console.log(filteredUserIdentities);
 
         var selectPlacementsAttributes = mergeObjects(
             filteredUserIdentities,
-            replaceOtherWithEmailsha256(filteredAttributes),
+            filteredAttributes,
             optimizelyAttributes,
             {
                 mpid: mpid,
             }
         );
-
+        console.log(selectPlacementsAttributes);
         var selectPlacementsOptions = mergeObjects(options, {
             attributes: selectPlacementsAttributes,
         });
