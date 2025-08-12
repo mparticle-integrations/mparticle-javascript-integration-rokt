@@ -62,7 +62,7 @@ var constructor = function () {
      * hashed attributes from the launcher, or `null` if the kit is not initialized
      */
     function hashAttributes(attributes) {
-        if (!isInitialized()) {
+        if (!isKitReady()) {
             console.error('Rokt Kit: Not initialized');
             return null;
         }
@@ -227,7 +227,7 @@ var constructor = function () {
      * @returns {void} Nothing is returned
      */
     function setExtensionData(partnerExtensionData) {
-        if (!isInitialized()) {
+        if (!isKitReady()) {
             console.error('Rokt Kit: Not initialized');
             return;
         }
@@ -275,10 +275,11 @@ var constructor = function () {
                         );
                     }
                 }
+
+                // Kit must be initialized before attaching to the Rokt manager
+                self.isInitialized = true;
                 // Attaches the kit to the Rokt manager
                 window.mParticle.Rokt.attachKit(self);
-
-                self.isInitialized = true;
             })
             .catch(function (err) {
                 console.error('Error creating Rokt launcher:', err);
@@ -339,20 +340,20 @@ var constructor = function () {
     this.removeUserAttribute = removeUserAttribute;
 
     /**
-     * Checks if the kit is properly initialized and ready for use.
+     * Checks if the Rokt kit is ready to use.
      * Both conditions must be true:
      * 1. self.isInitialized - Set after successful initialization of the kit
      * 2. self.launcher - The Rokt launcher instance must be available
-     * @returns {boolean} Whether the kit is fully initialized
+     * @returns {boolean} Whether the kit is ready for use
      */
-    function isInitialized() {
+    function isKitReady() {
         return !!(self.isInitialized && self.launcher);
     }
 };
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.6.2";
+    var kitVersion = "1.6.3";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
