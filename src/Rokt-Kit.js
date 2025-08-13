@@ -155,14 +155,14 @@ var constructor = function () {
         return data;
     }
 
-    // function replaceEmailIdentityWithEmailsha256(_data) {
-    //     var data = mergeObjects({}, _data || {});
-    //     if (_data.hasOwnProperty(EMAIL_SHA256_IDENTITY)) {
-    //         delete data[EMAIL_IDENTITY];
-    //     }
+    function sanitizeIdentities(_data) {
+        var data = mergeObjects({}, _data || {});
+        if (_data.hasOwnProperty(EMAIL_SHA256_IDENTITY)) {
+            delete data[EMAIL_IDENTITY];
+        }
 
-    //     return data;
-    // }
+        return data;
+    }
 
     /**
      * Selects placements for Rokt Web SDK with merged attributes, filters, and experimentation options
@@ -209,7 +209,6 @@ var constructor = function () {
                 : {};
 
         var filteredUserIdentities = returnUserIdentities(filteredUser);
-        console.log(filteredUserIdentities);
 
         var selectPlacementsAttributes = mergeObjects(
             filteredUserIdentities,
@@ -219,9 +218,9 @@ var constructor = function () {
                 mpid: mpid,
             }
         );
-        console.log(selectPlacementsAttributes);
+
         var selectPlacementsOptions = mergeObjects(options, {
-            attributes: selectPlacementsAttributes,
+            attributes: sanitizeIdentities(selectPlacementsAttributes),
         });
 
         return self.launcher.selectPlacements(selectPlacementsOptions);
