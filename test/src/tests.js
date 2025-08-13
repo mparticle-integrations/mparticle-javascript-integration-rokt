@@ -999,7 +999,7 @@ describe('Rokt Forwarder', () => {
             });
         });
 
-        describe.only('Identity handling', () => {
+        describe('Identity handling', () => {
             beforeEach(() => {
                 window.Rokt = new MockRoktForwarder();
                 window.mParticle.Rokt = window.Rokt;
@@ -1501,11 +1501,11 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should map email identity to emailsha256 when only email exists', async () => {
+            it('should remove email identity if emailsha256 is passed through selectPlacements', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
-                    filterUserAttributes: function () {
-                        return {};
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
                     },
                     filteredUser: {
                         getMPID: function () {
