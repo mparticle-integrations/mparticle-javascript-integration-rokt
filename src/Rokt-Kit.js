@@ -20,6 +20,7 @@ var constructor = function () {
     var self = this;
     var EMAIL_SHA256_IDENTITY = 'emailsha256';
     var OTHER_IDENTITY = 'other';
+    var EMAIL_IDENTITY = 'email';
 
     self.name = name;
     self.moduleId = moduleId;
@@ -140,14 +141,23 @@ var constructor = function () {
 
         var userIdentities = filteredUser.getUserIdentities().userIdentities;
 
-        return replaceOtherWithEmailsha256(userIdentities);
+        return replaceOtherIdentityWithEmailsha256(userIdentities);
     }
 
-    function replaceOtherWithEmailsha256(_data) {
+    function replaceOtherIdentityWithEmailsha256(_data) {
         var data = mergeObjects({}, _data || {});
         if (_data.hasOwnProperty(OTHER_IDENTITY)) {
             data[EMAIL_SHA256_IDENTITY] = _data[OTHER_IDENTITY];
             delete data[OTHER_IDENTITY];
+        }
+
+        return data;
+    }
+
+    function sanitizeIdentities(_data) {
+        var data = mergeObjects({}, _data || {});
+        if (_data.hasOwnProperty(EMAIL_SHA256_IDENTITY)) {
+            delete data[EMAIL_IDENTITY];
         }
 
         return data;
@@ -201,7 +211,7 @@ var constructor = function () {
 
         var selectPlacementsAttributes = mergeObjects(
             filteredUserIdentities,
-            replaceOtherWithEmailsha256(filteredAttributes),
+            filteredAttributes,
             optimizelyAttributes,
             {
                 mpid: mpid,
@@ -209,7 +219,7 @@ var constructor = function () {
         );
 
         var selectPlacementsOptions = mergeObjects(options, {
-            attributes: selectPlacementsAttributes,
+            attributes: sanitizeIdentities(selectPlacementsAttributes),
         });
 
         return self.launcher.selectPlacements(selectPlacementsOptions);
