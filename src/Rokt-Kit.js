@@ -178,7 +178,6 @@ var constructor = function () {
         if (_data.hasOwnProperty(OTHER_IDENTITY)) {
             data[EMAIL_SHA256_IDENTITY] = _data[OTHER_IDENTITY];
             delete data[OTHER_IDENTITY];
-            delete data[EMAIL_IDENTITY];
         }
 
         return data;
