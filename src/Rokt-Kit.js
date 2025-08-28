@@ -30,7 +30,6 @@ var constructor = function () {
     self.userAttributes = {};
     self.testHelpers = null;
     self.placementEventMappingLookup = {};
-    self.store = null;
 
     /**
      * Generates the Rokt launcher script URL with optional domain override and extensions
@@ -85,10 +84,6 @@ var constructor = function () {
         self.placementEventMappingLookup = generateMappedEventLookup(
             placementEventMapping
         );
-
-        if (window.mParticle.Rokt.store) {
-            self.store = window.mParticle.Rokt.store;
-        }
 
         var domain = window.mParticle.Rokt.domain;
         var launcherOptions = mergeObjects(
@@ -216,9 +211,8 @@ var constructor = function () {
 
         var filteredUserIdentities = returnUserIdentities(filteredUser);
 
-        var localSessionAttributes = self.store
-            ? self.store.getLocalSessionAttributes()
-            : {};
+        var localSessionAttributes =
+            window.mParticle.Rokt.getLocalSessionAttributes() || {};
 
         var selectPlacementsAttributes = mergeObjects(
             filteredUserIdentities,
@@ -256,8 +250,7 @@ var constructor = function () {
     function processEvent(event) {
         if (
             !isKitReady() ||
-            !self.store ||
-            !self.store.hasOwnProperty('setLocalSessionAttribute')
+            !window.mParticle.Rokt.hasOwnProperty('setLocalSessionAttribute')
         ) {
             return;
         }
@@ -270,7 +263,7 @@ var constructor = function () {
 
         if (self.placementEventMappingLookup[hashedEvent]) {
             var mappedValue = self.placementEventMappingLookup[hashedEvent];
-            self.store.setLocalSessionAttribute(mappedValue, true);
+            window.mParticle.Rokt.setLocalSessionAttribute(mappedValue, true);
         }
     }
 

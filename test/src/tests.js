@@ -81,12 +81,6 @@ describe('Rokt Forwarder', () => {
     };
     mParticle._Store = {
         localSessionAttributes: {},
-        setLocalSessionAttribute: function (key, value) {
-            this.localSessionAttributes[key] = value;
-        },
-        getLocalSessionAttributes: function () {
-            return this.localSessionAttributes;
-        },
     };
     mParticle._getActiveForwarders = function () {
         return [];
@@ -148,7 +142,6 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.kit = kit;
                 Promise.resolve();
             };
-            window.mParticle.Rokt.store = window.mParticle._Store;
             window.mParticle.Rokt.filters = {
                 userAttributesFilters: [],
                 filterUserAttributes: function (attributes) {
@@ -630,6 +623,15 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.attachKitCalled = true;
                 return Promise.resolve();
             };
+            window.mParticle.Rokt.setLocalSessionAttribute = function (
+                key,
+                value
+            ) {
+                mParticle._Store.localSessionAttributes[key] = value;
+            };
+            window.mParticle.Rokt.getLocalSessionAttributes = function () {
+                return mParticle._Store.localSessionAttributes;
+            };
             window.mParticle.Rokt.store = window.mParticle._Store;
             window.mParticle.Rokt.store.localSessionAttributes = {};
             window.mParticle.forwarder.launcher = {
@@ -863,6 +865,15 @@ describe('Rokt Forwarder', () => {
                     window.mParticle.Rokt.attachKitCalled = true;
                     window.mParticle.Rokt.kit = kit;
                     Promise.resolve();
+                };
+                window.mParticle.Rokt.setLocalSessionAttribute = function (
+                    key,
+                    value
+                ) {
+                    mParticle._Store.localSessionAttributes[key] = value;
+                };
+                window.mParticle.Rokt.getLocalSessionAttributes = function () {
+                    return mParticle._Store.localSessionAttributes;
                 };
                 window.mParticle.forwarder.launcher = {
                     selectPlacements: function (options) {
@@ -1457,6 +1468,15 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.kit = kit;
                 Promise.resolve();
             };
+            window.mParticle.Rokt.setLocalSessionAttribute = function (
+                key,
+                value
+            ) {
+                mParticle._Store.localSessionAttributes[key] = value;
+            };
+            window.mParticle.Rokt.getLocalSessionAttributes = function () {
+                return mParticle._Store.localSessionAttributes;
+            };
             window.mParticle.forwarder.launcher = {
                 selectPlacements: function (options) {
                     window.mParticle.Rokt.selectPlacementsOptions = options;
@@ -1777,7 +1797,15 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.kit = kit;
                 Promise.resolve();
             };
-            window.mParticle.Rokt.store = window.mParticle._Store;
+            window.mParticle.Rokt.setLocalSessionAttribute = function (
+                key,
+                value
+            ) {
+                window.mParticle._Store.localSessionAttributes[key] = value;
+            };
+            window.mParticle.Rokt.getLocalSessionAttributes = function () {
+                return window.mParticle._Store.localSessionAttributes;
+            };
             window.mParticle.forwarder.launcher = {
                 selectPlacements: function (options) {
                     window.mParticle.Rokt.selectPlacementsOptions = options;
@@ -1833,7 +1861,7 @@ describe('Rokt Forwarder', () => {
                 EventDataType: MessageType.PageEvent,
             });
 
-            window.mParticle.Rokt.store.localSessionAttributes.should.deepEqual({
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
                 'foo-mapped-flag': true,
             });
         });
