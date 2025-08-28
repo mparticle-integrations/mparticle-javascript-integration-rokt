@@ -86,7 +86,6 @@ describe('Rokt Forwarder', () => {
         return [];
     };
     mParticle.generateHash = function (input) {
-        console.warn('Rokt Kit: generateHash', input);
         return 'hashed-<' + input + '>-value';
     };
     // -------------------START EDITING BELOW:-----------------------
@@ -721,20 +720,6 @@ describe('Rokt Forwarder', () => {
                 await window.mParticle.forwarder.init(
                     {
                         accountId: '123456',
-                        placementEventMapping: JSON.stringify([
-                            {
-                                jsmap: '-1484452948',
-                                map: '-5208850776883573773',
-                                maptype: 'EventClass.Id',
-                                value: 'foo-mapped-flag',
-                            },
-                            {
-                                jsmap: '1838502119',
-                                map: '1324617889422969328',
-                                maptype: 'EventClass.Id',
-                                value: 'ad_viewed_test',
-                            },
-                        ]),
                     },
                     reportService.cb,
                     true
@@ -1835,7 +1820,7 @@ describe('Rokt Forwarder', () => {
                     value: 'foo-mapped-flag',
                 },
                 {
-                    jsmap: 'hashed-<29Other Value-value',
+                    jsmap: 'hashed-<29Other Value>-value',
                     map: '1279898989',
                     maptype: 'EventClass.Id',
                     value: 'ad_viewed_test',
@@ -1890,7 +1875,7 @@ describe('Rokt Forwarder', () => {
                 ]);
         });
 
-        it('should parse a settings string with a number value', () => {
+        it('should parse a settings string with a stringified number value correctly', () => {
             const settingsString =
                 '[{&quot;jsmap&quot;:&quot;-1484452948&quot;,&quot;map&quot;:&quot;-5208850776883573773&quot;,&quot;maptype&quot;:&quot;EventClass.Id&quot;,&quot;value&quot;:&quot;abc&quot;},{&quot;jsmap&quot;:&quot;1838502119&quot;,&quot;map&quot;:&quot;1324617889422969328&quot;,&quot;maptype&quot;:&quot;EventClass.Id&quot;,&quot;value&quot;:&quot;bcd&quot;},{&quot;jsmap&quot;:&quot;-355458063&quot;,&quot;map&quot;:&quot;5878452521714063084&quot;,&quot;maptype&quot;:&quot;EventClass.Id&quot;,&quot;value&quot;:&quot;card_viewed_test&quot;}]';
 
@@ -1926,7 +1911,7 @@ describe('Rokt Forwarder', () => {
                 .should.deepEqual([]);
         });
 
-        it('throws an error message if the settings string is not a valid JSON', () => {
+        it('returns an empty array if the settings string is not a valid JSON', () => {
             const settingsString = 'not a valid JSON';
 
             window.mParticle.forwarder.testHelpers
