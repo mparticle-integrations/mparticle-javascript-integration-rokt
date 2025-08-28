@@ -29,6 +29,8 @@ var constructor = function () {
     self.filters = {};
     self.userAttributes = {};
     self.testHelpers = null;
+    self.placementEventMappingLookup = {};
+    self.store = null;
 
     /**
      * Generates the Rokt launcher script URL with optional domain override and extensions
@@ -74,8 +76,20 @@ var constructor = function () {
     ) {
         var accountId = settings.accountId;
         var roktExtensions = extractRoktExtensions(settings.roktExtensions);
-        self.userAttributes = filteredUserAttributes;
+        self.userAttributes = filteredUserAttributes || {};
         self.onboardingExpProvider = settings.onboardingExpProvider;
+
+        var placementEventMapping = parseSettingsString(
+            settings.placementEventMapping
+        );
+        self.placementEventMappingLookup = generateMappedEventLookup(
+            placementEventMapping
+        );
+
+        if (window.mParticle.Rokt.store) {
+            self.store = window.mParticle.Rokt.store;
+        }
+
         var domain = window.mParticle.Rokt.domain;
         var launcherOptions = mergeObjects(
             {},
@@ -89,6 +103,9 @@ var constructor = function () {
             self.testHelpers = {
                 generateLauncherScript: generateLauncherScript,
                 extractRoktExtensions: extractRoktExtensions,
+                hashEventMessage: hashEventMessage,
+                parseSettingsString: parseSettingsString,
+                generateMappedEventLookup: generateMappedEventLookup,
             };
             attachLauncher(accountId, launcherOptions);
             return;
@@ -199,10 +216,15 @@ var constructor = function () {
 
         var filteredUserIdentities = returnUserIdentities(filteredUser);
 
+        var localSessionAttributes = self.store
+            ? self.store.getLocalSessionAttributes()
+            : {};
+
         var selectPlacementsAttributes = mergeObjects(
             filteredUserIdentities,
             replaceOtherWithEmailsha256(filteredAttributes),
             optimizelyAttributes,
+            localSessionAttributes,
             {
                 mpid: mpid,
             }
@@ -229,6 +251,27 @@ var constructor = function () {
         }
 
         window.Rokt.setExtensionData(partnerExtensionData);
+    }
+
+    function processEvent(event) {
+        if (!isKitReady()) {
+            return;
+        }
+
+        var hashedEvent = hashEventMessage(
+            event.EventDataType,
+            event.EventCategory,
+            event.EventName
+        );
+
+        if (self.placementEventMappingLookup[hashedEvent]) {
+            var mappedValue = self.placementEventMappingLookup[hashedEvent];
+            if (self.store) {
+                var attrs = {};
+                attrs[mappedValue] = true;
+                self.store.setLocalSessionAttributes(attrs);
+            }
+        }
     }
 
     function onUserIdentified(filteredUser) {
@@ -330,6 +373,7 @@ var constructor = function () {
 
     // Kit Callback Methods
     this.init = initForwarder;
+    this.processEvent = processEvent;
     this.setExtensionData = setExtensionData;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
@@ -427,6 +471,25 @@ function extractRoktExtensions(settingsString) {
     }
 
     return roktExtensions;
+}
+
+function generateMappedEventLookup(placementEventMapping) {
+    if (!placementEventMapping) {
+        return {};
+    }
+
+    var mappedEvents = {};
+    for (var i = 0; i < placementEventMapping.length; i++) {
+        var mapping = placementEventMapping[i];
+        mappedEvents[mapping.jsmap] = mapping.value;
+    }
+    return mappedEvents;
+}
+
+function hashEventMessage(messageType, eventType, eventName) {
+    return window.mParticle.generateHash(
+        [messageType, eventType, eventName].join('')
+    );
 }
 
 if (window && window.mParticle && window.mParticle.addForwarder) {

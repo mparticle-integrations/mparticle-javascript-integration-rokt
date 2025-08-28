@@ -22,6 +22,27 @@ const waitForCondition = async (conditionFn, timeout = 200, interval = 10) => {
 };
 
 describe('Rokt Forwarder', () => {
+    var EventType = {
+        Unknown: 0,
+        Navigation: 1,
+        Location: 2,
+        Search: 3,
+        Transaction: 4,
+        UserContent: 5,
+        UserPreference: 6,
+        Social: 7,
+        Other: 8,
+        Media: 9,
+    };
+    var MessageType = {
+        SessionStart: 1,
+        SessionEnd: 2,
+        PageView: 3,
+        PageEvent: 4,
+        CrashReport: 5,
+        OptOut: 6,
+        Commerce: 16,
+    };
     var ReportingService = function () {
         var self = this;
 
@@ -58,8 +79,21 @@ describe('Rokt Forwarder', () => {
             };
         },
     };
+    mParticle._Store = {
+        localSessionAttributes: {},
+        setLocalSessionAttributes: function (attributes) {
+            this.localSessionAttributes = attributes;
+        },
+        getLocalSessionAttributes: function () {
+            return this.localSessionAttributes;
+        },
+    };
     mParticle._getActiveForwarders = function () {
         return [];
+    };
+    mParticle.generateHash = function (input) {
+        console.warn('Rokt Kit: generateHash', input);
+        return 'hashed-<' + input + '>-value';
     };
     // -------------------START EDITING BELOW:-----------------------
     var MockRoktForwarder = function () {
@@ -114,6 +148,7 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.kit = kit;
                 Promise.resolve();
             };
+            window.mParticle.Rokt.store = window.mParticle._Store;
             window.mParticle.Rokt.filters = {
                 userAttributesFilters: [],
                 filterUserAttributes: function (attributes) {
@@ -302,6 +337,42 @@ describe('Rokt Forwarder', () => {
             // Verify the kit still gets the processed integration name
             const expectedProcessedName = `${sdkVersion}_${kitVersion}_${originalIntegrationName}`;
             window.Rokt.integrationName.should.equal(expectedProcessedName);
+        });
+
+        it('should initialize the kit with placement event mapping lookup from a config', async () => {
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    placementEventMapping: JSON.stringify([
+                        {
+                            jsmap: '-1484452948',
+                            map: '-5208850776883573773',
+                            maptype: 'EventClass.Id',
+                            value: 'foo-mapped-flag',
+                        },
+                        {
+                            jsmap: '1838502119',
+                            map: '1324617889422969328',
+                            maptype: 'EventClass.Id',
+                            value: 'ad_viewed_test',
+                        },
+                    ]),
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            // Wait for initialization to complete (after launcher is created)
+            await waitForCondition(() => window.mParticle.Rokt.isInitialized);
+
+            window.mParticle.forwarder.placementEventMappingLookup.should.deepEqual(
+                {
+                    '-1484452948': 'foo-mapped-flag',
+                    1838502119: 'ad_viewed_test',
+                }
+            );
         });
     });
 
@@ -559,6 +630,8 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.attachKitCalled = true;
                 return Promise.resolve();
             };
+            window.mParticle.Rokt.store = window.mParticle._Store;
+            window.mParticle.Rokt.store.localSessionAttributes = {};
             window.mParticle.forwarder.launcher = {
                 selectPlacements: function (options) {
                     window.mParticle.Rokt.selectPlacementsOptions = options;
@@ -633,6 +706,53 @@ describe('Rokt Forwarder', () => {
                     attributes: {
                         'user-attribute': 'user-attribute-value',
                         mpid: '123',
+                    },
+                });
+            });
+
+            it('should collect local session attributes and send to launcher.selectPlacements', async () => {
+                window.mParticle.Rokt.store.localSessionAttributes = {
+                    'custom-local-attribute': true,
+                    'secondary-local-attribute': true,
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        placementEventMapping: JSON.stringify([
+                            {
+                                jsmap: '-1484452948',
+                                map: '-5208850776883573773',
+                                maptype: 'EventClass.Id',
+                                value: 'foo-mapped-flag',
+                            },
+                            {
+                                jsmap: '1838502119',
+                                map: '1324617889422969328',
+                                maptype: 'EventClass.Id',
+                                value: 'ad_viewed_test',
+                            },
+                        ]),
+                    },
+                    reportService.cb,
+                    true
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        'test-attribute': 'test-value',
+                    },
+                });
+
+                window.Rokt.selectPlacementsCalled.should.equal(true);
+                window.Rokt.selectPlacementsOptions.should.deepEqual({
+                    identifier: 'test-placement',
+                    attributes: {
+                        mpid: '123',
+                        'test-attribute': 'test-value',
+                        'custom-local-attribute': true,
+                        'secondary-local-attribute': true,
                     },
                 });
             });
@@ -1591,6 +1711,216 @@ describe('Rokt Forwarder', () => {
             window.mParticle.forwarder.testHelpers
                 .extractRoktExtensions(null)
                 .should.deepEqual([]);
+        });
+    });
+
+    describe('#generateMappedEventLookup', () => {
+        beforeEach(async () => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
+        });
+
+        it('should generate a lookup table from a placement event mapping', () => {
+            const placementEventMapping = [
+                {
+                    jsmap: '-1484452948',
+                    map: '-5208850776883573773',
+                    maptype: 'EventClass.Id',
+                    value: 'foo-mapped-flag',
+                },
+                {
+                    jsmap: '1838502119',
+                    map: '1324617889422969328',
+                    maptype: 'EventClass.Id',
+                    value: 'ad_viewed_test',
+                },
+            ];
+
+            window.mParticle.forwarder.testHelpers
+                .generateMappedEventLookup(placementEventMapping)
+                .should.deepEqual({
+                    '-1484452948': 'foo-mapped-flag',
+                    1838502119: 'ad_viewed_test',
+                });
+        });
+
+        it('should return an empty object if the placement event mapping is null', () => {
+            window.mParticle.forwarder.testHelpers
+                .generateMappedEventLookup(null)
+                .should.deepEqual({});
+        });
+    });
+
+    describe('#processEvent', () => {
+        beforeEach(() => {
+            window.Rokt = new MockRoktForwarder();
+            window.Rokt.createLauncher = async function () {
+                return Promise.resolve({
+                    selectPlacements: function (options) {
+                        window.mParticle.Rokt.selectPlacementsOptions = options;
+                        window.mParticle.Rokt.selectPlacementsCalled = true;
+                    },
+                });
+            };
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+            window.mParticle.Rokt.store = window.mParticle._Store;
+            window.mParticle.forwarder.launcher = {
+                selectPlacements: function (options) {
+                    window.mParticle.Rokt.selectPlacementsOptions = options;
+                    window.mParticle.Rokt.selectPlacementsCalled = true;
+                },
+            };
+            window.mParticle.Rokt.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            };
+        });
+
+        it('set a session selection attribute if the event is a mapped placement event', async () => {
+            // Mocks hashed values for testing
+            const placementEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Video Watched>-value',
+                    map: '123466',
+                    maptype: 'EventClass.Id',
+                    value: 'foo-mapped-flag',
+                },
+                {
+                    jsmap: 'hashed-<29Other Value-value',
+                    map: '1279898989',
+                    maptype: 'EventClass.Id',
+                    value: 'ad_viewed_test',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    placementEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.processEvent({
+                EventName: 'Video Watched',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            window.mParticle.Rokt.store.localSessionAttributes.should.deepEqual({
+                'foo-mapped-flag': true,
+            });
+        });
+    });
+
+    describe('#parseSettingsString', () => {
+        it('should parse a settings string', () => {
+            const settingsString =
+                '[{&quot;jsmap&quot;:null,&quot;map&quot;:&quot;f.name&quot;,&quot;maptype&quot;:&quot;UserAttributeClass.Name&quot;,&quot;value&quot;:&quot;firstname&quot;},{&quot;jsmap&quot;:null,&quot;map&quot;:&quot;last_name&quot;,&quot;maptype&quot;:&quot;UserAttributeClass.Name&quot;,&quot;value&quot;:&quot;lastname&quot;}]';
+
+            window.mParticle.forwarder.testHelpers
+                .parseSettingsString(settingsString)
+                .should.deepEqual([
+                    {
+                        jsmap: null,
+                        map: 'f.name',
+                        maptype: 'UserAttributeClass.Name',
+                        value: 'firstname',
+                    },
+                    {
+                        jsmap: null,
+                        map: 'last_name',
+                        maptype: 'UserAttributeClass.Name',
+                        value: 'lastname',
+                    },
+                ]);
+        });
+
+        it('should parse a settings string with a number value', () => {
+            const settingsString =
+                '[{&quot;jsmap&quot;:&quot;-1484452948&quot;,&quot;map&quot;:&quot;-5208850776883573773&quot;,&quot;maptype&quot;:&quot;EventClass.Id&quot;,&quot;value&quot;:&quot;abc&quot;},{&quot;jsmap&quot;:&quot;1838502119&quot;,&quot;map&quot;:&quot;1324617889422969328&quot;,&quot;maptype&quot;:&quot;EventClass.Id&quot;,&quot;value&quot;:&quot;bcd&quot;},{&quot;jsmap&quot;:&quot;-355458063&quot;,&quot;map&quot;:&quot;5878452521714063084&quot;,&quot;maptype&quot;:&quot;EventClass.Id&quot;,&quot;value&quot;:&quot;card_viewed_test&quot;}]';
+
+            window.mParticle.forwarder.testHelpers
+                .parseSettingsString(settingsString)
+                .should.deepEqual([
+                    {
+                        jsmap: '-1484452948',
+                        map: '-5208850776883573773',
+                        maptype: 'EventClass.Id',
+                        value: 'abc',
+                    },
+                    {
+                        jsmap: '1838502119',
+                        map: '1324617889422969328',
+                        maptype: 'EventClass.Id',
+                        value: 'bcd',
+                    },
+                    {
+                        jsmap: '-355458063',
+                        map: '5878452521714063084',
+                        maptype: 'EventClass.Id',
+                        value: 'card_viewed_test',
+                    },
+                ]);
+        });
+
+        it('returns an empty array if the settings string is empty', () => {
+            const settingsString = '';
+
+            window.mParticle.forwarder.testHelpers
+                .parseSettingsString(settingsString)
+                .should.deepEqual([]);
+        });
+
+        it('throws an error message if the settings string is not a valid JSON', () => {
+            const settingsString = 'not a valid JSON';
+
+            window.mParticle.forwarder.testHelpers
+                .parseSettingsString(settingsString)
+                .should.deepEqual([]);
+        });
+    });
+
+    describe('#hashEventMessage', () => {
+        it('should hash event message using generateHash in the proper order', () => {
+            const eventName = 'Test Event';
+            const eventType = EventType.Other;
+            const messageType = MessageType.PageEvent;
+            const resultHash =
+                window.mParticle.forwarder.testHelpers.hashEventMessage(
+                    messageType,
+                    eventType,
+                    eventName
+                );
+
+            // Order should be messageType (4), eventType (8), eventName (Test Event)
+            resultHash.should.equal('hashed-<48Test Event>-value');
         });
     });
 });
