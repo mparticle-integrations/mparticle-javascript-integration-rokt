@@ -81,8 +81,8 @@ describe('Rokt Forwarder', () => {
     };
     mParticle._Store = {
         localSessionAttributes: {},
-        setLocalSessionAttributes: function (attributes) {
-            this.localSessionAttributes = attributes;
+        setLocalSessionAttribute: function (key, value) {
+            this.localSessionAttributes[key] = value;
         },
         getLocalSessionAttributes: function () {
             return this.localSessionAttributes;

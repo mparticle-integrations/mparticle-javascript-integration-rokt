@@ -254,7 +254,11 @@ var constructor = function () {
     }
 
     function processEvent(event) {
-        if (!isKitReady()) {
+        if (
+            !isKitReady() ||
+            !self.store ||
+            !self.store.hasOwnProperty('setLocalSessionAttribute')
+        ) {
             return;
         }
 
@@ -266,11 +270,7 @@ var constructor = function () {
 
         if (self.placementEventMappingLookup[hashedEvent]) {
             var mappedValue = self.placementEventMappingLookup[hashedEvent];
-            if (self.store) {
-                var attrs = {};
-                attrs[mappedValue] = true;
-                self.store.setLocalSessionAttributes(attrs);
-            }
+            self.store.setLocalSessionAttribute(mappedValue, true);
         }
     }
 
