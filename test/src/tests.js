@@ -1810,7 +1810,7 @@ describe('Rokt Forwarder', () => {
             };
         });
 
-        it('set a session selection attribute if the event is a mapped placement event', async () => {
+        it('set a local session selection attribute if the event is a mapped placement event', async () => {
             // Mocks hashed values for testing
             const placementEventMapping = JSON.stringify([
                 {

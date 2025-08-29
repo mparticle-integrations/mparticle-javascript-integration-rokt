@@ -211,8 +211,14 @@ var constructor = function () {
 
         var filteredUserIdentities = returnUserIdentities(filteredUser);
 
-        var localSessionAttributes =
-            window.mParticle.Rokt.getLocalSessionAttributes() || {};
+        var localSessionAttributes = {};
+
+        try {
+            localSessionAttributes =
+                window.mParticle.Rokt.getLocalSessionAttributes();
+        } catch (error) {
+            console.error('Error getting local session attributes:', error);
+        }
 
         var selectPlacementsAttributes = mergeObjects(
             filteredUserIdentities,
@@ -250,7 +256,7 @@ var constructor = function () {
     function processEvent(event) {
         if (
             !isKitReady() ||
-            !window.mParticle.Rokt.hasOwnProperty('setLocalSessionAttribute')
+            typeof window.mParticle.Rokt.setLocalSessionAttribute !== 'function'
         ) {
             return;
         }
