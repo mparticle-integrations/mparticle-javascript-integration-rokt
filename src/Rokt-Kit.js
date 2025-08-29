@@ -372,7 +372,7 @@ var constructor = function () {
 
     // Kit Callback Methods
     this.init = initForwarder;
-    this.processEvent = processEvent;
+    this.process = processEvent;
     this.setExtensionData = setExtensionData;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;

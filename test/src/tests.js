@@ -1840,7 +1840,7 @@ describe('Rokt Forwarder', () => {
 
             await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
-            window.mParticle.forwarder.processEvent({
+            window.mParticle.forwarder.process({
                 EventName: 'Video Watched',
                 EventCategory: EventType.Other,
                 EventDataType: MessageType.PageEvent,
