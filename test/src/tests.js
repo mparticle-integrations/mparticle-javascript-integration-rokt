@@ -1853,7 +1853,7 @@ describe('Rokt Forwarder', () => {
     });
 
     describe('#parseSettingsString', () => {
-        it('should parse a settings string', () => {
+        it('should parse null values in a settings string appropriately', () => {
             const settingsString =
                 '[{&quot;jsmap&quot;:null,&quot;map&quot;:&quot;f.name&quot;,&quot;maptype&quot;:&quot;UserAttributeClass.Name&quot;,&quot;value&quot;:&quot;firstname&quot;},{&quot;jsmap&quot;:null,&quot;map&quot;:&quot;last_name&quot;,&quot;maptype&quot;:&quot;UserAttributeClass.Name&quot;,&quot;value&quot;:&quot;lastname&quot;}]';
 
@@ -1875,7 +1875,7 @@ describe('Rokt Forwarder', () => {
                 ]);
         });
 
-        it('should parse a settings string with a stringified number value correctly', () => {
+        it('should convert jmap and map number values to stringified numbers when parsed', () => {
             const settingsString =
                 '[{&quot;jsmap&quot;:&quot;-1484452948&quot;,&quot;map&quot;:&quot;-5208850776883573773&quot;,&quot;maptype&quot;:&quot;EventClass.Id&quot;,&quot;value&quot;:&quot;abc&quot;},{&quot;jsmap&quot;:&quot;1838502119&quot;,&quot;map&quot;:&quot;1324617889422969328&quot;,&quot;maptype&quot;:&quot;EventClass.Id&quot;,&quot;value&quot;:&quot;bcd&quot;},{&quot;jsmap&quot;:&quot;-355458063&quot;,&quot;map&quot;:&quot;5878452521714063084&quot;,&quot;maptype&quot;:&quot;EventClass.Id&quot;,&quot;value&quot;:&quot;card_viewed_test&quot;}]';
 
