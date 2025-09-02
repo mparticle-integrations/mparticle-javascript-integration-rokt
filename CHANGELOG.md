@@ -1,3 +1,9 @@
+# [1.7.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.6.3...v1.7.0) (2025-09-02)
+
+### Features
+
+* Map events to an attribute flag for selectPlacements ([#41](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/pull/41)[613d790](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/613d790159545b747fb1a8f2a7249c7853d25bc3))
+
 ## [1.6.3](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.6.2...v1.6.3) (2025-08-12)
 
 
