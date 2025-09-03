@@ -453,6 +453,9 @@ function mergeObjects() {
 }
 
 function parseSettingsString(settingsString) {
+    if (!settingsString) {
+        return [];
+    }
     try {
         return JSON.parse(settingsString.replace(/&quot;/g, '"'));
     } catch (error) {
