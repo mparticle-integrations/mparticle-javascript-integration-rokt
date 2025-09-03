@@ -395,7 +395,7 @@ var RoktKit = (function (exports) {
 
     function generateIntegrationName(customIntegrationName) {
         var coreSdkVersion = window.mParticle.getVersion();
-        var kitVersion = "1.6.3";
+        var kitVersion = "1.7.1";
         var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
         if (customIntegrationName) {
@@ -456,6 +456,9 @@ var RoktKit = (function (exports) {
     }
 
     function parseSettingsString(settingsString) {
+        if (!settingsString) {
+            return [];
+        }
         try {
             return JSON.parse(settingsString.replace(/&quot;/g, '"'));
         } catch (error) {
