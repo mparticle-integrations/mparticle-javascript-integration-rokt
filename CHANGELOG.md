@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.7.0...v1.7.1) (2025-09-03)
+
+
+### Bug Fixes
+
+* Return early if settings string is null ([#42](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/42)) ([c0eb788](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/c0eb7884dd0aeb7539e58059b8af21dea0569453))
+
 # [1.7.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.6.3...v1.7.0) (2025-09-02)
 
 ### Features
