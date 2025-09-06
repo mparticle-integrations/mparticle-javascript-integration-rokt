@@ -720,6 +720,14 @@ describe('Rokt Forwarder', () => {
                 await window.mParticle.forwarder.init(
                     {
                         accountId: '123456',
+                        placementEventMapping: JSON.stringify([
+                            {
+                                jsmap: 'test-event-hash',
+                                map: 'test-event-map',
+                                maptype: 'EventClass.Id',
+                                value: 'test-mapped-flag',
+                            },
+                        ]),
                     },
                     reportService.cb,
                     true
