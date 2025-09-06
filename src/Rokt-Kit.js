@@ -157,6 +157,7 @@ var constructor = function () {
 
     function returnLocalSessionAttributes() {
         if (
+            isEmpty(self.placementEventMappingLookup) ||
             !window.mParticle.Rokt ||
             typeof window.mParticle.Rokt.getLocalSessionAttributes !==
                 'function'
@@ -500,13 +501,7 @@ function hashEventMessage(messageType, eventType, eventName) {
 }
 
 function isEmpty(value) {
-    return (
-        value === null ||
-        value === undefined ||
-        (typeof value === 'object' && Object.keys(value).length === 0) ||
-        (typeof value === 'string' && value.length === 0) ||
-        (Array.isArray(value) && value.length === 0)
-    );
+    return value == null || !(Object.keys(value) || value).length;
 }
 
 if (window && window.mParticle && window.mParticle.addForwarder) {
