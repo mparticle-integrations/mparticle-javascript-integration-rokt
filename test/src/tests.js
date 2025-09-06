@@ -743,6 +743,44 @@ describe('Rokt Forwarder', () => {
                     },
                 });
             });
+
+            it('should not throw an error if getLocalSessionAttributes is not available', async () => {
+                let errorLogged = false;
+                const originalConsoleError = console.error;
+                console.error = function (message) {
+                    if (
+                        message &&
+                        message.indexOf &&
+                        message.indexOf(
+                            'Error getting local session attributes'
+                        ) !== -1
+                    ) {
+                        errorLogged = true;
+                    }
+                    originalConsoleError.apply(console, arguments);
+                };
+
+                delete window.mParticle.Rokt.getLocalSessionAttributes;
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        'test-attribute': 'test-value',
+                    },
+                });
+
+                errorLogged.should.equal(false);
+
+                console.error = originalConsoleError;
+            });
         });
 
         describe('User Attributes', () => {
