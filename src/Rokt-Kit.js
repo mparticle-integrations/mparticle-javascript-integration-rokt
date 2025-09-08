@@ -155,6 +155,18 @@ var constructor = function () {
         return replaceOtherWithEmailsha256(userIdentities);
     }
 
+    function returnLocalSessionAttributes() {
+        if (
+            isEmpty(self.placementEventMappingLookup) ||
+            !window.mParticle.Rokt ||
+            typeof window.mParticle.Rokt.getLocalSessionAttributes !==
+                'function'
+        ) {
+            return {};
+        }
+        return window.mParticle.Rokt.getLocalSessionAttributes();
+    }
+
     function replaceOtherWithEmailsha256(_data) {
         var data = mergeObjects({}, _data || {});
         if (_data.hasOwnProperty(OTHER_IDENTITY)) {
@@ -211,14 +223,7 @@ var constructor = function () {
 
         var filteredUserIdentities = returnUserIdentities(filteredUser);
 
-        var localSessionAttributes = {};
-
-        try {
-            localSessionAttributes =
-                window.mParticle.Rokt.getLocalSessionAttributes();
-        } catch (error) {
-            console.error('Error getting local session attributes:', error);
-        }
+        var localSessionAttributes = returnLocalSessionAttributes();
 
         var selectPlacementsAttributes = mergeObjects(
             filteredUserIdentities,
@@ -256,6 +261,7 @@ var constructor = function () {
     function processEvent(event) {
         if (
             !isKitReady() ||
+            isEmpty(self.placementEventMappingLookup) ||
             typeof window.mParticle.Rokt.setLocalSessionAttribute !== 'function'
         ) {
             return;
@@ -492,6 +498,10 @@ function hashEventMessage(messageType, eventType, eventName) {
     return window.mParticle.generateHash(
         [messageType, eventType, eventName].join('')
     );
+}
+
+function isEmpty(value) {
+    return value == null || !(Object.keys(value) || value).length;
 }
 
 if (window && window.mParticle && window.mParticle.addForwarder) {

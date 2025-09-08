@@ -720,6 +720,14 @@ describe('Rokt Forwarder', () => {
                 await window.mParticle.forwarder.init(
                     {
                         accountId: '123456',
+                        placementEventMapping: JSON.stringify([
+                            {
+                                jsmap: 'test-event-hash',
+                                map: 'test-event-map',
+                                maptype: 'EventClass.Id',
+                                value: 'test-mapped-flag',
+                            },
+                        ]),
                     },
                     reportService.cb,
                     true
@@ -742,6 +750,44 @@ describe('Rokt Forwarder', () => {
                         'secondary-local-attribute': true,
                     },
                 });
+            });
+
+            it('should not throw an error if getLocalSessionAttributes is not available', async () => {
+                let errorLogged = false;
+                const originalConsoleError = console.error;
+                console.error = function (message) {
+                    if (
+                        message &&
+                        message.indexOf &&
+                        message.indexOf(
+                            'Error getting local session attributes'
+                        ) !== -1
+                    ) {
+                        errorLogged = true;
+                    }
+                    originalConsoleError.apply(console, arguments);
+                };
+
+                delete window.mParticle.Rokt.getLocalSessionAttributes;
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        'test-attribute': 'test-value',
+                    },
+                });
+
+                errorLogged.should.equal(false);
+
+                console.error = originalConsoleError;
             });
         });
 
