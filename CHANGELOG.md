@@ -1,3 +1,10 @@
+## [1.7.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.7.1...v1.7.2) (2025-09-08)
+
+
+### Bug Fixes
+
+* Handle cases where local session storage is not available ([#43](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/43)) ([548cb81](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/548cb816b43a51cca31134f98c93e0afe6fe1736))
+
 ## [1.7.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.7.0...v1.7.1) (2025-09-03)
 
 
