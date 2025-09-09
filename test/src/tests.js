@@ -1425,15 +1425,17 @@ describe('Rokt Forwarder', () => {
                 use: function () {},
             };
 
-            let caught = null;
-            try {
-                await window.mParticle.forwarder.use('ThankYouPageJourney');
-            } catch (e) {
-                caught = e;
-            }
+            const error = await (async () => {
+                try {
+                    await window.mParticle.forwarder.use('ThankYouPageJourney');
+                    return null;
+                } catch (e) {
+                    return e;
+                }
+            })();
 
-            (!!caught).should.equal(true);
-            caught.message.should.equal('Rokt Kit: Not initialized');
+            (!!error).should.equal(true);
+            error.message.should.equal('Rokt Kit: Not initialized');
         });
 
         it('should log an error when called before initialization', async () => {
@@ -1463,33 +1465,21 @@ describe('Rokt Forwarder', () => {
                 },
             };
 
-            let caught = null;
-            try {
-                await window.mParticle.forwarder.use(123);
-            } catch (e) {
-                caught = e;
-            }
+            const error = await (async () => {
+                try {
+                    await window.mParticle.forwarder.use(123);
+                    return null;
+                } catch (e) {
+                    return e;
+                }
+            })();
 
-            (!!caught).should.equal(true);
-            caught.message.should.equal('Rokt Kit: Invalid extension name');
-        });
-
-        it('should reject when kit is initialized but launcher is missing', async () => {
-            window.mParticle.forwarder.isInitialized = true;
-            window.mParticle.forwarder.launcher = null;
-
-            let caught = null;
-            try {
-                await window.mParticle.forwarder.use('ThankYouPageJourney');
-            } catch (e) {
-                caught = e;
-            }
-
-            (!!caught).should.equal(true);
-            caught.message.should.equal('Rokt Kit: Not initialized');
+            (!!error).should.equal(true);
+            error.message.should.equal('Rokt Kit: Invalid extension name');
         });
 
         it('should log an error when kit is initialized but launcher is missing', async () => {
+            const consoleError = window.console.error;
             let errorLogged = false;
             let errorMessage = null;
             window.console.error = function (message) {
@@ -1500,10 +1490,19 @@ describe('Rokt Forwarder', () => {
             window.mParticle.forwarder.isInitialized = true;
             window.mParticle.forwarder.launcher = null;
 
-            try {
-                await window.mParticle.forwarder.use('ThankYouPageJourney');
-            } catch (e) {}
+            const error = await (async () => {
+                try {
+                    await window.mParticle.forwarder.use('ThankYouPageJourney');
+                    return null;
+                } catch (e) {
+                    return e;
+                } finally {
+                    window.console.error = consoleError;
+                }
+            })();
 
+            (!!error).should.equal(true);
+            error.message.should.equal('Rokt Kit: Not initialized');
             errorLogged.should.equal(true);
             errorMessage.should.equal('Rokt Kit: Not initialized');
         });
@@ -1552,15 +1551,17 @@ describe('Rokt Forwarder', () => {
                 },
             };
 
-            let caught = null;
-            try {
-                await window.mParticle.forwarder.use('UnknownExtension');
-            } catch (e) {
-                caught = e;
-            }
+            const error = await (async () => {
+                try {
+                    await window.mParticle.forwarder.use('UnknownExtension');
+                    return null;
+                } catch (e) {
+                    return e;
+                }
+            })();
 
-            (!!caught).should.equal(true);
-            caught.message.should.equal('Unknown extension');
+            (!!error).should.equal(true);
+            error.message.should.equal('Unknown extension');
         });
     });
 
