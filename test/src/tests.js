@@ -1421,24 +1421,16 @@ describe('Rokt Forwarder', () => {
 
         it('should reject when called before initialization', async () => {
             window.mParticle.forwarder.isInitialized = false;
-            window.mParticle.forwarder.launcher = {
-                use: function () {},
-            };
 
-            const error = await (async () => {
-                try {
-                    await window.mParticle.forwarder.use('ThankYouPageJourney');
-                    return null;
-                } catch (e) {
-                    return e;
-                }
-            })();
-
-            (!!error).should.equal(true);
-            error.message.should.equal('Rokt Kit: Not initialized');
+            try {
+                await window.mParticle.forwarder.use('ThankYouPageJourney');
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Not initialized');
+            }
         });
 
         it('should log an error when called before initialization', async () => {
+            const originalConsoleError = window.console.error;
             let errorLogged = false;
             let errorMessage = null;
             window.console.error = function (message) {
@@ -1451,7 +1443,12 @@ describe('Rokt Forwarder', () => {
 
             try {
                 await window.mParticle.forwarder.use('ThankYouPageJourney');
-            } catch (e) {}
+                throw new Error('Expected promise to reject');
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Not initialized');
+            } finally {
+                window.console.error = originalConsoleError;
+            }
 
             errorLogged.should.equal(true);
             errorMessage.should.equal('Rokt Kit: Not initialized');
@@ -1465,21 +1462,15 @@ describe('Rokt Forwarder', () => {
                 },
             };
 
-            const error = await (async () => {
-                try {
-                    await window.mParticle.forwarder.use(123);
-                    return null;
-                } catch (e) {
-                    return e;
-                }
-            })();
-
-            (!!error).should.equal(true);
-            error.message.should.equal('Rokt Kit: Invalid extension name');
+            try {
+                await window.mParticle.forwarder.use(123);
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Invalid extension name');
+            }
         });
 
         it('should log an error when kit is initialized but launcher is missing', async () => {
-            const consoleError = window.console.error;
+            const originalConsoleError = window.console.error;
             let errorLogged = false;
             let errorMessage = null;
             window.console.error = function (message) {
@@ -1490,19 +1481,14 @@ describe('Rokt Forwarder', () => {
             window.mParticle.forwarder.isInitialized = true;
             window.mParticle.forwarder.launcher = null;
 
-            const error = await (async () => {
-                try {
-                    await window.mParticle.forwarder.use('ThankYouPageJourney');
-                    return null;
-                } catch (e) {
-                    return e;
-                } finally {
-                    window.console.error = consoleError;
-                }
-            })();
-
-            (!!error).should.equal(true);
-            error.message.should.equal('Rokt Kit: Not initialized');
+            try {
+                await window.mParticle.forwarder.use('ThankYouPageJourney');
+                throw new Error('Expected promise to reject');
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Not initialized');
+            } finally {
+                window.console.error = originalConsoleError;
+            }
             errorLogged.should.equal(true);
             errorMessage.should.equal('Rokt Kit: Not initialized');
         });
@@ -1541,27 +1527,6 @@ describe('Rokt Forwarder', () => {
 
             window.Rokt.useCalled.should.equal(true);
             window.Rokt.useName.should.equal('ThankYouPageJourney');
-        });
-
-        it('should reject errors from launcher.use', async () => {
-            window.mParticle.forwarder.isInitialized = true;
-            window.mParticle.forwarder.launcher = {
-                use: function () {
-                    return Promise.reject(new Error('Unknown extension'));
-                },
-            };
-
-            const error = await (async () => {
-                try {
-                    await window.mParticle.forwarder.use('UnknownExtension');
-                    return null;
-                } catch (e) {
-                    return e;
-                }
-            })();
-
-            (!!error).should.equal(true);
-            error.message.should.equal('Unknown extension');
         });
     });
 

@@ -244,7 +244,6 @@ var constructor = function () {
 
     /**
      * Enables optional Integration Launcher extensions before selecting placements
-     * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher/#use
      * @param {string} extensionName - Name of the extension to enable
      * @returns {Promise<*>} A Promise resolving to the extension API if available
      */
