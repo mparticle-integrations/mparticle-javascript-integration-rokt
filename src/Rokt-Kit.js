@@ -261,30 +261,6 @@ var constructor = function () {
     }
 
     /**
-     * Terminates the Rokt Integration Launcher instance
-     * @returns {Promise<void>} A Promise that resolves when termination completes
-     */
-    function terminate() {
-        if (!isKitReady()) {
-            console.error('Rokt Kit: Not initialized');
-            return Promise.reject(new Error('Rokt Kit: Not initialized'));
-        }
-        return self.launcher.terminate();
-    }
-
-    /**
-     * Returns the version of the launcher
-     * @returns {Promise<string>} A promise resolving to the version string
-     */
-    function getVersion() {
-        if (!isKitReady()) {
-            console.error('Rokt Kit: Not initialized');
-            return null;
-        }
-        return self.launcher.getVersion();
-    }
-
-    /**
      * Sets extension data for Rokt Web SDK
      * @param {Object} partnerExtensionData - The extension data object containing:
      * - [extensionName] {string}: Name of the extension
@@ -418,8 +394,6 @@ var constructor = function () {
     this.selectPlacements = selectPlacements;
     this.hashAttributes = hashAttributes;
     this.use = use;
-    this.terminate = terminate;
-    this.getVersion = getVersion;
 
     // Kit Callback Methods
     this.init = initForwarder;
