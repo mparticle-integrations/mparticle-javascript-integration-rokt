@@ -368,6 +368,231 @@ describe('Rokt Forwarder', () => {
         });
     });
 
+    describe('#terminate', () => {
+        beforeEach(() => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+        });
+
+        it('should call launcher.terminate when fully initialized', async () => {
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = {
+                terminate: function () {
+                    window.Rokt.terminateCalled = true;
+                    return Promise.resolve();
+                },
+            };
+
+            await window.mParticle.forwarder.terminate();
+
+            window.Rokt.terminateCalled.should.equal(true);
+        });
+
+        it('should reject when called before initialization', async () => {
+            window.mParticle.forwarder.isInitialized = false;
+
+            try {
+                await window.mParticle.forwarder.terminate();
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Not initialized');
+            }
+        });
+
+        it('should log an error when called before initialization', async () => {
+            const originalConsoleError = window.console.error;
+            let errorLogged = false;
+            let errorMessage = null;
+            window.console.error = function (message) {
+                errorLogged = true;
+                errorMessage = message;
+            };
+
+            window.mParticle.forwarder.isInitialized = false;
+            window.mParticle.forwarder.launcher = null;
+
+            try {
+                await window.mParticle.forwarder.terminate();
+                throw new Error('Expected promise to reject');
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Not initialized');
+            } finally {
+                window.console.error = originalConsoleError;
+            }
+
+            errorLogged.should.equal(true);
+            errorMessage.should.equal('Rokt Kit: Not initialized');
+        });
+
+        it('should log an error when kit is initialized but launcher is missing', async () => {
+            const originalConsoleError = window.console.error;
+            let errorLogged = false;
+            let errorMessage = null;
+            window.console.error = function (message) {
+                errorLogged = true;
+                errorMessage = message;
+            };
+
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = null;
+
+            try {
+                await window.mParticle.forwarder.terminate();
+                throw new Error('Expected promise to reject');
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Not initialized');
+            } finally {
+                window.console.error = originalConsoleError;
+            }
+            errorLogged.should.equal(true);
+            errorMessage.should.equal('Rokt Kit: Not initialized');
+        });
+
+        it('should call launcher.terminate after init (test mode) and attach', async () => {
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+
+            window.Rokt.createLauncher = async function () {
+                return Promise.resolve({
+                    terminate: function () {
+                        window.Rokt.terminateCalled = true;
+                        return Promise.resolve();
+                    },
+                });
+            };
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            await window.mParticle.forwarder.terminate();
+
+            window.Rokt.terminateCalled.should.equal(true);
+        });
+    });
+
+    describe('#getVersion', () => {
+        beforeEach(() => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+        });
+
+        it('should call launcher.getVersion when fully initialized and return value', async () => {
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = {
+                getVersion: function () {
+                    window.Rokt.getVersionCalled = true;
+                    return '1.1';
+                },
+            };
+
+            const version = window.mParticle.forwarder.getVersion();
+
+            window.Rokt.getVersionCalled.should.equal(true);
+            version.should.equal('1.1');
+        });
+
+        it('should return null and log when called before initialization', async () => {
+            const originalConsoleError = window.console.error;
+            let errorLogged = false;
+            let errorMessage = null;
+            window.console.error = function (message) {
+                errorLogged = true;
+                errorMessage = message;
+            };
+
+            window.mParticle.forwarder.isInitialized = false;
+            window.mParticle.forwarder.launcher = null;
+
+            const version = window.mParticle.forwarder.getVersion();
+
+            (version === null).should.equal(true);
+            errorLogged.should.equal(true);
+            errorMessage.should.equal('Rokt Kit: Not initialized');
+
+            window.console.error = originalConsoleError;
+        });
+
+        it('should return null and log when kit is initialized but launcher is missing', async () => {
+            const originalConsoleError = window.console.error;
+            let errorLogged = false;
+            let errorMessage = null;
+            window.console.error = function (message) {
+                errorLogged = true;
+                errorMessage = message;
+            };
+
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = null;
+
+            const version = window.mParticle.forwarder.getVersion();
+
+            (version === null).should.equal(true);
+            errorLogged.should.equal(true);
+            errorMessage.should.equal('Rokt Kit: Not initialized');
+
+            window.console.error = originalConsoleError;
+        });
+
+        it('should call launcher.getVersion after init (test mode) and attach', async () => {
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+
+            window.Rokt.createLauncher = async function () {
+                return Promise.resolve({
+                    getVersion: function () {
+                        window.Rokt.getVersionCalled = true;
+                        return '1.1';
+                    },
+                });
+            };
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            const version = window.mParticle.forwarder.getVersion();
+
+            window.Rokt.getVersionCalled.should.equal(true);
+            version.should.equal('1.1');
+        });
+    });
+
     describe('#hashAttributes', () => {
         beforeEach(() => {
             window.Rokt = new MockRoktForwarder();
