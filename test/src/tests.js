@@ -1391,6 +1391,145 @@ describe('Rokt Forwarder', () => {
         });
     });
 
+    describe('#use', () => {
+        beforeEach(() => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+        });
+
+        it('should call launcher.use with the provided extension name when fully initialized', async () => {
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = {
+                use: function (name) {
+                    window.Rokt.useCalled = true;
+                    window.Rokt.useName = name;
+                    return Promise.resolve({});
+                },
+            };
+
+            await window.mParticle.forwarder.use('ThankYouPageJourney');
+
+            window.Rokt.useCalled.should.equal(true);
+            window.Rokt.useName.should.equal('ThankYouPageJourney');
+        });
+
+        it('should reject when called before initialization', async () => {
+            window.mParticle.forwarder.isInitialized = false;
+
+            try {
+                await window.mParticle.forwarder.use('ThankYouPageJourney');
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Not initialized');
+            }
+        });
+
+        it('should log an error when called before initialization', async () => {
+            const originalConsoleError = window.console.error;
+            let errorLogged = false;
+            let errorMessage = null;
+            window.console.error = function (message) {
+                errorLogged = true;
+                errorMessage = message;
+            };
+
+            window.mParticle.forwarder.isInitialized = false;
+            window.mParticle.forwarder.launcher = null;
+
+            try {
+                await window.mParticle.forwarder.use('ThankYouPageJourney');
+                throw new Error('Expected promise to reject');
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Not initialized');
+            } finally {
+                window.console.error = originalConsoleError;
+            }
+
+            errorLogged.should.equal(true);
+            errorMessage.should.equal('Rokt Kit: Not initialized');
+        });
+
+        it('should reject when extension name is invalid', async () => {
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = {
+                use: function () {
+                    return Promise.resolve({});
+                },
+            };
+
+            try {
+                await window.mParticle.forwarder.use(123);
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Invalid extension name');
+            }
+        });
+
+        it('should log an error when kit is initialized but launcher is missing', async () => {
+            const originalConsoleError = window.console.error;
+            let errorLogged = false;
+            let errorMessage = null;
+            window.console.error = function (message) {
+                errorLogged = true;
+                errorMessage = message;
+            };
+
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.launcher = null;
+
+            try {
+                await window.mParticle.forwarder.use('ThankYouPageJourney');
+                throw new Error('Expected promise to reject');
+            } catch (error) {
+                error.message.should.equal('Rokt Kit: Not initialized');
+            } finally {
+                window.console.error = originalConsoleError;
+            }
+            errorLogged.should.equal(true);
+            errorMessage.should.equal('Rokt Kit: Not initialized');
+        });
+
+        it('should call launcher.use after init (test mode) and attach', async () => {
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+
+            window.Rokt.createLauncher = async function () {
+                return Promise.resolve({
+                    use: function (name) {
+                        window.Rokt.useCalled = true;
+                        window.Rokt.useName = name;
+                        return Promise.resolve({});
+                    },
+                });
+            };
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            await window.mParticle.forwarder.use('ThankYouPageJourney');
+
+            window.Rokt.useCalled.should.equal(true);
+            window.Rokt.useName.should.equal('ThankYouPageJourney');
+        });
+    });
+
     describe('#setUserAttribute', () => {
         it('should set the user attribute', async () => {
             window.mParticle.forwarder.setUserAttribute(
