@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.7.2...v1.8.0) (2025-09-15)
+
+
+### Features
+
+* sdke 142 support launcher.use in rokt web kit ([#44](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/44)) ([ea35ce8](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/ea35ce85a5a2bd493290238f737beb1323a65bd0))
+
 ## [1.7.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.7.1...v1.7.2) (2025-09-08)
 
 
