@@ -247,6 +247,24 @@ var constructor = function () {
     }
 
     /**
+     * Enables optional Integration Launcher extensions before selecting placements
+     * @param {string} extensionName - Name of the extension to enable
+     * @returns {Promise<*>} A Promise resolving to the extension API if available
+     */
+    function use(extensionName) {
+        if (!isKitReady()) {
+            console.error('Rokt Kit: Not initialized');
+            return Promise.reject(new Error('Rokt Kit: Not initialized'));
+        }
+        if (!extensionName || typeof extensionName !== 'string') {
+            return Promise.reject(
+                new Error('Rokt Kit: Invalid extension name')
+            );
+        }
+        return self.launcher.use(extensionName);
+    }
+
+    /**
      * Sets extension data for Rokt Web SDK
      * @param {Object} partnerExtensionData - The extension data object containing:
      * - [extensionName] {string}: Name of the extension
@@ -379,6 +397,7 @@ var constructor = function () {
     // Called by the mParticle Rokt Manager
     this.selectPlacements = selectPlacements;
     this.hashAttributes = hashAttributes;
+    this.use = use;
 
     // Kit Callback Methods
     this.init = initForwarder;
@@ -402,7 +421,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.7.2";
+    var kitVersion = "1.8.0";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
