@@ -19,8 +19,10 @@ var moduleId = 181;
 var constructor = function () {
     var self = this;
     var EMAIL_SHA256_IDENTITY = 'emailsha256';
-    var OTHER_IDENTITY = 'other';
     var EMAIL_IDENTITY = 'email';
+
+    // Dynamic identity type for Rokt's emailsha256 identity value which MP doesn't support - will be set during initialization
+    var OTHER_IDENTITY;
 
     self.name = name;
     self.moduleId = moduleId;
@@ -85,6 +87,12 @@ var constructor = function () {
         self.placementEventMappingLookup = generateMappedEventLookup(
             placementEventMapping
         );
+
+        // Set dynamic OTHER_IDENTITY based on server settings
+        // Convert to lowercase since server sends TitleCase (e.g., 'Other' -> 'other')
+        if (settings.hashedEmailUserIdentityType) {
+            OTHER_IDENTITY = settings.hashedEmailUserIdentityType.toLowerCase();
+        }
 
         var domain = window.mParticle.Rokt.domain;
         var launcherOptions = mergeObjects(
@@ -152,7 +160,6 @@ var constructor = function () {
         }
 
         var userIdentities = filteredUser.getUserIdentities().userIdentities;
-
         return replaceOtherIdentityWithEmailsha256(userIdentities);
     }
 
@@ -168,14 +175,15 @@ var constructor = function () {
         return window.mParticle.Rokt.getLocalSessionAttributes();
     }
 
-    function replaceOtherIdentityWithEmailsha256(_data) {
-        var data = mergeObjects({}, _data || {});
-        if (_data.hasOwnProperty(OTHER_IDENTITY)) {
-            data[EMAIL_SHA256_IDENTITY] = _data[OTHER_IDENTITY];
-            delete data[OTHER_IDENTITY];
+    function replaceOtherIdentityWithEmailsha256(userIdentities) {
+        var newUserIdentities = mergeObjects({}, userIdentities || {});
+        if (userIdentities.hasOwnProperty(OTHER_IDENTITY)) {
+            newUserIdentities[EMAIL_SHA256_IDENTITY] =
+                userIdentities[OTHER_IDENTITY];
+            delete newUserIdentities[OTHER_IDENTITY];
         }
 
-        return data;
+        return newUserIdentities;
     }
 
     function sanitizeIdentities(_data) {
@@ -424,6 +432,8 @@ var constructor = function () {
         return !!(self.isInitialized && self.launcher);
     }
 };
+
+function getOtherIdentityType(settings) {}
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
