@@ -479,8 +479,6 @@ var constructor = function () {
     }
 };
 
-function getOtherIdentityType(settings) {}
-
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
     var kitVersion = process.env.PACKAGE_VERSION;
