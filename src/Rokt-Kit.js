@@ -18,11 +18,11 @@ var moduleId = 181;
 
 var constructor = function () {
     var self = this;
-    var EMAIL_SHA256_IDENTITY = 'emailsha256';
-    var EMAIL_IDENTITY = 'email';
+    var EMAIL_SHA256_KEY = 'emailsha256';
+    var EMAIL_KEY = 'email';
 
-    // Dynamic identity type for Rokt's emailsha256 identity value which MP doesn't support - will be set during initialization
-    var OTHER_IDENTITY;
+    // Dynamic identity type for Rokt's emailsha256 identity value which MP doesn't natively support - will be set during initialization
+    var MAPPED_EMAIL_SHA256_IDENTITY;
 
     self.name = name;
     self.moduleId = moduleId;
@@ -91,7 +91,8 @@ var constructor = function () {
         // Set dynamic OTHER_IDENTITY based on server settings
         // Convert to lowercase since server sends TitleCase (e.g., 'Other' -> 'other')
         if (settings.hashedEmailUserIdentityType) {
-            OTHER_IDENTITY = settings.hashedEmailUserIdentityType.toLowerCase();
+            MAPPED_EMAIL_SHA256_IDENTITY =
+                settings.hashedEmailUserIdentityType.toLowerCase();
         }
 
         var domain = window.mParticle.Rokt.domain;
@@ -177,10 +178,10 @@ var constructor = function () {
 
     function replaceOtherIdentityWithEmailsha256(userIdentities) {
         var newUserIdentities = mergeObjects({}, userIdentities || {});
-        if (userIdentities.hasOwnProperty(OTHER_IDENTITY)) {
-            newUserIdentities[EMAIL_SHA256_IDENTITY] =
-                userIdentities[OTHER_IDENTITY];
-            delete newUserIdentities[OTHER_IDENTITY];
+        if (userIdentities.hasOwnProperty(MAPPED_EMAIL_SHA256_IDENTITY)) {
+            newUserIdentities[EMAIL_SHA256_KEY] =
+                userIdentities[MAPPED_EMAIL_SHA256_IDENTITY];
+            delete newUserIdentities[MAPPED_EMAIL_SHA256_IDENTITY];
         }
 
         return newUserIdentities;
@@ -188,8 +189,8 @@ var constructor = function () {
 
     function sanitizeIdentities(_data) {
         var data = mergeObjects({}, _data || {});
-        if (_data.hasOwnProperty(EMAIL_SHA256_IDENTITY)) {
-            delete data[EMAIL_IDENTITY];
+        if (_data.hasOwnProperty(EMAIL_SHA256_KEY)) {
+            delete data[EMAIL_KEY];
         }
 
         return data;
