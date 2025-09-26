@@ -18,8 +18,11 @@ var moduleId = 181;
 
 var constructor = function () {
     var self = this;
-    var EMAIL_SHA256_IDENTITY = 'emailsha256';
-    var OTHER_IDENTITY = 'other';
+    var EMAIL_SHA256_KEY = 'emailsha256';
+    var EMAIL_KEY = 'email';
+
+    // Dynamic identity type for Rokt's emailsha256 identity value which MP doesn't natively support - will be set during initialization
+    var mappedEmailSha256Key;
 
     self.name = name;
     self.moduleId = moduleId;
@@ -84,6 +87,13 @@ var constructor = function () {
         self.placementEventMappingLookup = generateMappedEventLookup(
             placementEventMapping
         );
+
+        // Set dynamic OTHER_IDENTITY based on server settings
+        // Convert to lowercase since server sends TitleCase (e.g., 'Other' -> 'other')
+        if (settings.hashedEmailUserIdentityType) {
+            mappedEmailSha256Key =
+                settings.hashedEmailUserIdentityType.toLowerCase();
+        }
 
         var domain = window.mParticle.Rokt.domain;
         var launcherOptions = mergeObjects(
@@ -152,7 +162,7 @@ var constructor = function () {
 
         var userIdentities = filteredUser.getUserIdentities().userIdentities;
 
-        return replaceOtherWithEmailsha256(userIdentities);
+        return replaceOtherIdentityWithEmailsha256(userIdentities);
     }
 
     function returnLocalSessionAttributes() {
@@ -167,11 +177,21 @@ var constructor = function () {
         return window.mParticle.Rokt.getLocalSessionAttributes();
     }
 
-    function replaceOtherWithEmailsha256(_data) {
+    function replaceOtherIdentityWithEmailsha256(userIdentities) {
+        var newUserIdentities = mergeObjects({}, userIdentities || {});
+        if (userIdentities.hasOwnProperty(mappedEmailSha256Key)) {
+            newUserIdentities[EMAIL_SHA256_KEY] =
+                userIdentities[mappedEmailSha256Key];
+            delete newUserIdentities[mappedEmailSha256Key];
+        }
+
+        return newUserIdentities;
+    }
+
+    function sanitizeEmailIdentities(_data) {
         var data = mergeObjects({}, _data || {});
-        if (_data.hasOwnProperty(OTHER_IDENTITY)) {
-            data[EMAIL_SHA256_IDENTITY] = _data[OTHER_IDENTITY];
-            delete data[OTHER_IDENTITY];
+        if (_data.hasOwnProperty(EMAIL_SHA256_KEY)) {
+            delete data[EMAIL_KEY];
         }
 
         return data;
@@ -227,7 +247,7 @@ var constructor = function () {
 
         var selectPlacementsAttributes = mergeObjects(
             filteredUserIdentities,
-            replaceOtherWithEmailsha256(filteredAttributes),
+            filteredAttributes,
             optimizelyAttributes,
             localSessionAttributes,
             {
@@ -236,7 +256,7 @@ var constructor = function () {
         );
 
         var selectPlacementsOptions = mergeObjects(options, {
-            attributes: selectPlacementsAttributes,
+            attributes: sanitizeEmailIdentities(selectPlacementsAttributes),
         });
 
         return self.launcher.selectPlacements(selectPlacementsOptions);
