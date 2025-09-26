@@ -1567,7 +1567,7 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should not set emailsha256 on final select placements attributes when hashedEmailUserIdentityType is Unassigned', async () => {
+            it('should NOT set emailsha256 on final select placements attributes when hashedEmailUserIdentityType is Unassigned', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
                     filterUserAttributes: function (attributes) {
