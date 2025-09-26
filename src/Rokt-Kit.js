@@ -161,6 +161,7 @@ var constructor = function () {
         }
 
         var userIdentities = filteredUser.getUserIdentities().userIdentities;
+
         return replaceOtherIdentityWithEmailsha256(userIdentities);
     }
 
