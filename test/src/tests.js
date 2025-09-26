@@ -1435,7 +1435,7 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should pass the attribute other in selectPlacements directly to Rokt', async () => {
+            it('should pass the attribute `other` in selectPlacements directly to Rokt', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
                     filterUserAttributes: function (attributes) {

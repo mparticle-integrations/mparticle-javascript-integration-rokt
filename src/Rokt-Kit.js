@@ -26,7 +26,7 @@ var constructor = function () {
     var EMAIL_KEY = 'email';
 
     // Dynamic identity type for Rokt's emailsha256 identity value which MP doesn't natively support - will be set during initialization
-    var MAPPED_EMAIL_SHA256_IDENTITY;
+    var mappedEmailSha256Key;
 
     self.name = name;
     self.moduleId = moduleId;
@@ -96,7 +96,7 @@ var constructor = function () {
         // Set dynamic OTHER_IDENTITY based on server settings
         // Convert to lowercase since server sends TitleCase (e.g., 'Other' -> 'other')
         if (settings.hashedEmailUserIdentityType) {
-            MAPPED_EMAIL_SHA256_IDENTITY =
+            mappedEmailSha256Key =
                 settings.hashedEmailUserIdentityType.toLowerCase();
         }
 
@@ -184,16 +184,16 @@ var constructor = function () {
 
     function replaceOtherIdentityWithEmailsha256(userIdentities) {
         var newUserIdentities = mergeObjects({}, userIdentities || {});
-        if (userIdentities.hasOwnProperty(MAPPED_EMAIL_SHA256_IDENTITY)) {
+        if (userIdentities.hasOwnProperty(mappedEmailSha256Key)) {
             newUserIdentities[EMAIL_SHA256_KEY] =
-                userIdentities[MAPPED_EMAIL_SHA256_IDENTITY];
-            delete newUserIdentities[MAPPED_EMAIL_SHA256_IDENTITY];
+                userIdentities[mappedEmailSha256Key];
+            delete newUserIdentities[mappedEmailSha256Key];
         }
 
         return newUserIdentities;
     }
 
-    function sanitizeIdentities(_data) {
+    function sanitizeEmailIdentities(_data) {
         var data = mergeObjects({}, _data || {});
         if (_data.hasOwnProperty(EMAIL_SHA256_KEY)) {
             delete data[EMAIL_KEY];
@@ -261,7 +261,7 @@ var constructor = function () {
         );
 
         var selectPlacementsOptions = mergeObjects(options, {
-            attributes: sanitizeIdentities(selectPlacementsAttributes),
+            attributes: sanitizeEmailIdentities(selectPlacementsAttributes),
         });
 
         return self.launcher.selectPlacements(selectPlacementsOptions);
