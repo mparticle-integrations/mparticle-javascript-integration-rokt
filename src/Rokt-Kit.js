@@ -318,34 +318,42 @@ var constructor = function () {
             launcherOptions || {}
         );
 
-        window.Rokt.createLauncher(options)
-            .then(function (launcher) {
-                // Assign the launcher to a global variable for later access
-                window.Rokt.currentLauncher = launcher;
-                // Locally cache the launcher and filters
-                self.launcher = launcher;
+        if(self.isPartnerInLocalLauncherTestGroup()){
+            var localLauncher = window.Rokt.createLocalLauncher(options);
+            initRoktLauncher(localLauncher);
+        }
+        else {
+            window.Rokt.createLauncher(options)
+                .then(initRoktLauncher)
+                .catch(function (err) {
+                    console.error('Error creating Rokt launcher:', err);
+                });
+        }
+    }
 
-                var roktFilters = window.mParticle.Rokt.filters;
+    function initRoktLauncher(launcher) {
+        // Assign the launcher to a global variable for later access
+        window.Rokt.currentLauncher = launcher;
+        // Locally cache the launcher and filters
+        self.launcher = launcher;
 
-                if (!roktFilters) {
-                    console.warn('Rokt Kit: No filters have been set.');
-                } else {
-                    self.filters = roktFilters;
-                    if (!roktFilters.filteredUser) {
-                        console.warn(
-                            'Rokt Kit: No filtered user has been set.'
-                        );
-                    }
-                }
+        var roktFilters = window.mParticle.Rokt.filters;
 
-                // Kit must be initialized before attaching to the Rokt manager
-                self.isInitialized = true;
-                // Attaches the kit to the Rokt manager
-                window.mParticle.Rokt.attachKit(self);
-            })
-            .catch(function (err) {
-                console.error('Error creating Rokt launcher:', err);
-            });
+        if (!roktFilters) {
+            console.warn('Rokt Kit: No filters have been set.');
+        } else {
+            self.filters = roktFilters;
+            if (!roktFilters.filteredUser) {
+                console.warn(
+                    'Rokt Kit: No filtered user has been set.'
+                );
+            }
+        }
+
+        // Kit must be initialized before attaching to the Rokt manager
+        self.isInitialized = true;
+        // Attaches the kit to the Rokt manager
+        window.mParticle.Rokt.attachKit(self);
     }
 
     // mParticle Kit Callback Methods
@@ -402,6 +410,7 @@ var constructor = function () {
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
     this.removeUserAttribute = removeUserAttribute;
+    this.isPartnerInLocalLauncherTestGroup = isPartnerInLocalLauncherTestGroup;
 
     /**
      * Checks if the Rokt kit is ready to use.
@@ -412,6 +421,31 @@ var constructor = function () {
      */
     function isKitReady() {
         return !!(self.isInitialized && self.launcher);
+    }
+
+    function isPartnerInLocalLauncherTestGroup() {
+        var testGroup = [382761173318339093846102813504170n];
+        var url = new URL(window.location.href);
+        var { hostname } = url;
+        var hash = hashString(hostname);
+
+        return testGroup.includes(hash);
+    }
+
+    /**
+     * Generates a 64-bit integer hash from a string using the djb2 algorithm.
+     * @param {string} str The string to hash.
+     * @returns {bigint} A 64-bit BigInt representing the hash of the string.
+     */
+    function hashString(str) {
+        var hash = 5381n;
+        
+        for (let i = 0; i < str.length; i++) {
+            var charCode = BigInt(str.charCodeAt(i));
+            hash = (hash << 5n) + hash + charCode;
+        }
+        
+        return hash;
     }
 };
 

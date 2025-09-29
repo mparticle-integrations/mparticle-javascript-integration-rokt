@@ -98,6 +98,7 @@ describe('Rokt Forwarder', () => {
         this.sandbox = null;
         this.integrationName = null;
         this.createLauncherCalled = false;
+        this.createLocalLauncherCalled = false;
 
         this.createLauncher = function (options) {
             self.accountId = options.accountId;
@@ -113,6 +114,22 @@ describe('Rokt Forwarder', () => {
                     callback();
                 },
             });
+        };
+
+        this.createLocalLauncher = function (options) {
+            self.accountId = options.accountId;
+            self.integrationName = options.integrationName;
+            self.noFunctional = options.noFunctional;
+            self.noTargeting = options.noTargeting;
+            self.createLocalLauncherCalled = true;
+            self.isInitialized = true;
+            self.sandbox = options.sandbox;
+
+            return {
+                selectPlacements: function () {},
+                hashAttributes: function () { throw new Error('hashAttributes not implemented'); },
+                use: function () { throw new Error('use not implemented'); },
+            };
         };
 
         this.currentLauncher = function () {};
@@ -544,6 +561,34 @@ describe('Rokt Forwarder', () => {
                     },
                 },
             };
+            window.mParticle.forwarder.isPartnerInLocalLauncherTestGroup = () => false;
+        });
+
+        it('should create a remote launcher if the partner is not in the local launcher test group', async () => {
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            window.mParticle.Rokt.createLauncherCalled.should.equal(true);
+            window.mParticle.Rokt.createLocalLauncherCalled.should.equal(false);
+        });
+
+        it('should create a local launcher if the partner is in the local launcher test group', async () => {
+            window.mParticle.forwarder.isPartnerInLocalLauncherTestGroup = () => true;
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            window.mParticle.Rokt.createLauncherCalled.should.equal(false);
+            window.mParticle.Rokt.createLocalLauncherCalled.should.equal(true);
         });
 
         it('should call attachKit', async () => {
