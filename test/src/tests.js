@@ -561,7 +561,8 @@ describe('Rokt Forwarder', () => {
                     },
                 },
             };
-            window.mParticle.forwarder.isPartnerInLocalLauncherTestGroup = () => false;
+
+            window.mParticle.forwarder.testGroup =[11111111111111n];
         });
 
         it('should create a remote launcher if the partner is not in the local launcher test group', async () => {
@@ -578,7 +579,8 @@ describe('Rokt Forwarder', () => {
         });
 
         it('should create a local launcher if the partner is in the local launcher test group', async () => {
-            window.mParticle.forwarder.isPartnerInLocalLauncherTestGroup = () => true;
+            window.mParticle.forwarder.testGroup =[249896952128253326n];
+
             await window.mParticle.forwarder.init(
                 { accountId: '123456' },
                 reportService.cb,

@@ -318,7 +318,7 @@ var constructor = function () {
             launcherOptions || {}
         );
 
-        if(self.isPartnerInLocalLauncherTestGroup()){
+        if(isPartnerInLocalLauncherTestGroup()){
             var localLauncher = window.Rokt.createLocalLauncher(options);
             initRoktLauncher(localLauncher);
         }
@@ -410,7 +410,7 @@ var constructor = function () {
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
     this.removeUserAttribute = removeUserAttribute;
-    this.isPartnerInLocalLauncherTestGroup = isPartnerInLocalLauncherTestGroup;
+    this.testGroup = [382761173318339093846102813504170n];
 
     /**
      * Checks if the Rokt kit is ready to use.
@@ -424,12 +424,11 @@ var constructor = function () {
     }
 
     function isPartnerInLocalLauncherTestGroup() {
-        var testGroup = [382761173318339093846102813504170n];
         var url = new URL(window.location.href);
         var { hostname } = url;
         var hash = hashString(hostname);
 
-        return testGroup.includes(hash);
+        return self.testGroup.includes(hash);
     }
 
     /**
