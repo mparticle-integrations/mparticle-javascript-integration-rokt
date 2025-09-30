@@ -127,11 +127,11 @@ describe('Rokt Forwarder', () => {
 
             return {
                 selectPlacements: function () {},
-                hashAttributes: function () { 
-                    throw new Error('hashAttributes not implemented'); 
+                hashAttributes: function () {
+                    throw new Error('hashAttributes not implemented');
                 },
-                use: function () { 
-                    throw new Error('use not implemented'); 
+                use: function () {
+                    throw new Error('use not implemented');
                 },
             };
         };
