@@ -584,9 +584,7 @@ describe('Rokt Forwarder', () => {
         });
 
         it('should create a local launcher if the partner is in the local launcher test group', async () => {
-            window.mParticle.forwarder.testGroup = [
-                BigInt('249896952128253326'),
-            ];
+            window.mParticle.forwarder.testGroup = [906931598];
 
             await window.mParticle.forwarder.init(
                 { accountId: '123456' },

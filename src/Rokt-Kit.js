@@ -407,7 +407,7 @@ var constructor = function () {
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
     this.removeUserAttribute = removeUserAttribute;
-    this.testGroup = [BigInt('382761173318339093846102813504170')];
+    this.testGroup = [2934764202];
 
     /**
      * Checks if the Rokt kit is ready to use.
@@ -429,19 +429,19 @@ var constructor = function () {
     }
 
     /**
-     * Generates a 64-bit integer hash from a string using the djb2 algorithm.
+     * Generates a 32-bit integer hash from a string using the djb2 algorithm.
      * @param {string} str The string to hash.
-     * @returns {bigint} A 64-bit BigInt representing the hash of the string.
+     * @returns {bigint} A 32-bit BigInt representing the hash of the string.
      */
     function hashString(str) {
-        var hash = BigInt(5381);
-
+        var hash = 5381;
         for (var i = 0; i < str.length; i++) {
-            var charCode = BigInt(str.charCodeAt(i));
-            hash = (hash << BigInt(5)) + hash + charCode;
+            var charCode = str.charCodeAt(i);
+            // Bitwise operators force conversion to 32-bit signed integer
+            hash = (hash << 5) + hash + charCode;
         }
-
-        return hash;
+        // Return a positive 32-bit integer.
+        return hash >>> 0;
     }
 };
 
