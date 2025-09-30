@@ -318,11 +318,10 @@ var constructor = function () {
             launcherOptions || {}
         );
 
-        if(isPartnerInLocalLauncherTestGroup()){
+        if (isPartnerInLocalLauncherTestGroup()) {
             var localLauncher = window.Rokt.createLocalLauncher(options);
             initRoktLauncher(localLauncher);
-        }
-        else {
+        } else {
             window.Rokt.createLauncher(options)
                 .then(initRoktLauncher)
                 .catch(function (err) {
@@ -344,9 +343,7 @@ var constructor = function () {
         } else {
             self.filters = roktFilters;
             if (!roktFilters.filteredUser) {
-                console.warn(
-                    'Rokt Kit: No filtered user has been set.'
-                );
+                console.warn('Rokt Kit: No filtered user has been set.');
             }
         }
 
