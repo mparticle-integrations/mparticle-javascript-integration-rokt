@@ -410,7 +410,7 @@ var constructor = function () {
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
     this.removeUserAttribute = removeUserAttribute;
-    this.testGroup = [382761173318339093846102813504170n];
+    this.testGroup = [BigInt('382761173318339093846102813504170')];
 
     /**
      * Checks if the Rokt kit is ready to use.
