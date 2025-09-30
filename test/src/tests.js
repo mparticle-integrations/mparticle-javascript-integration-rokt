@@ -566,7 +566,7 @@ describe('Rokt Forwarder', () => {
                 },
             };
 
-            window.mParticle.forwarder.testGroup = [];
+            window.mParticle.forwarder.testGroups = [];
         });
 
         it('should create a remote launcher if the partner is not in the local launcher test group', async () => {
@@ -583,7 +583,9 @@ describe('Rokt Forwarder', () => {
         });
 
         it('should create a local launcher if the partner is in the local launcher test group', async () => {
-            window.mParticle.forwarder.testGroup = ['hashed-<localhost>-value'];
+            window.mParticle.forwarder.testGroups = [
+                'hashed-<localhost>-value',
+            ];
 
             await window.mParticle.forwarder.init(
                 { accountId: '123456' },

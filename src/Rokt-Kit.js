@@ -407,7 +407,7 @@ var constructor = function () {
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
     this.removeUserAttribute = removeUserAttribute;
-    this.testGroup = [403659147];
+    this.testGroups = [403659147];
 
     /**
      * Checks if the Rokt kit is ready to use.
@@ -425,7 +425,7 @@ var constructor = function () {
         var hostname = url.hostname;
         var hash = mParticle.generateHash(hostname);
 
-        return self.testGroup.includes(hash);
+        return self.testGroups.includes(hash);
     }
 };
 
