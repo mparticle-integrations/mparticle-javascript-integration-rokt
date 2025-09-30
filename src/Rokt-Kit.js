@@ -407,7 +407,7 @@ var constructor = function () {
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
     this.removeUserAttribute = removeUserAttribute;
-    this.testGroup = [2934764202];
+    this.testGroup = [403659147];
 
     /**
      * Checks if the Rokt kit is ready to use.
@@ -423,25 +423,9 @@ var constructor = function () {
     function isPartnerInLocalLauncherTestGroup() {
         var url = new URL(window.location.href);
         var hostname = url.hostname;
-        var hash = hashString(hostname);
+        var hash = mParticle.generateHash(hostname);
 
         return self.testGroup.includes(hash);
-    }
-
-    /**
-     * Generates a 32-bit integer hash from a string using the djb2 algorithm.
-     * @param {string} str The string to hash.
-     * @returns {bigint} A 32-bit BigInt representing the hash of the string.
-     */
-    function hashString(str) {
-        var hash = 5381;
-        for (var i = 0; i < str.length; i++) {
-            var charCode = str.charCodeAt(i);
-            // Bitwise operators force conversion to 32-bit signed integer
-            hash = (hash << 5) + hash + charCode;
-        }
-        // Return a positive 32-bit integer.
-        return hash >>> 0;
     }
 };
 
