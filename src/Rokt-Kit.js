@@ -425,7 +425,7 @@ var constructor = function () {
 
     function isPartnerInLocalLauncherTestGroup() {
         var url = new URL(window.location.href);
-        var { hostname } = url;
+        var hostname = url.hostname;
         var hash = hashString(hostname);
 
         return self.testGroup.includes(hash);
@@ -437,13 +437,13 @@ var constructor = function () {
      * @returns {bigint} A 64-bit BigInt representing the hash of the string.
      */
     function hashString(str) {
-        var hash = 5381n;
-        
-        for (let i = 0; i < str.length; i++) {
+        var hash = BigInt(5381);
+
+        for (var i = 0; i < str.length; i++) {
             var charCode = BigInt(str.charCodeAt(i));
-            hash = (hash << 5n) + hash + charCode;
+            hash = (hash << BigInt(5)) + hash + charCode;
         }
-        
+
         return hash;
     }
 };

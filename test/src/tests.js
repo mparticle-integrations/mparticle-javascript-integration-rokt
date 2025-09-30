@@ -1,5 +1,6 @@
 /* eslint-env es6, mocha */
 /* eslint-parser babel-eslint */
+/* global BigInt */
 
 const packageVersion = require('../../package.json').version;
 const sdkVersion = 'mParticle_wsdkv_1.2.3';
@@ -583,7 +584,9 @@ describe('Rokt Forwarder', () => {
         });
 
         it('should create a local launcher if the partner is in the local launcher test group', async () => {
-            window.mParticle.forwarder.testGroup = [BigInt('249896952128253326')];
+            window.mParticle.forwarder.testGroup = [
+                BigInt('249896952128253326'),
+            ];
 
             await window.mParticle.forwarder.init(
                 { accountId: '123456' },
