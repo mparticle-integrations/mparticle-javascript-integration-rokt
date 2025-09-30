@@ -407,7 +407,6 @@ var constructor = function () {
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
     this.removeUserAttribute = removeUserAttribute;
-    this.testGroups = [403659147];
 
     /**
      * Checks if the Rokt kit is ready to use.
@@ -421,11 +420,10 @@ var constructor = function () {
     }
 
     function isPartnerInLocalLauncherTestGroup() {
-        var url = new URL(window.location.href);
-        var hostname = url.hostname;
-        var hash = mParticle.generateHash(hostname);
-
-        return self.testGroups.includes(hash);
+        return (
+            window.mParticle.config &&
+            window.mParticle.config.isLocalLauncherEnabled
+        );
     }
 };
 
