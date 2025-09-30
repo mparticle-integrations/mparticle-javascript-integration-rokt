@@ -127,8 +127,12 @@ describe('Rokt Forwarder', () => {
 
             return {
                 selectPlacements: function () {},
-                hashAttributes: function () { throw new Error('hashAttributes not implemented'); },
-                use: function () { throw new Error('use not implemented'); },
+                hashAttributes: function () { 
+                    throw new Error('hashAttributes not implemented'); 
+                },
+                use: function () { 
+                    throw new Error('use not implemented'); 
+                },
             };
         };
 
@@ -562,7 +566,7 @@ describe('Rokt Forwarder', () => {
                 },
             };
 
-            window.mParticle.forwarder.testGroup =[];
+            window.mParticle.forwarder.testGroup = [];
         });
 
         it('should create a remote launcher if the partner is not in the local launcher test group', async () => {
