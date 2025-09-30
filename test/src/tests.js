@@ -1,6 +1,5 @@
 /* eslint-env es6, mocha */
 /* eslint-parser babel-eslint */
-/* global BigInt */
 
 const packageVersion = require('../../package.json').version;
 const sdkVersion = 'mParticle_wsdkv_1.2.3';
