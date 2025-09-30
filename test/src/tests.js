@@ -562,7 +562,7 @@ describe('Rokt Forwarder', () => {
                 },
             };
 
-            window.mParticle.forwarder.testGroup =[11111111111111n];
+            window.mParticle.forwarder.testGroup =[];
         });
 
         it('should create a remote launcher if the partner is not in the local launcher test group', async () => {
