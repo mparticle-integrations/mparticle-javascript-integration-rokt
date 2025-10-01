@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.8.0...v1.8.1) (2025-10-01)
+
+
+### Bug Fixes
+
+* SDKE-319 - Add Events to Event Queue when Kit is not ready ([#46](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/46)) ([d8a972c](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/d8a972c80ffc7fa6484f5d7cac741746780e6441))
+
 # [1.8.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.7.2...v1.8.0) (2025-09-15)
 
 
