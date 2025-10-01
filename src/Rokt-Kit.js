@@ -278,12 +278,10 @@ var constructor = function () {
     }
 
     function processEventQueue() {
-        if (self.eventQueue.length > 0) {
-            self.eventQueue.forEach(function (event) {
-                processEvent(event);
-            });
-            self.eventQueue = [];
-        }
+        self.eventQueue.forEach(function (event) {
+            processEvent(event);
+        });
+        self.eventQueue = [];
     }
 
     function processEvent(event) {
