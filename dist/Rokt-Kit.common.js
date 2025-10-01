@@ -34,6 +34,7 @@ var constructor = function () {
     self.userAttributes = {};
     self.testHelpers = null;
     self.placementEventMappingLookup = {};
+    self.eventQueue = [];
 
     /**
      * Generates the Rokt launcher script URL with optional domain override and extensions
@@ -280,9 +281,20 @@ var constructor = function () {
         window.Rokt.setExtensionData(partnerExtensionData);
     }
 
+    function processEventQueue() {
+        self.eventQueue.forEach(function (event) {
+            processEvent(event);
+        });
+        self.eventQueue = [];
+    }
+
     function processEvent(event) {
+        if (!isKitReady()) {
+            self.eventQueue.push(event);
+            return;
+        }
+
         if (
-            !isKitReady() ||
             isEmpty(self.placementEventMappingLookup) ||
             typeof window.mParticle.Rokt.setLocalSessionAttribute !== 'function'
         ) {
@@ -346,6 +358,7 @@ var constructor = function () {
                 self.isInitialized = true;
                 // Attaches the kit to the Rokt manager
                 window.mParticle.Rokt.attachKit(self);
+                processEventQueue();
             })
             .catch(function (err) {
                 console.error('Error creating Rokt launcher:', err);
@@ -421,7 +434,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.8.0";
+    var kitVersion = "1.8.1";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
