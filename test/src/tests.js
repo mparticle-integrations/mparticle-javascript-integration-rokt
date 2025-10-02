@@ -2047,6 +2047,12 @@ describe('Rokt Forwarder', () => {
             };
         });
 
+        afterEach(() => {
+            window.mParticle.forwarder.eventQueue = [];
+            window.mParticle.forwarder.isInitialized = false;
+            window.mParticle.Rokt.attachKitCalled = false;
+        });
+
         it('set a local session selection attribute if the event is a mapped placement event', async () => {
             // Mocks hashed values for testing
             const placementEventMapping = JSON.stringify([
@@ -2086,6 +2092,62 @@ describe('Rokt Forwarder', () => {
             window.mParticle._Store.localSessionAttributes.should.deepEqual({
                 'foo-mapped-flag': true,
             });
+        });
+
+        it('should add the event to the event queue if the kit is not initialized', async () => {
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            window.mParticle.forwarder.process({
+                EventName: 'Video Watched A',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            window.mParticle.forwarder.eventQueue.should.deepEqual([
+                {
+                    EventName: 'Video Watched A',
+                    EventCategory: EventType.Other,
+                    EventDataType: MessageType.PageEvent,
+                },
+            ]);
+        });
+
+        it('should process queued events once the kit is ready', async () => {
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            window.mParticle.forwarder.process({
+                EventName: 'Video Watched B',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            window.mParticle.forwarder.eventQueue.should.deepEqual([
+                {
+                    EventName: 'Video Watched B',
+                    EventCategory: EventType.Other,
+                    EventDataType: MessageType.PageEvent,
+                },
+            ]);
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.eventQueue.should.deepEqual([]);
         });
     });
 
