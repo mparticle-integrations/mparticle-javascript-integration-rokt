@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.8.1...v1.9.0) (2025-10-08)
+
+
+### Features
+
+* Implement Rokt Local Launcher SDKE-321 ([#45](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/45)) ([b2d1557](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/b2d15572ff1d59f7ec8960155e15cf43f6b0ebc0))
+
 ## [1.8.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.8.0...v1.8.1) (2025-10-01)
 
 
