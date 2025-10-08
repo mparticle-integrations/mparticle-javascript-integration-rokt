@@ -334,35 +334,40 @@ var constructor = function () {
             launcherOptions || {}
         );
 
-        window.Rokt.createLauncher(options)
-            .then(function (launcher) {
-                // Assign the launcher to a global variable for later access
-                window.Rokt.currentLauncher = launcher;
-                // Locally cache the launcher and filters
-                self.launcher = launcher;
+        if (isPartnerInLocalLauncherTestGroup()) {
+            var localLauncher = window.Rokt.createLocalLauncher(options);
+            initRoktLauncher(localLauncher);
+        } else {
+            window.Rokt.createLauncher(options)
+                .then(initRoktLauncher)
+                .catch(function (err) {
+                    console.error('Error creating Rokt launcher:', err);
+                });
+        }
+    }
 
-                var roktFilters = window.mParticle.Rokt.filters;
+    function initRoktLauncher(launcher) {
+        // Assign the launcher to a global variable for later access
+        window.Rokt.currentLauncher = launcher;
+        // Locally cache the launcher and filters
+        self.launcher = launcher;
 
-                if (!roktFilters) {
-                    console.warn('Rokt Kit: No filters have been set.');
-                } else {
-                    self.filters = roktFilters;
-                    if (!roktFilters.filteredUser) {
-                        console.warn(
-                            'Rokt Kit: No filtered user has been set.'
-                        );
-                    }
-                }
+        var roktFilters = window.mParticle.Rokt.filters;
 
-                // Kit must be initialized before attaching to the Rokt manager
-                self.isInitialized = true;
-                // Attaches the kit to the Rokt manager
-                window.mParticle.Rokt.attachKit(self);
-                processEventQueue();
-            })
-            .catch(function (err) {
-                console.error('Error creating Rokt launcher:', err);
-            });
+        if (!roktFilters) {
+            console.warn('Rokt Kit: No filters have been set.');
+        } else {
+            self.filters = roktFilters;
+            if (!roktFilters.filteredUser) {
+                console.warn('Rokt Kit: No filtered user has been set.');
+            }
+        }
+
+        // Kit must be initialized before attaching to the Rokt manager
+        self.isInitialized = true;
+        // Attaches the kit to the Rokt manager
+        window.mParticle.Rokt.attachKit(self);
+        processEventQueue();
     }
 
     // mParticle Kit Callback Methods
@@ -430,11 +435,18 @@ var constructor = function () {
     function isKitReady() {
         return !!(self.isInitialized && self.launcher);
     }
+
+    function isPartnerInLocalLauncherTestGroup() {
+        return (
+            window.mParticle.config &&
+            window.mParticle.config.isLocalLauncherEnabled
+        );
+    }
 };
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.8.1";
+    var kitVersion = "1.9.0";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
