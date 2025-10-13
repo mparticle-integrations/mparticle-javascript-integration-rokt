@@ -436,11 +436,11 @@ var constructor = function () {
         return (
             window.mParticle.config &&
             window.mParticle.config.isLocalLauncherEnabled &&
-            _isUserAboveLocalLauncherThreshold()
+            _isAssignedToSampleGroup()
         );
     }
 
-    function _isUserAboveLocalLauncherThreshold() {
+    function _isAssignedToSampleGroup() {
         var LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD = 0.5;
         return Math.random() > LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD;
     }
