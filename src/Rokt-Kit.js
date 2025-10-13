@@ -435,8 +435,14 @@ var constructor = function () {
     function isPartnerInLocalLauncherTestGroup() {
         return (
             window.mParticle.config &&
-            window.mParticle.config.isLocalLauncherEnabled
+            window.mParticle.config.isLocalLauncherEnabled &&
+            _isAssignedToSampleGroup()
         );
+    }
+
+    function _isAssignedToSampleGroup() {
+        var LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD = 0.5;
+        return Math.random() > LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD;
     }
 };
 

@@ -566,6 +566,7 @@ describe('Rokt Forwarder', () => {
                 },
             };
             window.mParticle.config = undefined;
+            Math.random = () => 1;
         });
 
         it('should create a remote launcher if the partner is not in the local launcher test group', async () => {
@@ -585,6 +586,44 @@ describe('Rokt Forwarder', () => {
             window.mParticle.config = {
                 isLocalLauncherEnabled: true,
             };
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            window.mParticle.Rokt.createLauncherCalled.should.equal(false);
+            window.mParticle.Rokt.createLocalLauncherCalled.should.equal(true);
+        });
+
+        it('should create a remote launcher if the partner is in the local launcher test group but the random number is below the thresholds', async () => {
+            window.mParticle.config = {
+                isLocalLauncherEnabled: true,
+            };
+
+            Math.random = () => 0;
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            window.mParticle.Rokt.createLauncherCalled.should.equal(true);
+            window.mParticle.Rokt.createLocalLauncherCalled.should.equal(false);
+        });
+
+        it('should create a local launcher if the partner is in the local launcher test group but the random number is above the thresholds', async () => {
+            window.mParticle.config = {
+                isLocalLauncherEnabled: true,
+            };
+
+            Math.random = () => 1;
 
             await window.mParticle.forwarder.init(
                 { accountId: '123456' },
