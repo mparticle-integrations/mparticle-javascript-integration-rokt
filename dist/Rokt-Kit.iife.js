@@ -438,14 +438,20 @@ var RoktKit = (function (exports) {
         function isPartnerInLocalLauncherTestGroup() {
             return (
                 window.mParticle.config &&
-                window.mParticle.config.isLocalLauncherEnabled
+                window.mParticle.config.isLocalLauncherEnabled &&
+                _isAssignedToSampleGroup()
             );
+        }
+
+        function _isAssignedToSampleGroup() {
+            var LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD = 0.5;
+            return Math.random() > LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD;
         }
     };
 
     function generateIntegrationName(customIntegrationName) {
         var coreSdkVersion = window.mParticle.getVersion();
-        var kitVersion = "1.9.0";
+        var kitVersion = "1.10.0";
         var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
         if (customIntegrationName) {
