@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.9.0...v1.10.0) (2025-10-13)
+
+
+### Features
+
+* Enhance local launcher logic with user threshold check ([#49](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/49)) ([06e3f40](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/06e3f4088b75b3af49c33b9243b7a21d9230bcb4))
+
 # [1.9.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.8.1...v1.9.0) (2025-10-08)
 
 
