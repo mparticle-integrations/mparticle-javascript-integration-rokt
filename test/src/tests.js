@@ -586,7 +586,7 @@ describe('Rokt Forwarder', () => {
             );
 
             window.mParticle.Rokt.capturedPerformanceMetric.should.equal(
-                'RoktScriptAppended'
+                'mp:RoktScriptAppended'
             );
         });
 

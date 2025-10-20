@@ -21,7 +21,7 @@ var constructor = function () {
     var EMAIL_SHA256_IDENTITY = 'emailsha256';
     var OTHER_IDENTITY = 'other';
     var PerformanceMarks = {
-        RoktScriptAppended: 'RoktScriptAppended',
+        RoktScriptAppended: 'mp:RoktScriptAppended',
     };
 
     self.name = name;
