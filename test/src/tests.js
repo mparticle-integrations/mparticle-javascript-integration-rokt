@@ -541,6 +541,9 @@ describe('Rokt Forwarder', () => {
             window.mParticle.Rokt = window.Rokt;
             window.mParticle.Rokt.attachKitCalled = false;
 
+            // Ensure currentLauncher is undefined to trigger script appending
+            window.Rokt.currentLauncher = undefined;
+
             // Set attachKit as async to allow for await calls in the test
             // This is necessary to simiulate a race condition between the
             // core sdk and the Rokt forwarder
@@ -567,6 +570,24 @@ describe('Rokt Forwarder', () => {
             };
             window.mParticle.config = undefined;
             Math.random = () => 1;
+
+            window.mParticle.captureTiming = function (metricName) {
+                window.mParticle.Rokt.capturedPerformanceMetric = metricName;
+            };
+        });
+
+        it('should add a performance marker when the script is appended', async () => {
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                false,
+                null,
+                {}
+            );
+
+            window.mParticle.Rokt.capturedPerformanceMetric.should.equal(
+                'RoktScriptAppended'
+            );
         });
 
         it('should create a remote launcher if the partner is not in the local launcher test group', async () => {

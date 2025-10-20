@@ -20,6 +20,9 @@ var constructor = function () {
     var self = this;
     var EMAIL_SHA256_IDENTITY = 'emailsha256';
     var OTHER_IDENTITY = 'other';
+    var PerformanceMarks = {
+        RoktScriptAppended: 'RoktScriptAppended',
+    };
 
     self.name = name;
     self.moduleId = moduleId;
@@ -137,6 +140,7 @@ var constructor = function () {
             };
 
             target.appendChild(script);
+            captureTimings(PerformanceMarks.RoktScriptAppended);
         } else {
             console.warn('Unable to find Rokt on the page');
         }
@@ -443,6 +447,17 @@ var constructor = function () {
     function _isAssignedToSampleGroup() {
         var LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD = 0.5;
         return Math.random() > LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD;
+    }
+
+    function captureTimings(metricName) {
+        if (
+            window &&
+            window.mParticle &&
+            window.mParticle.captureTiming &&
+            metricName
+        ) {
+            window.mParticle.captureTiming(metricName);
+        }
     }
 };
 
