@@ -137,7 +137,7 @@ var constructor = function () {
             };
 
             target.appendChild(script);
-            captureTimings(mParticle.PerformanceMarkType.RoktScriptAppended);
+            captureTiming(mParticle.PerformanceMarkType.RoktScriptAppended);
         } else {
             console.warn('Unable to find Rokt on the page');
         }
@@ -446,7 +446,7 @@ var constructor = function () {
         return Math.random() > LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD;
     }
 
-    function captureTimings(metricName) {
+    function captureTiming(metricName) {
         if (
             window &&
             window.mParticle &&
