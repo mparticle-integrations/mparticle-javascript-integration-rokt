@@ -540,9 +540,6 @@ describe('Rokt Forwarder', () => {
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;
             window.mParticle.Rokt.attachKitCalled = false;
-            window.mParticle.PerformanceMarkType = {
-                RoktScriptAppended: 'mp:RoktScriptAppended',
-            };
 
             // Ensure currentLauncher is undefined to trigger script appending
             window.Rokt.currentLauncher = undefined;
