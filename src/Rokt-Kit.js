@@ -20,9 +20,6 @@ var constructor = function () {
     var self = this;
     var EMAIL_SHA256_IDENTITY = 'emailsha256';
     var OTHER_IDENTITY = 'other';
-    var PerformanceMarks = {
-        RoktScriptAppended: 'mp:RoktScriptAppended',
-    };
 
     self.name = name;
     self.moduleId = moduleId;
@@ -140,7 +137,7 @@ var constructor = function () {
             };
 
             target.appendChild(script);
-            captureTimings(PerformanceMarks.RoktScriptAppended);
+            captureTimings(mParticle.PerformanceMarkType.RoktScriptAppended);
         } else {
             console.warn('Unable to find Rokt on the page');
         }
