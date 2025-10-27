@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.11.0...v1.12.0) (2025-10-27)
+
+
+### Features
+
+* Add Performance Mark for Rokt Script Appended (SDKE-405) ([#50](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/50)) ([a181f54](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/a181f54bf750663744b6b8d5ec3dadfd8d5758cb))
+
 # [1.10.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.9.0...v1.10.0) (2025-10-13)
 
 
