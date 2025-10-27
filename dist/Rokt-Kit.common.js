@@ -24,6 +24,9 @@ var constructor = function () {
     var self = this;
     var EMAIL_SHA256_IDENTITY = 'emailsha256';
     var OTHER_IDENTITY = 'other';
+    var PerformanceMarks = {
+        RoktScriptAppended: 'mp:RoktScriptAppended',
+    };
 
     self.name = name;
     self.moduleId = moduleId;
@@ -141,6 +144,7 @@ var constructor = function () {
             };
 
             target.appendChild(script);
+            captureTiming(PerformanceMarks.RoktScriptAppended);
         } else {
             console.warn('Unable to find Rokt on the page');
         }
@@ -448,11 +452,22 @@ var constructor = function () {
         var LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD = 0.5;
         return Math.random() > LOCAL_LAUNCHER_TEST_GROUP_THRESHOLD;
     }
+
+    function captureTiming(metricName) {
+        if (
+            window &&
+            window.mParticle &&
+            window.mParticle.captureTiming &&
+            metricName
+        ) {
+            window.mParticle.captureTiming(metricName);
+        }
+    }
 };
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.10.0";
+    var kitVersion = "1.12.0";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
