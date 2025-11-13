@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.12.0...v1.13.0) (2025-11-13)
+
+
+### Features
+
+* SDKE-123 Support hashedEmailUserIdentityType for "other" identity type ([#40](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/40)) ([e9fd3d4](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/e9fd3d4c66151683df4cd19652a17c231a2b544b))
+
 # [1.12.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.11.0...v1.12.0) (2025-10-27)
 
 
