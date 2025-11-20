@@ -2081,6 +2081,436 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
+            it('should keep only emailsha256 from selectPlacements when no email exists in userIdentities', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '945';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer303',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        emailsha256: 'developer-hashed-email',
+                    },
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        emailsha256: 'developer-hashed-email',
+                        customerid: 'customer303',
+                        mpid: '945',
+                    }
+                );
+            });
+
+            it('should keep both when developer passes both email and emailsha256, even if neither exists in userIdentities', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '956';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer404',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        email: 'developer-email@example.com',
+                        emailsha256: 'developer-hashed-email',
+                    },
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'developer-email@example.com',
+                        emailsha256: 'developer-hashed-email',
+                        customerid: 'customer404',
+                        mpid: '956',
+                    }
+                );
+            });
+
+            it('should have nothing when neither email nor emailsha256 exist anywhere', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '967';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer505',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        customerid: 'customer505',
+                        mpid: '967',
+                    }
+                );
+            });
+
+            it('should keep only emailsha256 from userIdentities when email is not in userIdentities and developer passes nothing', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '978';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    other: 'hashed-from-useridentities',
+                                    customerid: 'customer606',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        emailsha256: 'hashed-from-useridentities',
+                        customerid: 'customer606',
+                        mpid: '978',
+                    }
+                );
+            });
+
+            it('should keep only developer-passed emailsha256 when email exists in userIdentities but emailsha256 does not', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '989';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'useridentity-email@example.com',
+                                    customerid: 'customer707',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        emailsha256: 'developer-hashed-email',
+                    },
+                });
+
+                // Should remove email from userIdentities since developer passed emailsha256
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        emailsha256: 'developer-hashed-email',
+                        customerid: 'customer707',
+                        mpid: '989',
+                    }
+                );
+            });
+
+            it('should keep only developer-passed email when emailsha256 exists in userIdentities but email does not', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '991';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    other: 'hashed-from-useridentities',
+                                    customerid: 'customer808',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        email: 'developer-email@example.com',
+                    },
+                });
+
+                // Should remove emailsha256 from userIdentities since developer passed email
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'developer-email@example.com',
+                        customerid: 'customer808',
+                        mpid: '991',
+                    }
+                );
+            });
+
+            it('should keep both when developer passes both and both exist in userIdentities', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '992';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'useridentity-email@example.com',
+                                    other: 'hashed-from-useridentities',
+                                    customerid: 'customer909',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        email: 'developer-email@example.com',
+                        emailsha256: 'developer-hashed-email',
+                    },
+                });
+
+                // Should use developer-passed values for both
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'developer-email@example.com',
+                        emailsha256: 'developer-hashed-email',
+                        customerid: 'customer909',
+                        mpid: '992',
+                    }
+                );
+            });
+
             it('should NOT map other userIdentities to emailsha256 when the value is an empty string', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
