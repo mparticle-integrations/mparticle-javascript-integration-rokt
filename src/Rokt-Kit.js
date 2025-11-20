@@ -23,7 +23,6 @@ var constructor = function () {
     };
 
     var EMAIL_SHA256_KEY = 'emailsha256';
-    var EMAIL_KEY = 'email';
 
     // Dynamic identity type for Rokt's emailsha256 identity value which MP doesn't natively support - will be set during initialization
     var mappedEmailSha256Key;
@@ -195,45 +194,6 @@ var constructor = function () {
     }
 
     /**
-     * Sanitizes email identities
-     * @param {Object} selectPlacementsAttributes - The merged attributes
-     * @param {Object} filteredUserIdentities - User identities
-     * @param {Object} filteredAttributes - Developer-provided attributes
-     * @returns {Object} Sanitized attributes
-     */
-    function sanitizeEmailIdentities(
-        selectPlacementsAttributes,
-        filteredUserIdentities,
-        filteredAttributes
-    ) {
-        var data = mergeObjects({}, selectPlacementsAttributes || {});
-
-        // Remove email if:
-        // - emailsha256 was explicitly passed by developer AND
-        // - email came from filteredUserIdentities (not explicitly passed by developer)
-        if (
-            filteredAttributes.hasOwnProperty(EMAIL_SHA256_KEY) &&
-            filteredUserIdentities.hasOwnProperty(EMAIL_KEY) &&
-            !filteredAttributes.hasOwnProperty(EMAIL_KEY)
-        ) {
-            delete data[EMAIL_KEY];
-        }
-
-        // Remove emailsha256 if:
-        // - email was explicitly passed by developer AND
-        // - emailsha256 came from filteredUserIdentities (not explicitly passed by developer)
-        if (
-            filteredAttributes.hasOwnProperty(EMAIL_KEY) &&
-            filteredUserIdentities.hasOwnProperty(EMAIL_SHA256_KEY) &&
-            !filteredAttributes.hasOwnProperty(EMAIL_SHA256_KEY)
-        ) {
-            delete data[EMAIL_SHA256_KEY];
-        }
-
-        return data;
-    }
-
-    /**
      * Selects placements for Rokt Web SDK with merged attributes, filters, and experimentation options
      * @see https://docs.rokt.com/developers/integration-guides/web/library/select-placements-options/
      * @param {Object} options - The options object for selecting placements containing:
@@ -292,11 +252,7 @@ var constructor = function () {
         );
 
         var selectPlacementsOptions = mergeObjects(options, {
-            attributes: sanitizeEmailIdentities(
-                selectPlacementsAttributes,
-                filteredUserIdentities,
-                filteredAttributes
-            ),
+            attributes: selectPlacementsAttributes,
         });
 
         return self.launcher.selectPlacements(selectPlacementsOptions);
