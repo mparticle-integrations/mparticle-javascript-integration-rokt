@@ -1738,7 +1738,7 @@ describe('Rokt Forwarder', () => {
                 await waitForCondition(() => {
                     return window.mParticle.forwarder.isInitialized;
                 });
-                debugger
+
                 await window.mParticle.forwarder.selectPlacements({
                     identifier: 'test-placement',
                     attributes: { },
