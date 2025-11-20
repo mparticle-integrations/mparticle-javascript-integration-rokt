@@ -185,11 +185,11 @@ var constructor = function () {
 
     function replaceOtherIdentityWithEmailsha256(userIdentities) {
         var newUserIdentities = mergeObjects({}, userIdentities || {});
-        if (userIdentities.hasOwnProperty(mappedEmailSha256Key)) {
+        if (userIdentities[mappedEmailSha256Key]) {
             newUserIdentities[EMAIL_SHA256_KEY] =
                 userIdentities[mappedEmailSha256Key];
-            delete newUserIdentities[mappedEmailSha256Key];
         }
+        delete newUserIdentities[mappedEmailSha256Key];
 
         return newUserIdentities;
     }
