@@ -1,3 +1,10 @@
+## [1.13.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.13.0...v1.13.1) (2025-11-21)
+
+
+### Bug Fixes
+
+* Ignore false-y identity values and remove email sanitization ([#51](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/51)) ([346f554](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/346f554db972854de686a5c311befa262ce73469))
+
 # [1.13.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.12.0...v1.13.0) (2025-11-13)
 
 
