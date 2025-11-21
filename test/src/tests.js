@@ -1632,7 +1632,7 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should remove email identity if emailsha256 is passed through selectPlacements', async () => {
+            it('should keep both email and emailsha256 when emailsha256 is passed through selectPlacements and email exists in userIdentities', async () => {
                 window.mParticle.Rokt.filters = {
                     userAttributeFilters: [],
                     filterUserAttributes: function (attributes) {
@@ -1685,10 +1685,812 @@ describe('Rokt Forwarder', () => {
                     },
                 });
 
+                // Should keep both email from userIdentities and emailsha256 from selectPlacements
                 window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
                     {
+                        email: 'test@example.com',
                         emailsha256: 'hashed-email-value',
                         mpid: '456',
+                    }
+                );
+            });
+
+            it('should keep both email and emailsha256 when both are passed through selectPlacements', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '789';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'identity-email@example.com',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        email: 'developer-email@example.com',
+                        emailsha256: 'hashed-email-value',
+                    },
+                });
+
+                // Should keep both email and emailsha256 since developer explicitly passed both
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'developer-email@example.com',
+                        emailsha256: 'hashed-email-value',
+                        mpid: '789',
+                    }
+                );
+            });
+
+            it('should include email in kit.selectPlacements call if not passed, and email exists in userIdentities', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '901';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'identity-email@example.com',
+                                    customerid: 'customer456',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        someAttribute: 'someValue',
+                    },
+                });
+
+                // Should keep email from userIdentities since emailsha256 does not exist
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'identity-email@example.com',
+                        customerid: 'customer456',
+                        someAttribute: 'someValue',
+                        mpid: '901',
+                    }
+                );
+            });
+
+            it('should have both email and emailsha256 in kit.selectPlacements call if both exist on userIdentities, and neither is passed through selectPlacements', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '912';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'identity-email@example.com',
+                                    other: 'hashed-from-other',
+                                    customerid: 'customer789',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                // Should keep both email and emailsha256 since emailsha256 was mapped from other identity (not explicitly passed)
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'identity-email@example.com',
+                        emailsha256: 'hashed-from-other',
+                        customerid: 'customer789',
+                        mpid: '912',
+                    }
+                );
+            });
+
+            it('should keep only email from selectPlacements when no emailsha256 exists', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '934';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer202',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        email: 'developer-email@example.com',
+                    },
+                });
+
+                // Should keep email from selectPlacements since no emailsha256 exists
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'developer-email@example.com',
+                        customerid: 'customer202',
+                        mpid: '934',
+                    }
+                );
+            });
+
+            it('should keep only emailsha256 from selectPlacements when no email exists in userIdentities', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '945';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer303',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        emailsha256: 'developer-hashed-email',
+                    },
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        emailsha256: 'developer-hashed-email',
+                        customerid: 'customer303',
+                        mpid: '945',
+                    }
+                );
+            });
+
+            it('should have nothing when neither email nor emailsha256 exist anywhere', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '967';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    customerid: 'customer505',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        customerid: 'customer505',
+                        mpid: '967',
+                    }
+                );
+            });
+
+            it('should keep only emailsha256 from userIdentities when email is not in userIdentities and developer passes nothing', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '978';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    other: 'hashed-from-useridentities',
+                                    customerid: 'customer606',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        emailsha256: 'hashed-from-useridentities',
+                        customerid: 'customer606',
+                        mpid: '978',
+                    }
+                );
+            });
+
+            it('should keep both when developer passes both and both exist in userIdentities', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function (attributes) {
+                        return attributes;
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '992';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'useridentity-email@example.com',
+                                    other: 'hashed-from-useridentities',
+                                    customerid: 'customer909',
+                                },
+                            };
+                        },
+                    },
+                };
+
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        email: 'developer-email@example.com',
+                        emailsha256: 'developer-hashed-email',
+                    },
+                });
+
+                // Should use developer-passed values for both
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'developer-email@example.com',
+                        emailsha256: 'developer-hashed-email',
+                        customerid: 'customer909',
+                        mpid: '992',
+                    }
+                );
+            });
+
+            it('should NOT map other userIdentities to emailsha256 when the value is an empty string', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function () {
+                        return {};
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '234';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'test@gmail.com',
+                                    other: '', // Empty string
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                // Should NOT include emailsha256 since the other identity value was empty
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'test@gmail.com',
+                        mpid: '234',
+                    }
+                );
+            });
+
+            it('should NOT map other userIdentities to emailsha256 when the value is null', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function () {
+                        return {};
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '345';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'test@gmail.com',
+                                    other: null, // Null value
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                // Should NOT include emailsha256 since the other identity value was null
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'test@gmail.com',
+                        mpid: '345',
+                    }
+                );
+            });
+
+            it('should NOT map other userIdentities to emailsha256 when the value is undefined', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function () {
+                        return {};
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '456';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'test@gmail.com',
+                                    other: undefined, // Undefined value
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                // Should NOT include emailsha256 since the other identity value was undefined
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'test@gmail.com',
+                        mpid: '456',
+                    }
+                );
+            });
+
+            it('should NOT map other userIdentities to emailsha256 when the value is 0', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function () {
+                        return {};
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '567';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'test@gmail.com',
+                                    other: 0, // Zero value
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                // Should NOT include emailsha256 since the other identity value was 0
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'test@gmail.com',
+                        mpid: '567',
+                    }
+                );
+            });
+
+            it('should NOT map other userIdentities to emailsha256 when the value is false', async () => {
+                window.mParticle.Rokt.filters = {
+                    userAttributeFilters: [],
+                    filterUserAttributes: function () {
+                        return {};
+                    },
+                    filteredUser: {
+                        getMPID: function () {
+                            return '678';
+                        },
+                        getUserIdentities: function () {
+                            return {
+                                userIdentities: {
+                                    email: 'test@gmail.com',
+                                    other: false, // False value
+                                },
+                            };
+                        },
+                    },
+                };
+
+                // Set up the createLauncher to properly resolve asynchronously
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function (options) {
+                            window.mParticle.Rokt.selectPlacementsOptions =
+                                options;
+                            window.mParticle.Rokt.selectPlacementsCalled = true;
+                        },
+                    });
+                };
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                        hashedEmailUserIdentityType: 'Other',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+                // Wait for initialization to complete (after launcher is created)
+                await waitForCondition(() => {
+                    return window.mParticle.forwarder.isInitialized;
+                });
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {},
+                });
+
+                // Should NOT include emailsha256 since the other identity value was false
+                window.Rokt.selectPlacementsOptions.attributes.should.deepEqual(
+                    {
+                        email: 'test@gmail.com',
+                        mpid: '678',
                     }
                 );
             });
