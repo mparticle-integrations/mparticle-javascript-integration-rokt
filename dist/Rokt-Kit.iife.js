@@ -26,7 +26,6 @@ var RoktKit = (function (exports) {
         };
 
         var EMAIL_SHA256_KEY = 'emailsha256';
-        var EMAIL_KEY = 'email';
 
         // Dynamic identity type for Rokt's emailsha256 identity value which MP doesn't natively support - will be set during initialization
         var mappedEmailSha256Key;
@@ -188,22 +187,13 @@ var RoktKit = (function (exports) {
 
         function replaceOtherIdentityWithEmailsha256(userIdentities) {
             var newUserIdentities = mergeObjects({}, userIdentities || {});
-            if (userIdentities.hasOwnProperty(mappedEmailSha256Key)) {
+            if (userIdentities[mappedEmailSha256Key]) {
                 newUserIdentities[EMAIL_SHA256_KEY] =
                     userIdentities[mappedEmailSha256Key];
-                delete newUserIdentities[mappedEmailSha256Key];
             }
+            delete newUserIdentities[mappedEmailSha256Key];
 
             return newUserIdentities;
-        }
-
-        function sanitizeEmailIdentities(_data) {
-            var data = mergeObjects({}, _data || {});
-            if (_data.hasOwnProperty(EMAIL_SHA256_KEY)) {
-                delete data[EMAIL_KEY];
-            }
-
-            return data;
         }
 
         /**
@@ -265,7 +255,7 @@ var RoktKit = (function (exports) {
             );
 
             var selectPlacementsOptions = mergeObjects(options, {
-                attributes: sanitizeEmailIdentities(selectPlacementsAttributes),
+                attributes: selectPlacementsAttributes,
             });
 
             return self.launcher.selectPlacements(selectPlacementsOptions);
@@ -487,7 +477,7 @@ var RoktKit = (function (exports) {
 
     function generateIntegrationName(customIntegrationName) {
         var coreSdkVersion = window.mParticle.getVersion();
-        var kitVersion = "1.13.0";
+        var kitVersion = "1.13.1";
         var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
         if (customIntegrationName) {
