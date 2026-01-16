@@ -278,6 +278,12 @@ var constructor = function () {
         devPassedAttributes,
         selectPlacementsAttributes
     ) {
+        if (
+            !window.mParticle ||
+            typeof window.mParticle.logEvent !== 'function'
+        ) {
+            return;
+        }
         // Event type 8 corresponds to "Other" in mParticle's EventType enum
         var EVENT_TYPE_OTHER = 8;
 
