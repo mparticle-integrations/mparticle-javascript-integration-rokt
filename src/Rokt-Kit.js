@@ -15,6 +15,7 @@
 
 var name = 'Rokt';
 var moduleId = 181;
+var EVENT_NAME_SELECT_PLACEMENTS = 'selectplacements';
 
 var constructor = function () {
     var self = this;
@@ -199,10 +200,13 @@ var constructor = function () {
      * @param {Object} options - The options object for selecting placements containing:
      * - identifier {string}: The placement identifier
      * - attributes {Object}: Optional attributes to merge with existing attributes
+     * - devPassedAttributes {Object}: original attributes passed by developer
      * @returns {Promise<void>} A Promise resolving to the Rokt launcher's selectPlacements method with processed attributes
      */
     function selectPlacements(options) {
         var attributes = (options && options.attributes) || {};
+        var devPassedAttributes =
+            (options && options.devPassedAttributes) || {};
         var placementAttributes = mergeObjects(self.userAttributes, attributes);
 
         var filters = self.filters || {};
@@ -255,7 +259,43 @@ var constructor = function () {
             attributes: selectPlacementsAttributes,
         });
 
+        // Log custom event for selectPlacements call
+        logSelectPlacementsEvent(
+            devPassedAttributes,
+            selectPlacementsAttributes
+        );
+
         return self.launcher.selectPlacements(selectPlacementsOptions);
+    }
+
+    /**
+     * Logs a custom event when selectPlacements is called
+     * This enables visibility and troubleshooting
+     * @param {Object} devPassedAttributes - The attributes passed by the developer
+     * @param {Object} selectPlacementsAttributes - The final merged attributes sent to Rokt
+     */
+    function logSelectPlacementsEvent(
+        devPassedAttributes,
+        selectPlacementsAttributes
+    ) {
+        // Event type 8 corresponds to "Other" in mParticle's EventType enum
+        var EVENT_TYPE_OTHER = 8;
+
+        // Build event attributes with both passed and final attributes as JSON strings
+        // devPassedAttributes: attributes passed by the developer
+        // selectPlacementsAttributes: final attributes sent to selectPlacements
+        var eventAttributes = {
+            devPassedAttributes: JSON.stringify(devPassedAttributes || {}),
+            selectPlacementsAttributes: JSON.stringify(
+                selectPlacementsAttributes || {}
+            ),
+        };
+
+        window.mParticle.logEvent(
+            EVENT_NAME_SELECT_PLACEMENTS,
+            EVENT_TYPE_OTHER,
+            eventAttributes
+        );
     }
 
     /**

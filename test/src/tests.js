@@ -88,6 +88,15 @@ describe('Rokt Forwarder', () => {
     mParticle.generateHash = function (input) {
         return 'hashed-<' + input + '>-value';
     };
+    // Mock for logEvent to capture custom event logging
+    mParticle.loggedEvents = [];
+    mParticle.logEvent = function (eventName, eventType, eventAttributes) {
+        mParticle.loggedEvents.push({
+            eventName: eventName,
+            eventType: eventType,
+            eventAttributes: eventAttributes,
+        });
+    };
     // -------------------START EDITING BELOW:-----------------------
     var MockRoktForwarder = function () {
         var self = this;
@@ -734,6 +743,7 @@ describe('Rokt Forwarder', () => {
                 window.mParticle.Rokt.attachKitCalled = true;
                 return Promise.resolve();
             };
+            mParticle.loggedEvents = [];
             window.mParticle.Rokt.setLocalSessionAttribute = function (
                 key,
                 value
@@ -2493,6 +2503,121 @@ describe('Rokt Forwarder', () => {
                         mpid: '678',
                     }
                 );
+            });
+        });
+
+        describe('#logSelectPlacementsEvent', () => {
+            it('should log a custom event with devPassedAttributes and selectPlacementsAttributes', async () => {
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'cached-user-attr': 'cached-value',
+                    }
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        'new-attr': 'new-value',
+                    },
+                    devPassedAttributes: {
+                        'original-attr': 'original-value',
+                    },
+                });
+
+                mParticle.loggedEvents.length.should.equal(1);
+                mParticle.loggedEvents[0].eventName.should.equal(
+                    'selectplacements'
+                );
+                mParticle.loggedEvents[0].eventType.should.equal(8); // EventType.Other
+
+                const eventAttributes =
+                    mParticle.loggedEvents[0].eventAttributes;
+                eventAttributes.should.have.property('devPassedAttributes');
+                eventAttributes.should.have.property(
+                    'selectPlacementsAttributes'
+                );
+
+                // devPassedAttributes should contain original attributes from developer
+                const devPassedAttrs = JSON.parse(
+                    eventAttributes.devPassedAttributes
+                );
+                devPassedAttrs.should.deepEqual({
+                    'original-attr': 'original-value',
+                });
+            });
+
+            it('should include selectPlacementsAttributes with merged user attributes, identities, and mpid', async () => {
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'cached-user-attr': 'cached-value',
+                    }
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        'new-attr': 'new-value',
+                    },
+                    devPassedAttributes: {
+                        'new-attr': 'new-value',
+                    },
+                });
+
+                const eventAttributes =
+                    mParticle.loggedEvents[0].eventAttributes;
+                const selectPlacementsAttrs = JSON.parse(
+                    eventAttributes.selectPlacementsAttributes
+                );
+
+                // selectPlacementsAttributes should include merged attributes and mpid
+                selectPlacementsAttrs.should.have.property('mpid', '123');
+                selectPlacementsAttrs.should.have.property(
+                    'new-attr',
+                    'new-value'
+                );
+                selectPlacementsAttrs.should.have.property(
+                    'cached-user-attr',
+                    'cached-value'
+                );
+            });
+
+            it('should handle empty devPassedAttributes', async () => {
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        attr: 'value',
+                    },
+                });
+
+                mParticle.loggedEvents.length.should.equal(1);
+                const eventAttributes =
+                    mParticle.loggedEvents[0].eventAttributes;
+                const devPassedAttrs = JSON.parse(
+                    eventAttributes.devPassedAttributes
+                );
+                devPassedAttrs.should.deepEqual({});
             });
         });
     });
