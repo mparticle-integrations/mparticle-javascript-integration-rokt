@@ -2507,7 +2507,7 @@ describe('Rokt Forwarder', () => {
         });
 
         describe('#logSelectPlacementsEvent', () => {
-            it('should log a custom event with devPassedAttributes and selectPlacementsAttributes', async () => {
+            it('should log a custom event with debugAttributes and selectPlacementsAttributes', async () => {
                 await window.mParticle.forwarder.init(
                     {
                         accountId: '123456',
@@ -2525,7 +2525,7 @@ describe('Rokt Forwarder', () => {
                     attributes: {
                         'new-attr': 'new-value',
                     },
-                    devPassedAttributes: {
+                    debugAttributes: {
                         'original-attr': 'original-value',
                     },
                 });
@@ -2538,16 +2538,14 @@ describe('Rokt Forwarder', () => {
 
                 const eventAttributes =
                     mParticle.loggedEvents[0].eventAttributes;
-                eventAttributes.should.have.property('devPassedAttributes');
+                eventAttributes.should.have.property('debugAttributes');
                 eventAttributes.should.have.property(
                     'selectPlacementsAttributes'
                 );
 
-                // devPassedAttributes should contain original attributes from developer
-                const devPassedAttrs = JSON.parse(
-                    eventAttributes.devPassedAttributes
-                );
-                devPassedAttrs.should.deepEqual({
+                // debugAttributes should contain original attributes from developer
+                const debugAttrs = JSON.parse(eventAttributes.debugAttributes);
+                debugAttrs.should.deepEqual({
                     'original-attr': 'original-value',
                 });
             });
@@ -2570,7 +2568,7 @@ describe('Rokt Forwarder', () => {
                     attributes: {
                         'new-attr': 'new-value',
                     },
-                    devPassedAttributes: {
+                    debugAttributes: {
                         'new-attr': 'new-value',
                     },
                 });
@@ -2593,7 +2591,7 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
-            it('should handle empty devPassedAttributes', async () => {
+            it('should handle empty debugAttributes', async () => {
                 await window.mParticle.forwarder.init(
                     {
                         accountId: '123456',
@@ -2614,10 +2612,8 @@ describe('Rokt Forwarder', () => {
                 mParticle.loggedEvents.length.should.equal(1);
                 const eventAttributes =
                     mParticle.loggedEvents[0].eventAttributes;
-                const devPassedAttrs = JSON.parse(
-                    eventAttributes.devPassedAttributes
-                );
-                devPassedAttrs.should.deepEqual({});
+                const debugAttrs = JSON.parse(eventAttributes.debugAttributes);
+                debugAttrs.should.deepEqual({});
             });
         });
     });

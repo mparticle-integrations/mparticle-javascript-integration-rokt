@@ -200,13 +200,12 @@ var constructor = function () {
      * @param {Object} options - The options object for selecting placements containing:
      * - identifier {string}: The placement identifier
      * - attributes {Object}: Optional attributes to merge with existing attributes
-     * - devPassedAttributes {Object}: original attributes passed by developer
+     * - debugAttributes {Object}: original attributes passed by developer
      * @returns {Promise<void>} A Promise resolving to the Rokt launcher's selectPlacements method with processed attributes
      */
     function selectPlacements(options) {
         var attributes = (options && options.attributes) || {};
-        var devPassedAttributes =
-            (options && options.devPassedAttributes) || {};
+        var debugAttributes = (options && options.debugAttributes) || {};
         var placementAttributes = mergeObjects(self.userAttributes, attributes);
 
         var filters = self.filters || {};
@@ -260,10 +259,7 @@ var constructor = function () {
         });
 
         // Log custom event for selectPlacements call
-        logSelectPlacementsEvent(
-            devPassedAttributes,
-            selectPlacementsAttributes
-        );
+        logSelectPlacementsEvent(debugAttributes, selectPlacementsAttributes);
 
         return self.launcher.selectPlacements(selectPlacementsOptions);
     }
@@ -271,11 +267,11 @@ var constructor = function () {
     /**
      * Logs a custom event when selectPlacements is called
      * This enables visibility and troubleshooting
-     * @param {Object} devPassedAttributes - The attributes passed by the developer
+     * @param {Object} debugAttributes - The attributes passed by the developer
      * @param {Object} selectPlacementsAttributes - The final merged attributes sent to Rokt
      */
     function logSelectPlacementsEvent(
-        devPassedAttributes,
+        debugAttributes,
         selectPlacementsAttributes
     ) {
         if (
@@ -285,15 +281,15 @@ var constructor = function () {
             return;
         }
         // Event type 8 corresponds to "Other" in mParticle's EventType enum
-        var EVENT_TYPE_OTHER = 8;
+        var EVENT_TYPE_OTHER = window.mParticle.EventType.Other;
 
         // Build event attributes with both passed and final attributes as JSON strings
-        // devPassedAttributes: attributes passed by the developer
+        // debugAttributes: attributes passed by the developer
         // selectPlacementsAttributes: final attributes sent to selectPlacements
         var eventAttributes = {
-            devPassedAttributes: JSON.stringify(devPassedAttributes || {}),
-            selectPlacementsAttributes: JSON.stringify(
-                selectPlacementsAttributes || {}
+            debugAttributes: stringifyIfObject(debugAttributes),
+            selectPlacementsAttributes: stringifyIfObject(
+                selectPlacementsAttributes
             ),
         };
 
@@ -624,6 +620,10 @@ function hashEventMessage(messageType, eventType, eventName) {
 
 function isEmpty(value) {
     return value == null || !(Object.keys(value) || value).length;
+}
+
+function stringifyIfObject(value) {
+    return isObject(value) ? JSON.stringify(value) : '{}';
 }
 
 if (window && window.mParticle && window.mParticle.addForwarder) {
