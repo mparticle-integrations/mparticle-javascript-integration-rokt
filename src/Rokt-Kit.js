@@ -200,7 +200,7 @@ var constructor = function () {
      * @param {Object} options - The options object for selecting placements containing:
      * - identifier {string}: The placement identifier
      * - attributes {Object}: Optional attributes to merge with existing attributes
-     * - debugAttributes {Object}: original attributes passed by developer
+     * - debugAttributes {Object}: Original attributes passed by developer
      * @returns {Promise<void>} A Promise resolving to the Rokt launcher's selectPlacements method with processed attributes
      */
     function selectPlacements(options) {
@@ -281,7 +281,9 @@ var constructor = function () {
             return;
         }
         // Event type 8 corresponds to "Other" in mParticle's EventType enum
-        var EVENT_TYPE_OTHER = window.mParticle.EventType.Other;
+        var EVENT_TYPE_OTHER =
+            (window.mParticle.EventType && window.mParticle.EventType.Other) ||
+            8;
 
         // Build event attributes with both passed and final attributes as JSON strings
         // debugAttributes: attributes passed by the developer

@@ -2615,6 +2615,32 @@ describe('Rokt Forwarder', () => {
                 const debugAttrs = JSON.parse(eventAttributes.debugAttributes);
                 debugAttrs.should.deepEqual({});
             });
+
+            it('should skip logging when mParticle.logEvent is not available', async () => {
+                var originalLogEvent = window.mParticle.logEvent;
+                window.mParticle.logEvent = undefined;
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {}
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        attr: 'value',
+                    },
+                });
+
+                window.Rokt.selectPlacementsCalled.should.equal(true);
+                mParticle.loggedEvents.length.should.equal(0);
+                window.mParticle.logEvent = originalLogEvent;
+            });
         });
     });
 
