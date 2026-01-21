@@ -123,6 +123,8 @@ var constructor = function () {
         if (window.Rokt && typeof window.Rokt.createLauncher === 'function') {
             if (!window.Rokt.currentLauncher) {
                 attachLauncher(accountId, launcherOptions);
+            } else {
+                initRoktLauncher(window.Rokt.currentLauncher);
             }
         } else {
             var target = document.head || document.body;
