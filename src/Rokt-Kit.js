@@ -120,7 +120,11 @@ var constructor = function () {
             return;
         }
 
-        if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
+        if (window.Rokt && typeof window.Rokt.createLauncher === 'function') {
+            if (!window.Rokt.currentLauncher) {
+                attachLauncher(accountId, launcherOptions);
+            }
+        } else {
             var target = document.head || document.body;
             var script = document.createElement('script');
             script.type = 'text/javascript';
@@ -151,8 +155,6 @@ var constructor = function () {
 
             target.appendChild(script);
             captureTiming(PerformanceMarks.RoktScriptAppended);
-        } else {
-            console.warn('Unable to find Rokt on the page');
         }
     }
     /**
