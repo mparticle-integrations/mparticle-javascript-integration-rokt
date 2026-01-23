@@ -2507,7 +2507,7 @@ describe('Rokt Forwarder', () => {
         });
 
         describe('#logSelectPlacementsEvent', () => {
-            it('should log a custom event with debugAttributes and selectPlacementsAttributes', async () => {
+            it('should log a custom event with initialAttributes and finalAttributes', async () => {
                 await window.mParticle.forwarder.init(
                     {
                         accountId: '123456',
@@ -2525,7 +2525,7 @@ describe('Rokt Forwarder', () => {
                     attributes: {
                         'new-attr': 'new-value',
                     },
-                    debugAttributes: {
+                    initialAttributes: {
                         'original-attr': 'original-value',
                     },
                 });
@@ -2538,19 +2538,19 @@ describe('Rokt Forwarder', () => {
 
                 const eventAttributes =
                     mParticle.loggedEvents[0].eventAttributes;
-                eventAttributes.should.have.property('debugAttributes');
-                eventAttributes.should.have.property(
-                    'selectPlacementsAttributes'
-                );
+                eventAttributes.should.have.property('initialAttributes');
+                eventAttributes.should.have.property('finalAttributes');
 
-                // debugAttributes should contain original attributes from developer
-                const debugAttrs = JSON.parse(eventAttributes.debugAttributes);
-                debugAttrs.should.deepEqual({
+                // initialAttributes should contain original attributes from developer
+                const initialAttrs = JSON.parse(
+                    eventAttributes.initialAttributes
+                );
+                initialAttrs.should.deepEqual({
                     'original-attr': 'original-value',
                 });
             });
 
-            it('should include selectPlacementsAttributes with merged user attributes, identities, and mpid', async () => {
+            it('should include finalAttributes with merged user attributes, identities, and mpid', async () => {
                 await window.mParticle.forwarder.init(
                     {
                         accountId: '123456',
@@ -2568,30 +2568,25 @@ describe('Rokt Forwarder', () => {
                     attributes: {
                         'new-attr': 'new-value',
                     },
-                    debugAttributes: {
+                    initialAttributes: {
                         'new-attr': 'new-value',
                     },
                 });
 
                 const eventAttributes =
                     mParticle.loggedEvents[0].eventAttributes;
-                const selectPlacementsAttrs = JSON.parse(
-                    eventAttributes.selectPlacementsAttributes
-                );
+                const finalAttrs = JSON.parse(eventAttributes.finalAttributes);
 
-                // selectPlacementsAttributes should include merged attributes and mpid
-                selectPlacementsAttrs.should.have.property('mpid', '123');
-                selectPlacementsAttrs.should.have.property(
-                    'new-attr',
-                    'new-value'
-                );
-                selectPlacementsAttrs.should.have.property(
+                // finalAttributes should include merged attributes and mpid
+                finalAttrs.should.have.property('mpid', '123');
+                finalAttrs.should.have.property('new-attr', 'new-value');
+                finalAttrs.should.have.property(
                     'cached-user-attr',
                     'cached-value'
                 );
             });
 
-            it('should handle empty debugAttributes', async () => {
+            it('should handle empty initialAttributes', async () => {
                 await window.mParticle.forwarder.init(
                     {
                         accountId: '123456',
@@ -2612,8 +2607,10 @@ describe('Rokt Forwarder', () => {
                 mParticle.loggedEvents.length.should.equal(1);
                 const eventAttributes =
                     mParticle.loggedEvents[0].eventAttributes;
-                const debugAttrs = JSON.parse(eventAttributes.debugAttributes);
-                debugAttrs.should.deepEqual({});
+                const initialAttrs = JSON.parse(
+                    eventAttributes.initialAttributes
+                );
+                initialAttrs.should.deepEqual({});
             });
 
             it('should skip logging when mParticle.logEvent is not available', async () => {

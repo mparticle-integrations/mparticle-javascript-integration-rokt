@@ -200,12 +200,12 @@ var constructor = function () {
      * @param {Object} options - The options object for selecting placements containing:
      * - identifier {string}: The placement identifier
      * - attributes {Object}: Optional attributes to merge with existing attributes
-     * - debugAttributes {Object}: Original attributes passed by developer
+     * - initialAttributes {Object}: Original attributes passed by developer
      * @returns {Promise<void>} A Promise resolving to the Rokt launcher's selectPlacements method with processed attributes
      */
     function selectPlacements(options) {
         var attributes = (options && options.attributes) || {};
-        var debugAttributes = (options && options.debugAttributes) || {};
+        var initialAttributes = (options && options.initialAttributes) || {};
         var placementAttributes = mergeObjects(self.userAttributes, attributes);
 
         var filters = self.filters || {};
@@ -259,7 +259,7 @@ var constructor = function () {
         });
 
         // Log custom event for selectPlacements call
-        logSelectPlacementsEvent(debugAttributes, selectPlacementsAttributes);
+        logSelectPlacementsEvent(initialAttributes, selectPlacementsAttributes);
 
         return self.launcher.selectPlacements(selectPlacementsOptions);
     }
@@ -267,11 +267,11 @@ var constructor = function () {
     /**
      * Logs a custom event when selectPlacements is called
      * This enables visibility and troubleshooting
-     * @param {Object} debugAttributes - The attributes passed by the developer
+     * @param {Object} initialAttributes - The attributes passed by the developer
      * @param {Object} selectPlacementsAttributes - The final merged attributes sent to Rokt
      */
     function logSelectPlacementsEvent(
-        debugAttributes,
+        initialAttributes,
         selectPlacementsAttributes
     ) {
         if (
@@ -286,13 +286,11 @@ var constructor = function () {
             8;
 
         // Build event attributes with both passed and final attributes as JSON strings
-        // debugAttributes: attributes passed by the developer
-        // selectPlacementsAttributes: final attributes sent to selectPlacements
+        // initialAttributes: attributes passed by the developer
+        // finalAttributes: final attributes sent to selectPlacements
         var eventAttributes = {
-            debugAttributes: stringifyIfObject(debugAttributes),
-            selectPlacementsAttributes: stringifyIfObject(
-                selectPlacementsAttributes
-            ),
+            initialAttributes: stringifyIfObject(initialAttributes),
+            finalAttributes: stringifyIfObject(selectPlacementsAttributes),
         };
 
         window.mParticle.logEvent(
