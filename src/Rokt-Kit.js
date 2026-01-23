@@ -280,10 +280,8 @@ var constructor = function () {
         ) {
             return;
         }
-        // Event type 8 corresponds to "Other" in mParticle's EventType enum
-        var EVENT_TYPE_OTHER =
-            (window.mParticle.EventType && window.mParticle.EventType.Other) ||
-            8;
+
+        var EVENT_TYPE_OTHER = window.mParticle.EventType.Other;
 
         // Build event attributes with both passed and final attributes as JSON strings
         // initialAttributes: attributes passed by the developer
