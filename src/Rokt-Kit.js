@@ -36,7 +36,124 @@ var constructor = function () {
     self.userAttributes = {};
     self.testHelpers = null;
     self.placementEventMappingLookup = {};
+    self.placementEventMappingRulesLookup = {};
     self.eventQueue = [];
+
+    /**
+     * Evaluates a condition against an mParticle event.s
+     * @param {Object} event - The mParticle event to evaluate the condition against.
+     * @param {Object} condition - The condition to evaluate from mParticle UI config.
+     * @returns {boolean} True if the condition is met, false otherwise.
+     */
+    function doesConditionMatch(event, condition) {
+        if (!condition || typeof condition.operator !== 'string') {
+            return false;
+        }
+
+        var attribute = condition.attribute;
+        var operator = condition.operator.toLowerCase();
+        var expectedValue = condition.attributeValue;
+
+        var actualValue =
+            event && event.EventAttributes && event.EventAttributes[attribute];
+
+        if (operator === 'exists') {
+            return typeof actualValue !== 'undefined' && actualValue !== null;
+        }
+
+        // Equals check (type-sensitive)
+        if (operator === 'equals') {
+            return actualValue === expectedValue;
+        }
+
+        // Only explicitly supported string operator
+        if (operator !== 'contains') {
+            return false;
+        }
+
+        // Contains check (string-only, case-sensitive)
+        if (
+            typeof actualValue !== 'string' ||
+            typeof expectedValue !== 'string'
+        ) {
+            return false;
+        }
+
+        return actualValue.indexOf(expectedValue) !== -1;
+    }
+
+    function doesRuleMatch(event, rule) {
+        var conditions = rule.conditions;
+        if (!Array.isArray(conditions)) {
+            return false;
+        }
+        if (conditions.length === 0) {
+            return true;
+        }
+        for (var i = 0; i < conditions.length; i++) {
+            if (!doesConditionMatch(event, conditions[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function buildPlacementEventMappingRulesLookup(rules) {
+        var index = {};
+        if (!Array.isArray(rules)) {
+            return index;
+        }
+        for (var i = 0; i < rules.length; i++) {
+            var rule = rules[i];
+
+            var jsmapKey = rule.jsmap;
+            var value = rule.value;
+
+            if (!index[jsmapKey]) index[jsmapKey] = {};
+            if (!index[jsmapKey][value]) index[jsmapKey][value] = [];
+
+            index[jsmapKey][value].push({
+                jsmap: jsmapKey,
+                value: value,
+                conditions: rule.conditions,
+            });
+        }
+        return index;
+    }
+
+    function applyEventMapping(event, jsmap) {
+        var mapped = self.placementEventMappingLookup[jsmap];
+        if (!mapped) {
+            return;
+        }
+        var keys = Array.isArray(mapped) ? mapped : [mapped];
+
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            var rulesForKey =
+                self.placementEventMappingRulesLookup &&
+                self.placementEventMappingRulesLookup[jsmap] &&
+                self.placementEventMappingRulesLookup[jsmap][key]
+                    ? self.placementEventMappingRulesLookup[jsmap][key]
+                    : null;
+
+            // If there are rules for (jsmap,key), only set when ALL rules match (AND).
+            if (rulesForKey && rulesForKey.length) {
+                var allMatch = true;
+                for (var j = 0; j < rulesForKey.length; j++) {
+                    if (!doesRuleMatch(event, rulesForKey[j])) {
+                        allMatch = false;
+                        break;
+                    }
+                }
+                if (!allMatch) {
+                    continue;
+                }
+            }
+
+            window.mParticle.Rokt.setLocalSessionAttribute(key, true);
+        }
+    }
 
     /**
      * Generates the Rokt launcher script URL with optional domain override and extensions
@@ -92,6 +209,12 @@ var constructor = function () {
             placementEventMapping
         );
 
+        var placementEventMappingRules = parseSettingsString(
+            settings.placementEventMappingRules
+        );
+        self.placementEventMappingRulesLookup =
+            buildPlacementEventMappingRulesLookup(placementEventMappingRules);
+
         // Set dynamic OTHER_IDENTITY based on server settings
         // Convert to lowercase since server sends TitleCase (e.g., 'Other' -> 'other')
         if (settings.hashedEmailUserIdentityType) {
@@ -115,6 +238,9 @@ var constructor = function () {
                 hashEventMessage: hashEventMessage,
                 parseSettingsString: parseSettingsString,
                 generateMappedEventLookup: generateMappedEventLookup,
+                buildPlacementEventMappingRulesLookup:
+                    buildPlacementEventMappingRulesLookup,
+                doesConditionMatch: doesConditionMatch,
             };
             attachLauncher(accountId, launcherOptions);
             return;
@@ -319,8 +445,21 @@ var constructor = function () {
         );
 
         if (self.placementEventMappingLookup[hashedEvent]) {
-            var mappedValue = self.placementEventMappingLookup[hashedEvent];
-            window.mParticle.Rokt.setLocalSessionAttribute(mappedValue, true);
+            applyEventMapping(event, hashedEvent);
+        }
+
+        // Allow wildcard event-name mapping (e.g., any ScreenView for a given type/category).
+        var hashedEventWildcard = hashEventMessage(
+            event.EventDataType,
+            event.EventCategory,
+            '*'
+        );
+
+        if (
+            hashedEventWildcard !== hashedEvent &&
+            self.placementEventMappingLookup[hashedEventWildcard]
+        ) {
+            applyEventMapping(event, hashedEventWildcard);
         }
     }
 
@@ -565,8 +704,26 @@ function generateMappedEventLookup(placementEventMapping) {
     var mappedEvents = {};
     for (var i = 0; i < placementEventMapping.length; i++) {
         var mapping = placementEventMapping[i];
-        mappedEvents[mapping.jsmap] = mapping.value;
+
+        var jsmap = mapping.jsmap;
+        var value = mapping.value;
+        if (!mappedEvents[jsmap]) {
+            mappedEvents[jsmap] = [];
+        }
+        // Avoid duplicates
+        if (mappedEvents[jsmap].indexOf(value) === -1) {
+            mappedEvents[jsmap].push(value);
+        }
     }
+
+    var jsmapKeys = Object.keys(mappedEvents);
+    for (var j = 0; j < jsmapKeys.length; j++) {
+        var key = jsmapKeys[j];
+        if (mappedEvents[key] && mappedEvents[key].length === 1) {
+            mappedEvents[key] = mappedEvents[key][0];
+        }
+    }
+
     return mappedEvents;
 }
 
