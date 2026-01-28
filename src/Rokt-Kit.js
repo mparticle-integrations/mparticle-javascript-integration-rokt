@@ -59,6 +59,18 @@ var constructor = function () {
     }
 
     /**
+     * Checks if Rokt launcher is available and ready to attach
+     * @returns {boolean} True if launcher can be attached
+     */
+    function isLauncherReadyToAttach() {
+        return (
+            window.Rokt &&
+            typeof window.Rokt.createLauncher === 'function' &&
+            window.Rokt.currentLauncher === undefined
+        );
+    }
+
+    /**
      * Passes attributes to the Rokt Web SDK for client-side hashing
      * @see https://docs.rokt.com/developers/integration-guides/web/library/integration-launcher#hash-attributes
      * @param {Object} attributes - The attributes to be hashed
@@ -120,12 +132,8 @@ var constructor = function () {
             return;
         }
 
-        if (window.Rokt && typeof window.Rokt.createLauncher === 'function') {
-            if (!window.Rokt.currentLauncher) {
-                attachLauncher(accountId, launcherOptions);
-            } else {
-                initRoktLauncher(window.Rokt.currentLauncher);
-            }
+        if (isLauncherReadyToAttach()) {
+            attachLauncher(accountId, launcherOptions);
         } else {
             var target = document.head || document.body;
             var script = document.createElement('script');
@@ -137,12 +145,7 @@ var constructor = function () {
             script.id = 'rokt-launcher';
 
             script.onload = function () {
-                // Once the script loads, ensure the Rokt object is available
-                if (
-                    window.Rokt &&
-                    typeof window.Rokt.createLauncher === 'function' &&
-                    window.Rokt.currentLauncher === undefined
-                ) {
+                if (isLauncherReadyToAttach()) {
                     attachLauncher(accountId, launcherOptions);
                 } else {
                     console.error(

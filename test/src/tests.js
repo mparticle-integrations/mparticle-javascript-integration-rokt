@@ -746,34 +746,6 @@ describe('Rokt Forwarder', () => {
 
             window.mParticle.Rokt.createLauncherCalled.should.equal(true);
         });
-
-        it('should attach to existing launcher when currentLauncher already exists', async () => {
-            var existingLauncher = {
-                selectPlacements: function () {
-                    return Promise.resolve({});
-                },
-                hashAttributes: function (attrs) {
-                    return attrs;
-                },
-            };
-            window.Rokt.currentLauncher = existingLauncher;
-
-            await window.mParticle.forwarder.init(
-                { accountId: '123456' },
-                reportService.cb,
-                false,
-                null,
-                {}
-            );
-
-            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
-
-            // Should not call createLauncher since launcher exists
-            window.mParticle.Rokt.createLauncherCalled.should.equal(false);
-
-            // Forwarder should be initialized and functional
-            window.mParticle.forwarder.isInitialized.should.equal(true);
-        });
     });
 
     describe('#selectPlacements', () => {
