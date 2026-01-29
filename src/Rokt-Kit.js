@@ -15,7 +15,7 @@
 
 var name = 'Rokt';
 var moduleId = 181;
-var EVENT_NAME_SELECT_PLACEMENTS = 'selectplacements';
+var EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 
 var constructor = function () {
     var self = this;
@@ -200,12 +200,10 @@ var constructor = function () {
      * @param {Object} options - The options object for selecting placements containing:
      * - identifier {string}: The placement identifier
      * - attributes {Object}: Optional attributes to merge with existing attributes
-     * - initialAttributes {Object}: Original attributes passed by developer
      * @returns {Promise<void>} A Promise resolving to the Rokt launcher's selectPlacements method with processed attributes
      */
     function selectPlacements(options) {
         var attributes = (options && options.attributes) || {};
-        var initialAttributes = (options && options.initialAttributes) || {};
         var placementAttributes = mergeObjects(self.userAttributes, attributes);
 
         var filters = self.filters || {};
@@ -259,7 +257,7 @@ var constructor = function () {
         });
 
         // Log custom event for selectPlacements call
-        logSelectPlacementsEvent(initialAttributes, selectPlacementsAttributes);
+        logSelectPlacementsEvent(selectPlacementsAttributes);
 
         return self.launcher.selectPlacements(selectPlacementsOptions);
     }
@@ -267,13 +265,9 @@ var constructor = function () {
     /**
      * Logs a custom event when selectPlacements is called
      * This enables visibility and troubleshooting
-     * @param {Object} initialAttributes - The attributes passed by the developer
-     * @param {Object} selectPlacementsAttributes - The final merged attributes sent to Rokt
+     * @param {Object} attributes - The attributes sent to Rokt
      */
-    function logSelectPlacementsEvent(
-        initialAttributes,
-        selectPlacementsAttributes
-    ) {
+    function logSelectPlacementsEvent(attributes) {
         if (
             !window.mParticle ||
             typeof window.mParticle.logEvent !== 'function'
@@ -281,20 +275,16 @@ var constructor = function () {
             return;
         }
 
-        var EVENT_TYPE_OTHER = window.mParticle.EventType.Other;
+        if (!isObject(attributes)) {
+            return;
+        }
 
-        // Build event attributes with both passed and final attributes as JSON strings
-        // initialAttributes: attributes passed by the developer
-        // finalAttributes: final attributes sent to selectPlacements
-        var eventAttributes = {
-            initialAttributes: stringifyIfObject(initialAttributes),
-            finalAttributes: stringifyIfObject(selectPlacementsAttributes),
-        };
+        var EVENT_TYPE_OTHER = window.mParticle.EventType.Other;
 
         window.mParticle.logEvent(
             EVENT_NAME_SELECT_PLACEMENTS,
             EVENT_TYPE_OTHER,
-            eventAttributes
+            attributes
         );
     }
 
@@ -618,10 +608,6 @@ function hashEventMessage(messageType, eventType, eventName) {
 
 function isEmpty(value) {
     return value == null || !(Object.keys(value) || value).length;
-}
-
-function stringifyIfObject(value) {
-    return isObject(value) ? JSON.stringify(value) : '{}';
 }
 
 if (window && window.mParticle && window.mParticle.addForwarder) {
