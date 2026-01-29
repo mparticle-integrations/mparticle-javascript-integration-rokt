@@ -63,11 +63,7 @@ var constructor = function () {
      * @returns {boolean} True if launcher can be attached
      */
     function isLauncherReadyToAttach() {
-        return (
-            window.Rokt &&
-            typeof window.Rokt.createLauncher === 'function' &&
-            window.Rokt.currentLauncher === undefined
-        );
+        return window.Rokt && typeof window.Rokt.createLauncher === 'function';
     }
 
     /**
