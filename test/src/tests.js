@@ -3148,23 +3148,15 @@ describe('Rokt Forwarder', () => {
             });
         });
 
-        it('should set local session attribute only when rule conditions match (URL contains)', async () => {
-            const placementEventMapping = JSON.stringify([
+        it('should set local session attribute only when placementEventAttributeMapping conditions match (URL contains)', async () => {
+            const placementEventAttributeMapping = JSON.stringify([
                 {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'saleSeeker',
-                },
-            ]);
-
-            const placementEventMappingRules = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
                     value: 'saleSeeker',
                     conditions: [
                         {
-                            attribute: 'URL',
                             operator: 'contains',
                             attributeValue: 'sale',
                         },
@@ -3175,8 +3167,7 @@ describe('Rokt Forwarder', () => {
             await window.mParticle.forwarder.init(
                 {
                     accountId: '123456',
-                    placementEventMapping,
-                    placementEventMappingRules,
+                    placementEventAttributeMapping,
                 },
                 reportService.cb,
                 true,
@@ -3186,7 +3177,6 @@ describe('Rokt Forwarder', () => {
 
             await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
-            // Non-matching URL => should NOT set saleSeeker
             window.mParticle._Store.localSessionAttributes = {};
             window.mParticle.forwarder.process({
                 EventName: 'Browse',
@@ -3198,7 +3188,6 @@ describe('Rokt Forwarder', () => {
             });
             window.mParticle._Store.localSessionAttributes.should.deepEqual({});
 
-            // Matching URL => should set saleSeeker
             window.mParticle._Store.localSessionAttributes = {};
             window.mParticle.forwarder.process({
                 EventName: 'Browse',
@@ -3213,26 +3202,21 @@ describe('Rokt Forwarder', () => {
             });
         });
 
-        it('should apply both exact and wildcard mappings when both are configured', async () => {
-            const placementEventMapping = JSON.stringify([
+        it('should support exists operator for placementEventAttributeMapping conditions', async () => {
+            const placementEventAttributeMapping = JSON.stringify([
                 {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'exactFlag',
-                },
-                {
-                    jsmap: 'hashed-<30*>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'wildcardFlag',
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'hasUrl',
+                    conditions: [{ operator: 'exists' }],
                 },
             ]);
 
             await window.mParticle.forwarder.init(
                 {
                     accountId: '123456',
-                    placementEventMapping,
+                    placementEventAttributeMapping,
                 },
                 reportService.cb,
                 true,
@@ -3242,103 +3226,6 @@ describe('Rokt Forwarder', () => {
 
             await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
-            window.mParticle._Store.localSessionAttributes = {};
-            window.mParticle.forwarder.process({
-                EventName: 'Browse',
-                EventCategory: EventType.Unknown,
-                EventDataType: MessageType.PageView,
-            });
-
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({
-                exactFlag: true,
-                wildcardFlag: true,
-            });
-        });
-
-        it('should evaluate contains and equals case-sensitively', async () => {
-            const placementEventMapping = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'caseSensitive',
-                },
-            ]);
-
-            const placementEventMappingRules = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    value: 'caseSensitive',
-                    conditions: [
-                        {
-                            attribute: 'URL',
-                            operator: 'contains',
-                            attributeValue: 'Sale',
-                        },
-                    ],
-                },
-            ]);
-
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                    placementEventMapping,
-                    placementEventMappingRules,
-                },
-                reportService.cb,
-                true,
-                null,
-                {}
-            );
-
-            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
-
-            // URL contains "sale" but NOT "Sale" => should NOT set
-            window.mParticle._Store.localSessionAttributes = {};
-            window.mParticle.forwarder.process({
-                EventName: 'Browse',
-                EventCategory: EventType.Unknown,
-                EventDataType: MessageType.PageView,
-                EventAttributes: {
-                    URL: 'https://example.com/sale/items',
-                },
-            });
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
-        });
-
-        it('should evaluate EventAttributes keys case-sensitively', async () => {
-            const placementEventMapping = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'attrCaseSensitive',
-                },
-            ]);
-
-            const placementEventMappingRules = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    value: 'attrCaseSensitive',
-                    conditions: [{ attribute: 'url', operator: 'exists' }],
-                },
-            ]);
-
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                    placementEventMapping,
-                    placementEventMappingRules,
-                },
-                reportService.cb,
-                true,
-                null,
-                {}
-            );
-
-            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
-
-            // Event has URL, rule checks "url" => should NOT match
             window.mParticle._Store.localSessionAttributes = {};
             window.mParticle.forwarder.process({
                 EventName: 'Browse',
@@ -3349,38 +3236,127 @@ describe('Rokt Forwarder', () => {
                 },
             });
 
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                hasUrl: true,
+            });
         });
 
-        it('should require ALL rules for the same (jsmap,key) to match (AND across rules)', async () => {
-            const placementEventMapping = JSON.stringify([
+        it('should evaluate equals type-sensitively for placementEventAttributeMapping conditions', async () => {
+            const placementEventAttributeMapping = JSON.stringify([
                 {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'saleSeeker',
+                    jsmap: null,
+                    map: 'number_of_products',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'multipleproducts',
+                    conditions: [
+                        {
+                            operator: 'equals',
+                            attributeValue: 2,
+                        },
+                    ],
                 },
             ]);
 
-            // Two separate rules for the same (jsmap,value). Both must match.
-            const placementEventMappingRules = JSON.stringify([
+            await window.mParticle.forwarder.init(
                 {
-                    jsmap: 'hashed-<30Browse>-value',
+                    accountId: '123456',
+                    placementEventAttributeMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.forwarder.process({
+                EventName: 'Browse',
+                EventCategory: EventType.Unknown,
+                EventDataType: MessageType.PageView,
+                EventAttributes: {
+                    number_of_products: 2,
+                },
+            });
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                multipleproducts: true,
+            });
+
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.forwarder.process({
+                EventName: 'Browse',
+                EventCategory: EventType.Unknown,
+                EventDataType: MessageType.PageView,
+                EventAttributes: {
+                    number_of_products: '2',
+                },
+            });
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
+        });
+
+        it('should treat contains as string-only (non-strings do not match) for placementEventAttributeMapping', async () => {
+            const placementEventAttributeMapping = JSON.stringify([
+                {
+                    jsmap: null,
+                    map: 'number_of_products',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'containsNumber',
+                    conditions: [
+                        {
+                            operator: 'contains',
+                            attributeValue: '2',
+                        },
+                    ],
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    placementEventAttributeMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.forwarder.process({
+                EventName: 'Browse',
+                EventCategory: EventType.Unknown,
+                EventDataType: MessageType.PageView,
+                EventAttributes: {
+                    number_of_products: 2,
+                },
+            });
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
+        });
+
+        it('should require ALL rules for the same mapped key to match (AND across rules)', async () => {
+            const placementEventAttributeMapping = JSON.stringify([
+                {
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
                     value: 'saleSeeker',
                     conditions: [
                         {
-                            attribute: 'URL',
                             operator: 'contains',
                             attributeValue: 'sale',
                         },
                     ],
                 },
                 {
-                    jsmap: 'hashed-<30Browse>-value',
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
                     value: 'saleSeeker',
                     conditions: [
                         {
-                            attribute: 'URL',
                             operator: 'contains',
                             attributeValue: 'items',
                         },
@@ -3391,8 +3367,7 @@ describe('Rokt Forwarder', () => {
             await window.mParticle.forwarder.init(
                 {
                     accountId: '123456',
-                    placementEventMapping,
-                    placementEventMappingRules,
+                    placementEventAttributeMapping,
                 },
                 reportService.cb,
                 true,
@@ -3428,272 +3403,6 @@ describe('Rokt Forwarder', () => {
                 saleSeeker: true,
             });
         });
-
-        it('should support exists operator for rule conditions', async () => {
-            const placementEventMapping = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'hasUrl',
-                },
-            ]);
-
-            const placementEventMappingRules = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    value: 'hasUrl',
-                    conditions: [{ attribute: 'URL', operator: 'exists' }],
-                },
-            ]);
-
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                    placementEventMapping,
-                    placementEventMappingRules,
-                },
-                reportService.cb,
-                true,
-                null,
-                {}
-            );
-
-            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
-
-            window.mParticle._Store.localSessionAttributes = {};
-            window.mParticle.forwarder.process({
-                EventName: 'Browse',
-                EventCategory: EventType.Unknown,
-                EventDataType: MessageType.PageView,
-                EventAttributes: {
-                    URL: 'https://example.com/anything',
-                },
-            });
-
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({
-                hasUrl: true,
-            });
-        });
-
-        it('should treat invalid rule operators as non-matching', async () => {
-            const placementEventMapping = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'badOperator',
-                },
-            ]);
-
-            const placementEventMappingRules = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    value: 'badOperator',
-                    conditions: [
-                        {
-                            attribute: 'URL',
-                            operator: null,
-                            attributeValue: 'sale',
-                        },
-                    ],
-                },
-            ]);
-
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                    placementEventMapping,
-                    placementEventMappingRules,
-                },
-                reportService.cb,
-                true,
-                null,
-                {}
-            );
-
-            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
-
-            window.mParticle._Store.localSessionAttributes = {};
-            window.mParticle.forwarder.process({
-                EventName: 'Browse',
-                EventCategory: EventType.Unknown,
-                EventDataType: MessageType.PageView,
-                EventAttributes: {
-                    URL: 'https://example.com/sale/items',
-                },
-            });
-
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
-        });
-
-        it('should treat unknown string operators as non-matching', async () => {
-            const placementEventMapping = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'unknownOperator',
-                },
-            ]);
-
-            const placementEventMappingRules = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    value: 'unknownOperator',
-                    conditions: [
-                        {
-                            attribute: 'URL',
-                            operator: 'starts_with',
-                            attributeValue: 'https://example.com/sale',
-                        },
-                    ],
-                },
-            ]);
-
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                    placementEventMapping,
-                    placementEventMappingRules,
-                },
-                reportService.cb,
-                true,
-                null,
-                {}
-            );
-
-            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
-
-            window.mParticle._Store.localSessionAttributes = {};
-            window.mParticle.forwarder.process({
-                EventName: 'Browse',
-                EventCategory: EventType.Unknown,
-                EventDataType: MessageType.PageView,
-                EventAttributes: {
-                    URL: 'https://example.com/sale/items',
-                },
-            });
-
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
-        });
-
-        it('should evaluate equals type-sensitively (numeric)', async () => {
-            const placementEventMapping = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'multipleproducts',
-                },
-            ]);
-
-            const placementEventMappingRules = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    value: 'multipleproducts',
-                    conditions: [
-                        {
-                            attribute: 'number_of_products',
-                            operator: 'equals',
-                            attributeValue: 2,
-                        },
-                    ],
-                },
-            ]);
-
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                    placementEventMapping,
-                    placementEventMappingRules,
-                },
-                reportService.cb,
-                true,
-                null,
-                {}
-            );
-
-            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
-
-            // number => should match
-            window.mParticle._Store.localSessionAttributes = {};
-            window.mParticle.forwarder.process({
-                EventName: 'Browse',
-                EventCategory: EventType.Unknown,
-                EventDataType: MessageType.PageView,
-                EventAttributes: {
-                    number_of_products: 2,
-                },
-            });
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({
-                multipleproducts: true,
-            });
-
-            // string => should NOT match numeric attributeValue
-            window.mParticle._Store.localSessionAttributes = {};
-            window.mParticle.forwarder.process({
-                EventName: 'Browse',
-                EventCategory: EventType.Unknown,
-                EventDataType: MessageType.PageView,
-                EventAttributes: {
-                    number_of_products: '2',
-                },
-            });
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
-        });
-
-        it('should treat contains as string-only (non-strings do not match)', async () => {
-            const placementEventMapping = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    map: 'any',
-                    maptype: 'EventClass.Id',
-                    value: 'containsNumber',
-                },
-            ]);
-
-            const placementEventMappingRules = JSON.stringify([
-                {
-                    jsmap: 'hashed-<30Browse>-value',
-                    value: 'containsNumber',
-                    conditions: [
-                        {
-                            attribute: 'number_of_products',
-                            operator: 'contains',
-                            attributeValue: '2',
-                        },
-                    ],
-                },
-            ]);
-
-            await window.mParticle.forwarder.init(
-                {
-                    accountId: '123456',
-                    placementEventMapping,
-                    placementEventMappingRules,
-                },
-                reportService.cb,
-                true,
-                null,
-                {}
-            );
-
-            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
-
-            window.mParticle._Store.localSessionAttributes = {};
-            window.mParticle.forwarder.process({
-                EventName: 'Browse',
-                EventCategory: EventType.Unknown,
-                EventDataType: MessageType.PageView,
-                EventAttributes: {
-                    number_of_products: 2,
-                },
-            });
-
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
-        });
-
         it('should add the event to the event queue if the kit is not initialized', async () => {
             await window.mParticle.forwarder.init(
                 {
