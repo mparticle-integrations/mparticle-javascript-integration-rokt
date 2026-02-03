@@ -15,6 +15,7 @@
 
 var name = 'Rokt';
 var moduleId = 181;
+var EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 
 var constructor = function () {
     var self = this;
@@ -258,7 +259,36 @@ var constructor = function () {
             attributes: selectPlacementsAttributes,
         });
 
+        // Log custom event for selectPlacements call
+        logSelectPlacementsEvent(selectPlacementsAttributes);
+
         return self.launcher.selectPlacements(selectPlacementsOptions);
+    }
+
+    /**
+     * Logs a custom event when selectPlacements is called
+     * This enables visibility and troubleshooting
+     * @param {Object} attributes - The attributes sent to Rokt
+     */
+    function logSelectPlacementsEvent(attributes) {
+        if (
+            !window.mParticle ||
+            typeof window.mParticle.logEvent !== 'function'
+        ) {
+            return;
+        }
+
+        if (!isObject(attributes)) {
+            return;
+        }
+
+        var EVENT_TYPE_OTHER = window.mParticle.EventType.Other;
+
+        window.mParticle.logEvent(
+            EVENT_NAME_SELECT_PLACEMENTS,
+            EVENT_TYPE_OTHER,
+            attributes
+        );
     }
 
     /**
