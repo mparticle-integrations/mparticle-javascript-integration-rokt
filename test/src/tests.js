@@ -577,6 +577,14 @@ describe('Rokt Forwarder', () => {
         });
 
         it('should add a performance marker when the script is appended', async () => {
+            var savedRokt = window.mParticle.Rokt;
+            window.Rokt = undefined;
+            window.mParticle.Rokt = {
+                domain: 'apps.rokt.com',
+                attachKit: async () => Promise.resolve(),
+                filters: savedRokt.filters,
+            };
+
             await window.mParticle.forwarder.init(
                 { accountId: '123456' },
                 reportService.cb,
@@ -723,6 +731,20 @@ describe('Rokt Forwarder', () => {
             wasKitInitializedFirst.should.equal(true);
 
             mockMessageQueue.length.should.equal(0);
+        });
+
+        it('should call createLauncher when launcher is embedded and not yet initialized', async () => {
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                false,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.Rokt.createLauncherCalled.should.equal(true);
         });
     });
 
