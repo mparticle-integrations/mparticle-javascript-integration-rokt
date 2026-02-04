@@ -19,6 +19,7 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 var name = 'Rokt';
 var moduleId = 181;
+var EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 
 var constructor = function () {
     var self = this;
@@ -60,6 +61,14 @@ var constructor = function () {
             return baseUrl;
         }
         return baseUrl + '?extensions=' + extensions.join(',');
+    }
+
+    /**
+     * Checks if Rokt launcher is available and ready to attach
+     * @returns {boolean} True if launcher can be attached
+     */
+    function isLauncherReadyToAttach() {
+        return window.Rokt && typeof window.Rokt.createLauncher === 'function';
     }
 
     /**
@@ -124,7 +133,9 @@ var constructor = function () {
             return;
         }
 
-        if (!window.Rokt || !(window.Rokt && window.Rokt.currentLauncher)) {
+        if (isLauncherReadyToAttach()) {
+            attachLauncher(accountId, launcherOptions);
+        } else {
             var target = document.head || document.body;
             var script = document.createElement('script');
             script.type = 'text/javascript';
@@ -135,12 +146,7 @@ var constructor = function () {
             script.id = 'rokt-launcher';
 
             script.onload = function () {
-                // Once the script loads, ensure the Rokt object is available
-                if (
-                    window.Rokt &&
-                    typeof window.Rokt.createLauncher === 'function' &&
-                    window.Rokt.currentLauncher === undefined
-                ) {
+                if (isLauncherReadyToAttach()) {
                     attachLauncher(accountId, launcherOptions);
                 } else {
                     console.error(
@@ -155,8 +161,6 @@ var constructor = function () {
 
             target.appendChild(script);
             captureTiming(PerformanceMarks.RoktScriptAppended);
-        } else {
-            console.warn('Unable to find Rokt on the page');
         }
     }
     /**
@@ -259,7 +263,36 @@ var constructor = function () {
             attributes: selectPlacementsAttributes,
         });
 
+        // Log custom event for selectPlacements call
+        logSelectPlacementsEvent(selectPlacementsAttributes);
+
         return self.launcher.selectPlacements(selectPlacementsOptions);
+    }
+
+    /**
+     * Logs a custom event when selectPlacements is called
+     * This enables visibility and troubleshooting
+     * @param {Object} attributes - The attributes sent to Rokt
+     */
+    function logSelectPlacementsEvent(attributes) {
+        if (
+            !window.mParticle ||
+            typeof window.mParticle.logEvent !== 'function'
+        ) {
+            return;
+        }
+
+        if (!isObject(attributes)) {
+            return;
+        }
+
+        var EVENT_TYPE_OTHER = window.mParticle.EventType.Other;
+
+        window.mParticle.logEvent(
+            EVENT_NAME_SELECT_PLACEMENTS,
+            EVENT_TYPE_OTHER,
+            attributes
+        );
     }
 
     /**
@@ -478,7 +511,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.13.1";
+    var kitVersion = "1.14.0";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
