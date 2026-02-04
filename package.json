@@ -50,7 +50,7 @@
     "watchify": "^3.11.0"
   },
   "dependencies": {
-    "@mparticle/web-sdk": "^2.54.1"
+    "@mparticle/web-sdk": "^2.56.0"
   },
   "license": "Apache-2.0"
 }
