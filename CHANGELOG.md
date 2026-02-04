@@ -1,3 +1,11 @@
+# [1.14.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.13.1...v1.14.0) (2026-02-04)
+
+
+### Features
+
+* log custom event logging for selectPlacement ([#52](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/52)) ([abd548f](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/abd548f71865177b90734509cd5316e07d5cca20))
+* skip attaching the launcher when its embedded and update tests ([#53](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/53)) ([f485b50](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/f485b504f1090f3dfd99bd8d24d12814fab932b8))
+
 ## [1.13.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.13.0...v1.13.1) (2025-11-21)
 
 
