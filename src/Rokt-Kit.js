@@ -39,20 +39,20 @@ var constructor = function () {
     self.placementEventAttributeMappingLookup = {};
     self.eventQueue = [];
 
-    function getEventAttributeValue(event, attributeKey) {
+    function getEventAttributeValue(event, eventAttributeKey) {
         var attributes = event && event.EventAttributes;
         if (!attributes) {
             return null;
         }
 
-        if (typeof attributes[attributeKey] === 'undefined') {
+        if (typeof attributes[eventAttributeKey] === 'undefined') {
             return null;
         }
 
-        return attributes[attributeKey];
+        return attributes[eventAttributeKey];
     }
 
-    function checkAttributeCondition(condition, actualValue) {
+    function doesEventAttributeConditionMatch(condition, actualValue) {
         if (!condition || typeof condition.operator !== 'string') {
             return false;
         }
@@ -81,8 +81,8 @@ var constructor = function () {
         return false;
     }
 
-    function checkMappedKeyRule(event, rule) {
-        if (!rule || typeof rule.attribute !== 'string') {
+    function doesEventMatchRule(event, rule) {
+        if (!rule || typeof rule.eventAttributeKey !== 'string') {
             return false;
         }
 
@@ -95,9 +95,9 @@ var constructor = function () {
             return true;
         }
 
-        var actualValue = getEventAttributeValue(event, rule.attribute);
+        var actualValue = getEventAttributeValue(event, rule.eventAttributeKey);
         for (var i = 0; i < conditions.length; i++) {
-            if (!checkAttributeCondition(conditions[i], actualValue)) {
+            if (!doesEventAttributeConditionMatch(conditions[i], actualValue)) {
                 return false;
             }
         }
@@ -108,9 +108,9 @@ var constructor = function () {
     function generateMappedEventAttributeLookup(
         placementEventAttributeMapping
     ) {
-        var mappedEventAttributes = {};
+        var mappedAttributeKeys = {};
         if (!Array.isArray(placementEventAttributeMapping)) {
-            return mappedEventAttributes;
+            return mappedAttributeKeys;
         }
         for (var i = 0; i < placementEventAttributeMapping.length; i++) {
             var mapping = placementEventAttributeMapping[i];
@@ -122,18 +122,21 @@ var constructor = function () {
                 continue;
             }
 
-            if (!mappedEventAttributes[mapping.value]) {
-                mappedEventAttributes[mapping.value] = [];
+            var mappedAttributeKey = mapping.value;
+            var eventAttributeKey = mapping.map;
+
+            if (!mappedAttributeKeys[mappedAttributeKey]) {
+                mappedAttributeKeys[mappedAttributeKey] = [];
             }
 
-            mappedEventAttributes[mapping.value].push({
-                attribute: mapping.map,
+            mappedAttributeKeys[mappedAttributeKey].push({
+                eventAttributeKey: eventAttributeKey,
                 conditions: Array.isArray(mapping.conditions)
                     ? mapping.conditions
                     : [],
             });
         }
-        return mappedEventAttributes;
+        return mappedAttributeKeys;
     }
 
     function applyPlacementEventAttributeMapping(event) {
@@ -144,19 +147,24 @@ var constructor = function () {
             return;
         }
 
-        var mappedKeys = Object.keys(self.placementEventAttributeMappingLookup);
-        for (var i = 0; i < mappedKeys.length; i++) {
-            var mappedKey = mappedKeys[i];
-            var rulesForMappedKey =
-                self.placementEventAttributeMappingLookup[mappedKey];
-            if (!rulesForMappedKey || !rulesForMappedKey.length) {
+        var mappedAttributeKeys = Object.keys(
+            self.placementEventAttributeMappingLookup
+        );
+        for (var i = 0; i < mappedAttributeKeys.length; i++) {
+            var mappedAttributeKey = mappedAttributeKeys[i];
+            var rulesForMappedAttributeKey =
+                self.placementEventAttributeMappingLookup[mappedAttributeKey];
+            if (
+                !rulesForMappedAttributeKey ||
+                !rulesForMappedAttributeKey.length
+            ) {
                 continue;
             }
 
-            // Require ALL rules for the same key to match (AND across rules).
+            // Require ALL rules for the same key to match (AND).
             var allMatch = true;
-            for (var j = 0; j < rulesForMappedKey.length; j++) {
-                if (!checkMappedKeyRule(event, rulesForMappedKey[j])) {
+            for (var j = 0; j < rulesForMappedAttributeKey.length; j++) {
+                if (!doesEventMatchRule(event, rulesForMappedAttributeKey[j])) {
                     allMatch = false;
                     break;
                 }
@@ -165,7 +173,10 @@ var constructor = function () {
                 continue;
             }
 
-            window.mParticle.Rokt.setLocalSessionAttribute(mappedKey, true);
+            window.mParticle.Rokt.setLocalSessionAttribute(
+                mappedAttributeKey,
+                true
+            );
         }
     }
 

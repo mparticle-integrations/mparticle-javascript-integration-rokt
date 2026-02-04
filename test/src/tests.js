@@ -3055,6 +3055,148 @@ describe('Rokt Forwarder', () => {
         });
     });
 
+    describe('#generateMappedEventAttributeLookup', () => {
+        beforeEach(async () => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
+        });
+
+        it('should generate a lookup table from placementEventAttributeMapping', () => {
+            const placementEventAttributeMapping = [
+                {
+                    jsmap: null,
+                    map: 'number_of_products',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'tof_products_2',
+                    conditions: [
+                        {
+                            operator: 'equals',
+                            attributeValue: 2,
+                        },
+                    ],
+                },
+                {
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'saleSeeker',
+                    conditions: [
+                        {
+                            operator: 'contains',
+                            attributeValue: 'sale',
+                        },
+                    ],
+                },
+            ];
+
+            window.mParticle.forwarder.testHelpers
+                .generateMappedEventAttributeLookup(
+                    placementEventAttributeMapping
+                )
+                .should.deepEqual({
+                    tof_products_2: [
+                        {
+                            eventAttributeKey: 'number_of_products',
+                            conditions: [
+                                {
+                                    operator: 'equals',
+                                    attributeValue: 2,
+                                },
+                            ],
+                        },
+                    ],
+                    saleSeeker: [
+                        {
+                            eventAttributeKey: 'URL',
+                            conditions: [
+                                {
+                                    operator: 'contains',
+                                    attributeValue: 'sale',
+                                },
+                            ],
+                        },
+                    ],
+                });
+        });
+
+        it('should default conditions to an empty array when missing', () => {
+            const placementEventAttributeMapping = [
+                {
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'hasUrl',
+                },
+            ];
+
+            window.mParticle.forwarder.testHelpers
+                .generateMappedEventAttributeLookup(
+                    placementEventAttributeMapping
+                )
+                .should.deepEqual({
+                    hasUrl: [
+                        {
+                            eventAttributeKey: 'URL',
+                            conditions: [],
+                        },
+                    ],
+                });
+        });
+
+        it('should return an empty object when placementEventAttributeMapping is null', () => {
+            window.mParticle.forwarder.testHelpers
+                .generateMappedEventAttributeLookup(null)
+                .should.deepEqual({});
+        });
+
+        it('should ignore invalid mappings (non-string map/value)', () => {
+            const placementEventAttributeMapping = [
+                {
+                    jsmap: null,
+                    map: null,
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'bad',
+                    conditions: [],
+                },
+                {
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
+                    value: null,
+                    conditions: [],
+                },
+                {
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'good',
+                    conditions: [],
+                },
+            ];
+
+            window.mParticle.forwarder.testHelpers
+                .generateMappedEventAttributeLookup(
+                    placementEventAttributeMapping
+                )
+                .should.deepEqual({
+                    good: [
+                        {
+                            eventAttributeKey: 'URL',
+                            conditions: [],
+                        },
+                    ],
+                });
+        });
+    });
+
     describe('#processEvent', () => {
         beforeEach(() => {
             window.Rokt = new MockRoktForwarder();
