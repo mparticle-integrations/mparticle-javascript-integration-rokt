@@ -37,7 +37,149 @@ var constructor = function () {
     self.userAttributes = {};
     self.testHelpers = null;
     self.placementEventMappingLookup = {};
+    self.placementEventAttributeMappingLookup = {};
     self.eventQueue = [];
+
+    function getEventAttributeValue(event, eventAttributeKey) {
+        var attributes = event && event.EventAttributes;
+        if (!attributes) {
+            return null;
+        }
+
+        if (typeof attributes[eventAttributeKey] === 'undefined') {
+            return null;
+        }
+
+        return attributes[eventAttributeKey];
+    }
+
+    function doesEventAttributeConditionMatch(condition, actualValue) {
+        if (!condition || typeof condition.operator !== 'string') {
+            return false;
+        }
+
+        var operator = condition.operator.toLowerCase();
+        var expectedValue = condition.attributeValue;
+
+        if (operator === 'exists') {
+            return actualValue !== null;
+        }
+
+        if (operator === 'equals') {
+            return actualValue === expectedValue;
+        }
+
+        if (operator === 'contains') {
+            if (
+                typeof actualValue !== 'string' ||
+                typeof expectedValue !== 'string'
+            ) {
+                return false;
+            }
+            return actualValue.indexOf(expectedValue) !== -1;
+        }
+
+        return false;
+    }
+
+    function doesEventMatchRule(event, rule) {
+        if (!rule || typeof rule.eventAttributeKey !== 'string') {
+            return false;
+        }
+
+        var conditions = rule.conditions;
+        if (!Array.isArray(conditions)) {
+            return false;
+        }
+
+        if (conditions.length === 0) {
+            return true;
+        }
+
+        var actualValue = getEventAttributeValue(event, rule.eventAttributeKey);
+        for (var i = 0; i < conditions.length; i++) {
+            if (!doesEventAttributeConditionMatch(conditions[i], actualValue)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function generateMappedEventAttributeLookup(
+        placementEventAttributeMapping
+    ) {
+        var mappedAttributeKeys = {};
+        if (!Array.isArray(placementEventAttributeMapping)) {
+            return mappedAttributeKeys;
+        }
+        for (var i = 0; i < placementEventAttributeMapping.length; i++) {
+            var mapping = placementEventAttributeMapping[i];
+            if (
+                !mapping ||
+                typeof mapping.value !== 'string' ||
+                typeof mapping.map !== 'string'
+            ) {
+                continue;
+            }
+
+            var mappedAttributeKey = mapping.value;
+            var eventAttributeKey = mapping.map;
+
+            if (!mappedAttributeKeys[mappedAttributeKey]) {
+                mappedAttributeKeys[mappedAttributeKey] = [];
+            }
+
+            mappedAttributeKeys[mappedAttributeKey].push({
+                eventAttributeKey: eventAttributeKey,
+                conditions: Array.isArray(mapping.conditions)
+                    ? mapping.conditions
+                    : [],
+            });
+        }
+        return mappedAttributeKeys;
+    }
+
+    function applyPlacementEventAttributeMapping(event) {
+        if (
+            !self.placementEventAttributeMappingLookup ||
+            isEmpty(self.placementEventAttributeMappingLookup)
+        ) {
+            return;
+        }
+
+        var mappedAttributeKeys = Object.keys(
+            self.placementEventAttributeMappingLookup
+        );
+        for (var i = 0; i < mappedAttributeKeys.length; i++) {
+            var mappedAttributeKey = mappedAttributeKeys[i];
+            var rulesForMappedAttributeKey =
+                self.placementEventAttributeMappingLookup[mappedAttributeKey];
+            if (
+                !rulesForMappedAttributeKey ||
+                !rulesForMappedAttributeKey.length
+            ) {
+                continue;
+            }
+
+            // Require ALL rules for the same key to match (AND).
+            var allMatch = true;
+            for (var j = 0; j < rulesForMappedAttributeKey.length; j++) {
+                if (!doesEventMatchRule(event, rulesForMappedAttributeKey[j])) {
+                    allMatch = false;
+                    break;
+                }
+            }
+            if (!allMatch) {
+                continue;
+            }
+
+            window.mParticle.Rokt.setLocalSessionAttribute(
+                mappedAttributeKey,
+                true
+            );
+        }
+    }
 
     /**
      * Generates the Rokt launcher script URL with optional domain override and extensions
@@ -101,6 +243,12 @@ var constructor = function () {
             placementEventMapping
         );
 
+        var placementEventAttributeMapping = parseSettingsString(
+            settings.placementEventAttributeMapping
+        );
+        self.placementEventAttributeMappingLookup =
+            generateMappedEventAttributeLookup(placementEventAttributeMapping);
+
         // Set dynamic OTHER_IDENTITY based on server settings
         // Convert to lowercase since server sends TitleCase (e.g., 'Other' -> 'other')
         if (settings.hashedEmailUserIdentityType) {
@@ -124,6 +272,8 @@ var constructor = function () {
                 hashEventMessage: hashEventMessage,
                 parseSettingsString: parseSettingsString,
                 generateMappedEventLookup: generateMappedEventLookup,
+                generateMappedEventAttributeLookup:
+                    generateMappedEventAttributeLookup,
             };
             attachLauncher(accountId, launcherOptions);
             return;
@@ -176,10 +326,15 @@ var constructor = function () {
 
     function returnLocalSessionAttributes() {
         if (
-            isEmpty(self.placementEventMappingLookup) ||
             !window.mParticle.Rokt ||
             typeof window.mParticle.Rokt.getLocalSessionAttributes !==
                 'function'
+        ) {
+            return {};
+        }
+        if (
+            isEmpty(self.placementEventMappingLookup) &&
+            isEmpty(self.placementEventAttributeMappingLookup)
         ) {
             return {};
         }
@@ -339,9 +494,14 @@ var constructor = function () {
         }
 
         if (
-            isEmpty(self.placementEventMappingLookup) ||
             typeof window.mParticle.Rokt.setLocalSessionAttribute !== 'function'
         ) {
+            return;
+        }
+
+        applyPlacementEventAttributeMapping(event);
+
+        if (isEmpty(self.placementEventMappingLookup)) {
             return;
         }
 
