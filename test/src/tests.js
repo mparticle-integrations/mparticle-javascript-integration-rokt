@@ -3343,6 +3343,43 @@ describe('Rokt Forwarder', () => {
                 saleSeeker: true,
             });
         });
+        it('should support event attribute mapping when conditions are not defined', async () => {
+            const placementEventAttributeMapping = JSON.stringify([
+                {
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'hasUrl',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    placementEventAttributeMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.forwarder.process({
+                EventName: 'Browse',
+                EventCategory: EventType.Unknown,
+                EventDataType: MessageType.PageView,
+                EventAttributes: {
+                    URL: 'https://example.com/anything',
+                },
+            });
+
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                hasUrl: true,
+            });
+        });
 
         it('should support exists operator for placementEventAttributeMapping conditions', async () => {
             const placementEventAttributeMapping = JSON.stringify([
