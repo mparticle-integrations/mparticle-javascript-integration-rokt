@@ -53,7 +53,7 @@ var constructor = function () {
     }
 
     function doesEventAttributeConditionMatch(condition, actualValue) {
-        if (!condition || typeof condition.operator !== 'string') {
+        if (!condition || !isString(condition.operator)) {
             return false;
         }
 
@@ -64,25 +64,23 @@ var constructor = function () {
             return actualValue !== null;
         }
 
+        if (actualValue == null) {
+            return false;
+        }
+
         if (operator === 'equals') {
-            return actualValue === expectedValue;
+            return String(actualValue) === String(expectedValue);
         }
 
         if (operator === 'contains') {
-            if (
-                typeof actualValue !== 'string' ||
-                typeof expectedValue !== 'string'
-            ) {
-                return false;
-            }
-            return actualValue.indexOf(expectedValue) !== -1;
+            return String(actualValue).indexOf(String(expectedValue)) !== -1;
         }
 
         return false;
     }
 
     function doesEventMatchRule(event, rule) {
-        if (!rule || typeof rule.eventAttributeKey !== 'string') {
+        if (!rule || !isString(rule.eventAttributeKey)) {
             return false;
         }
 
@@ -91,11 +89,11 @@ var constructor = function () {
             return false;
         }
 
-        if (conditions.length === 0) {
-            return true;
-        }
-
         var actualValue = getEventAttributeValue(event, rule.eventAttributeKey);
+
+        if (conditions.length === 0) {
+            return actualValue !== null;
+        }
         for (var i = 0; i < conditions.length; i++) {
             if (!doesEventAttributeConditionMatch(conditions[i], actualValue)) {
                 return false;
@@ -116,8 +114,8 @@ var constructor = function () {
             var mapping = placementEventAttributeMapping[i];
             if (
                 !mapping ||
-                typeof mapping.value !== 'string' ||
-                typeof mapping.map !== 'string'
+                !isString(mapping.value) ||
+                !isString(mapping.map)
             ) {
                 continue;
             }
@@ -140,13 +138,6 @@ var constructor = function () {
     }
 
     function applyPlacementEventAttributeMapping(event) {
-        if (
-            !self.placementEventAttributeMappingLookup ||
-            isEmpty(self.placementEventAttributeMappingLookup)
-        ) {
-            return;
-        }
-
         var mappedAttributeKeys = Object.keys(
             self.placementEventAttributeMappingLookup
         );
@@ -154,10 +145,7 @@ var constructor = function () {
             var mappedAttributeKey = mappedAttributeKeys[i];
             var rulesForMappedAttributeKey =
                 self.placementEventAttributeMappingLookup[mappedAttributeKey];
-            if (
-                !rulesForMappedAttributeKey ||
-                !rulesForMappedAttributeKey.length
-            ) {
+            if (isEmpty(rulesForMappedAttributeKey)) {
                 continue;
             }
 
@@ -423,7 +411,7 @@ var constructor = function () {
             console.error('Rokt Kit: Not initialized');
             return Promise.reject(new Error('Rokt Kit: Not initialized'));
         }
-        if (!extensionName || typeof extensionName !== 'string') {
+        if (!extensionName || !isString(extensionName)) {
             return Promise.reject(
                 new Error('Rokt Kit: Invalid extension name')
             );
@@ -466,7 +454,9 @@ var constructor = function () {
             return;
         }
 
-        applyPlacementEventAttributeMapping(event);
+        if (!isEmpty(self.placementEventAttributeMappingLookup)) {
+            applyPlacementEventAttributeMapping(event);
+        }
 
         if (isEmpty(self.placementEventMappingLookup)) {
             return;
@@ -738,6 +728,10 @@ function hashEventMessage(messageType, eventType, eventName) {
 
 function isEmpty(value) {
     return value == null || !(Object.keys(value) || value).length;
+}
+
+function isString(value) {
+    return typeof value === 'string';
 }
 
 if (window && window.mParticle && window.mParticle.addForwarder) {

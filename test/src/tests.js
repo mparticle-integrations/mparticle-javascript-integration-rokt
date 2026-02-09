@@ -3381,6 +3381,42 @@ describe('Rokt Forwarder', () => {
             });
         });
 
+        it('should not set local session attribute when mapped attribute key is missing from event and no conditions have been defined', async () => {
+            const placementEventAttributeMapping = JSON.stringify([
+                {
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'hasUrl',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    placementEventAttributeMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.forwarder.process({
+                EventName: 'Browse',
+                EventCategory: EventType.Unknown,
+                EventDataType: MessageType.PageView,
+                EventAttributes: {
+                    someOtherAttribute: 'value',
+                },
+            });
+
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
+        });
+
         it('should support exists operator for placementEventAttributeMapping conditions', async () => {
             const placementEventAttributeMapping = JSON.stringify([
                 {
@@ -3420,7 +3456,7 @@ describe('Rokt Forwarder', () => {
             });
         });
 
-        it('should evaluate equals type-sensitively for placementEventAttributeMapping conditions', async () => {
+        it('should evaluate equals for placementEventAttributeMapping conditions', async () => {
             const placementEventAttributeMapping = JSON.stringify([
                 {
                     jsmap: null,
@@ -3471,10 +3507,12 @@ describe('Rokt Forwarder', () => {
                     number_of_products: '2',
                 },
             });
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                multipleproducts: true,
+            });
         });
 
-        it('should treat contains as string-only (non-strings do not match) for placementEventAttributeMapping', async () => {
+        it('should evaluate contains for placementEventAttributeMapping conditions', async () => {
             const placementEventAttributeMapping = JSON.stringify([
                 {
                     jsmap: null,
@@ -3512,7 +3550,9 @@ describe('Rokt Forwarder', () => {
                     number_of_products: 2,
                 },
             });
-            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                containsNumber: true,
+            });
         });
 
         it('should require ALL rules for the same mapped key to match (AND across rules)', async () => {
@@ -3527,6 +3567,17 @@ describe('Rokt Forwarder', () => {
                             operator: 'contains',
                             attributeValue: 'sale',
                         },
+                        {
+                            operator: 'exists',
+                        },
+                    ],
+                },
+                {
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'saleSeeker',
+                    conditions: [
                         {
                             operator: 'contains',
                             attributeValue: 'items',
@@ -3548,7 +3599,6 @@ describe('Rokt Forwarder', () => {
 
             await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
-            // Matches only 1/2 rules => should NOT set
             window.mParticle._Store.localSessionAttributes = {};
             window.mParticle.forwarder.process({
                 EventName: 'Browse',
@@ -3560,7 +3610,6 @@ describe('Rokt Forwarder', () => {
             });
             window.mParticle._Store.localSessionAttributes.should.deepEqual({});
 
-            // Matches both rules => should set
             window.mParticle._Store.localSessionAttributes = {};
             window.mParticle.forwarder.process({
                 EventName: 'Browse',
@@ -3574,7 +3623,7 @@ describe('Rokt Forwarder', () => {
                 saleSeeker: true,
             });
         });
-        it('should map multiple attributes for the same mapped key (AND across rules)', async () => {
+        it('should set multiple local session attributes for the same event attribute key', async () => {
             const placementEventAttributeMapping = JSON.stringify([
                 {
                     jsmap: null,
