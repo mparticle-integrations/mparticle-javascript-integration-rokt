@@ -3847,7 +3847,6 @@ describe('Rokt Forwarder', () => {
 
             await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
-            // Matches only 1/2 rules => should NOT set
             window.mParticle._Store.localSessionAttributes = {};
             window.mParticle.forwarder.process({
                 EventName: 'Browse',
@@ -3861,7 +3860,6 @@ describe('Rokt Forwarder', () => {
                 saleSeeker: true,
             });
 
-            // Matches both rules => should set
             window.mParticle._Store.localSessionAttributes = {};
             window.mParticle.forwarder.process({
                 EventName: 'Browse',
