@@ -317,6 +317,90 @@ describe('Rokt Forwarder', () => {
             );
         });
 
+        it('should set integrationName on kit instance after attaching', async () => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+
+            window.mParticle.Rokt.attachKit = async () => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                return Promise.resolve();
+            };
+
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
+
+            // Wait for initialization to complete
+            await waitForCondition(() => window.mParticle.Rokt.isInitialized);
+
+            window.mParticle.Rokt.kit.integrationName.should.equal(
+                `${sdkVersion}_${kitVersion}`
+            );
+        });
+
+        it('should set integrationName on kit instance with custom name when provided', async () => {
+            const customName = 'myCustomName';
+
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+
+            window.mParticle.Rokt.attachKit = async () => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                return Promise.resolve();
+            };
+
+            window.mParticle.Rokt.launcherOptions = {
+                integrationName: customName,
+            };
+
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
+
+            // Wait for initialization to complete
+            await waitForCondition(() => window.mParticle.Rokt.isInitialized);
+
+            window.mParticle.Rokt.kit.integrationName.should.equal(
+                `${sdkVersion}_${kitVersion}_${customName}`
+            );
+        });
+
+        it('should have integrationName available on kit after initialization', async () => {
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+
+            window.mParticle.Rokt.attachKit = async () => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                return Promise.resolve();
+            };
+
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true
+            );
+
+            // Wait for initialization to complete
+            await waitForCondition(() => window.mParticle.Rokt.isInitialized);
+
+            window.mParticle.Rokt.attachKitCalled.should.equal(true);
+            window.mParticle.Rokt.kit.integrationName.should.be.a.String();
+            window.mParticle.Rokt.kit.integrationName.should.not.be.empty();
+        });
+
         it('should not mutate the global launcherOptions object during initialization', async () => {
             const originalIntegrationName = 'globalIntegrationName';
 

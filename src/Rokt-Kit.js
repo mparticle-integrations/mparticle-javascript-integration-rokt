@@ -38,6 +38,7 @@ var constructor = function () {
     self.testHelpers = null;
     self.placementEventMappingLookup = {};
     self.eventQueue = [];
+    self.integrationName = null;
 
     /**
      * Generates the Rokt launcher script URL with optional domain override and extensions
@@ -113,9 +114,10 @@ var constructor = function () {
             {},
             window.mParticle.Rokt.launcherOptions || {}
         );
-        launcherOptions.integrationName = generateIntegrationName(
+        self.integrationName = generateIntegrationName(
             launcherOptions.integrationName
         );
+        launcherOptions.integrationName = self.integrationName;
 
         if (testMode) {
             self.testHelpers = {
