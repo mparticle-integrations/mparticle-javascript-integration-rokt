@@ -39,6 +39,7 @@ var constructor = function () {
     self.placementEventMappingLookup = {};
     self.placementEventAttributeMappingLookup = {};
     self.eventQueue = [];
+    self.integrationName = null;
 
     function getEventAttributeValue(event, eventAttributeKey) {
         var attributes = event && event.EventAttributes;
@@ -249,9 +250,10 @@ var constructor = function () {
             {},
             window.mParticle.Rokt.launcherOptions || {}
         );
-        launcherOptions.integrationName = generateIntegrationName(
+        self.integrationName = generateIntegrationName(
             launcherOptions.integrationName
         );
+        launcherOptions.integrationName = self.integrationName;
 
         if (testMode) {
             self.testHelpers = {
