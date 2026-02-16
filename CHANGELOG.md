@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.14.0...v1.15.0) (2026-02-16)
+
+
+### Features
+
+* Add placement event mapping for event attributes ([#57](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/57)) ([3e67608](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/3e67608f02f83774e4df79c3b800c30bf994b531))
+
 # [1.14.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.13.1...v1.14.0) (2026-02-04)
 
 
