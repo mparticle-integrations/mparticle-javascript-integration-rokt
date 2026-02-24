@@ -42,6 +42,7 @@ var RoktKit = (function (exports) {
         self.placementEventMappingLookup = {};
         self.placementEventAttributeMappingLookup = {};
         self.eventQueue = [];
+        self.integrationName = null;
 
         function getEventAttributeValue(event, eventAttributeKey) {
             var attributes = event && event.EventAttributes;
@@ -252,9 +253,10 @@ var RoktKit = (function (exports) {
                 {},
                 window.mParticle.Rokt.launcherOptions || {}
             );
-            launcherOptions.integrationName = generateIntegrationName(
+            self.integrationName = generateIntegrationName(
                 launcherOptions.integrationName
             );
+            launcherOptions.integrationName = self.integrationName;
 
             if (testMode) {
                 self.testHelpers = {
@@ -660,7 +662,7 @@ var RoktKit = (function (exports) {
 
     function generateIntegrationName(customIntegrationName) {
         var coreSdkVersion = window.mParticle.getVersion();
-        var kitVersion = "1.15.0";
+        var kitVersion = "1.16.0";
         var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
         if (customIntegrationName) {
