@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.15.0...v1.16.0) (2026-02-24)
+
+
+### Features
+
+* Expose Integration Name to Kit Object ([#58](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/58)) ([00c3693](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/00c3693a632b5778835c7661a1b999bcdb497bd3))
+
 # [1.15.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.14.0...v1.15.0) (2026-02-16)
 
 
