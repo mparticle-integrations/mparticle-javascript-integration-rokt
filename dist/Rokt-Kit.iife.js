@@ -258,6 +258,8 @@ var RoktKit = (function (exports) {
             );
             launcherOptions.integrationName = self.integrationName;
 
+            self.domain = domain;
+
             if (testMode) {
                 self.testHelpers = {
                     generateLauncherScript: generateLauncherScript,
@@ -267,6 +269,8 @@ var RoktKit = (function (exports) {
                     generateMappedEventLookup: generateMappedEventLookup,
                     generateMappedEventAttributeLookup:
                         generateMappedEventAttributeLookup,
+                    sendAdBlockMeasurementSignals: sendAdBlockMeasurementSignals,
+                    createAutoRemovedIframe: createAutoRemovedIframe,
                 };
                 attachLauncher(accountId, launcherOptions);
                 return;
@@ -564,6 +568,9 @@ var RoktKit = (function (exports) {
 
             // Kit must be initialized before attaching to the Rokt manager
             self.isInitialized = true;
+
+            sendAdBlockMeasurementSignals(self.domain, self.integrationName);
+
             // Attaches the kit to the Rokt manager
             window.mParticle.Rokt.attachKit(self);
             processEventQueue();
@@ -657,6 +664,59 @@ var RoktKit = (function (exports) {
             ) {
                 window.mParticle.captureTiming(metricName);
             }
+        }
+
+        function createAutoRemovedIframe(src) {
+            var iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+            iframe.src = src;
+            iframe.onload = function () {
+                iframe.onload = null;
+                if (iframe.parentNode) {
+                    iframe.parentNode.removeChild(iframe);
+                }
+            };
+            var target = document.body || document.head;
+            if (target) {
+                target.appendChild(iframe);
+            }
+        }
+
+        var ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
+        var INIT_LOG_SAMPLING_RATE = 0.1;
+
+        function sendAdBlockMeasurementSignals(domain, version) {
+            if (Math.random() >= INIT_LOG_SAMPLING_RATE) {
+                return;
+            }
+
+            var guid = window.__rokt_li_guid__;
+            if (!guid) {
+                return;
+            }
+
+            var pageUrl = window.location.href.split('?')[0].split('#')[0];
+            var params =
+                'version=' +
+                encodeURIComponent(version) +
+                '&launcherInstanceGuid=' +
+                encodeURIComponent(guid) +
+                '&pageUrl=' +
+                encodeURIComponent(pageUrl);
+
+            var existingDomain = domain || 'apps.rokt.com';
+            createAutoRemovedIframe(
+                'https://' + existingDomain + '/v1/wsdk-init/index.html?' + params
+            );
+
+            createAutoRemovedIframe(
+                'https://' +
+                    ADBLOCK_CONTROL_DOMAIN +
+                    '/v1/wsdk-init/index.html?' +
+                    params +
+                    '&isControl=true'
+            );
         }
     };
 
