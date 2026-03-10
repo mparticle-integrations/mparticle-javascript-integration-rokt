@@ -4399,4 +4399,348 @@ describe('Rokt Forwarder', () => {
             resultHash.should.equal('hashed-<48Test Event>-value');
         });
     });
+
+    describe('#createAutoRemovedIframe', () => {
+        beforeEach(() => {
+            window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true
+            );
+        });
+
+        it('should create a hidden iframe with the given src and append it to the document', () => {
+            const src = 'https://example.com/test';
+            window.mParticle.forwarder.testHelpers.createAutoRemovedIframe(src);
+
+            const iframe = document.querySelector('iframe[src="' + src + '"]');
+            iframe.should.be.ok();
+            iframe.style.display.should.equal('none');
+            iframe
+                .getAttribute('sandbox')
+                .should.equal('allow-scripts allow-same-origin');
+        });
+
+        it('should remove the iframe from the DOM after it loads', (done) => {
+            const src = 'https://example.com/auto-remove-test';
+            window.mParticle.forwarder.testHelpers.createAutoRemovedIframe(src);
+
+            const iframe = document.querySelector('iframe[src="' + src + '"]');
+            iframe.should.be.ok();
+
+            // Simulate load event
+            iframe.onload();
+
+            // iframe should be removed
+            const removed = document.querySelector('iframe[src="' + src + '"]');
+            (removed === null).should.be.true();
+            done();
+        });
+    });
+
+    describe('#sendAdBlockMeasurementSignals', () => {
+        let originalRandom;
+
+        beforeEach(() => {
+            originalRandom = Math.random;
+            window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true
+            );
+            // Set allowed origin hash to match the test environment origin
+            const testOriginHash = window.mParticle.forwarder.testHelpers.djb2(
+                window.location.origin
+            );
+            window.mParticle.forwarder.testHelpers.setAllowedOriginHashes([
+                testOriginHash,
+            ]);
+            // Clean up any iframes from previous tests
+            document.querySelectorAll('iframe').forEach((iframe) => {
+                if (iframe.parentNode) {
+                    iframe.parentNode.removeChild(iframe);
+                }
+            });
+        });
+
+        afterEach(() => {
+            Math.random = originalRandom;
+            delete window.__rokt_li_guid__;
+            // Clean up iframes
+            document.querySelectorAll('iframe').forEach((iframe) => {
+                if (iframe.parentNode) {
+                    iframe.parentNode.removeChild(iframe);
+                }
+            });
+        });
+
+        it('should create two iframes with correct URLs when sampled in and guid is set', () => {
+            Math.random = () => 0.05; // Below 0.1 threshold
+            window.__rokt_li_guid__ = 'test-guid-123';
+
+            window.mParticle.forwarder.testHelpers.sendAdBlockMeasurementSignals(
+                'custom.rokt.com',
+                'test-version'
+            );
+
+            const iframes = document.querySelectorAll('iframe');
+            const srcs = Array.prototype.map.call(
+                iframes,
+                (iframe) => iframe.src
+            );
+
+            srcs.length.should.be.aboveOrEqual(2);
+
+            const existingDomainIframe = srcs.find(
+                (src) =>
+                    src.indexOf('custom.rokt.com/v1/wsdk-init/index.html') !==
+                    -1
+            );
+            const controlDomainIframe = srcs.find(
+                (src) =>
+                    src.indexOf(
+                        'apps.roktecommerce.com/v1/wsdk-init/index.html'
+                    ) !== -1
+            );
+
+            existingDomainIframe.should.be.ok();
+            controlDomainIframe.should.be.ok();
+
+            existingDomainIframe.should.containEql('version=test-version');
+            existingDomainIframe.should.containEql(
+                'launcherInstanceGuid=test-guid-123'
+            );
+            existingDomainIframe.should.not.containEql('isControl');
+
+            controlDomainIframe.should.containEql('version=test-version');
+            controlDomainIframe.should.containEql(
+                'launcherInstanceGuid=test-guid-123'
+            );
+            controlDomainIframe.should.containEql('isControl=true');
+        });
+
+        it('should use apps.rokt.com as the default domain when no domain is provided', () => {
+            Math.random = () => 0.05;
+            window.__rokt_li_guid__ = 'test-guid-123';
+
+            window.mParticle.forwarder.testHelpers.sendAdBlockMeasurementSignals(
+                undefined,
+                'test-version'
+            );
+
+            const iframes = document.querySelectorAll('iframe');
+            const srcs = Array.prototype.map.call(
+                iframes,
+                (iframe) => iframe.src
+            );
+
+            const defaultDomainIframe = srcs.find(
+                (src) =>
+                    src.indexOf('apps.rokt.com/v1/wsdk-init/index.html') !==
+                        -1 && src.indexOf('apps.roktecommerce.com') === -1
+            );
+
+            defaultDomainIframe.should.be.ok();
+        });
+
+        it('should not create iframes when sampled out', () => {
+            Math.random = () => 0.5; // Above 0.1 threshold
+            window.__rokt_li_guid__ = 'test-guid-123';
+
+            const iframeCountBefore =
+                document.querySelectorAll('iframe').length;
+
+            window.mParticle.forwarder.testHelpers.sendAdBlockMeasurementSignals(
+                'apps.rokt.com',
+                'test-version'
+            );
+
+            const iframeCountAfter = document.querySelectorAll('iframe').length;
+            iframeCountAfter.should.equal(iframeCountBefore);
+        });
+
+        it('should not create iframes when __rokt_li_guid__ is not set', () => {
+            Math.random = () => 0.05;
+            delete window.__rokt_li_guid__;
+
+            const iframeCountBefore =
+                document.querySelectorAll('iframe').length;
+
+            window.mParticle.forwarder.testHelpers.sendAdBlockMeasurementSignals(
+                'apps.rokt.com',
+                'test-version'
+            );
+
+            const iframeCountAfter = document.querySelectorAll('iframe').length;
+            iframeCountAfter.should.equal(iframeCountBefore);
+        });
+
+        it('should not create iframes when origin does not match allowed hash', () => {
+            Math.random = () => 0.05;
+            window.__rokt_li_guid__ = 'test-guid-123';
+
+            // Set to a hash that won't match any real origin
+            window.mParticle.forwarder.testHelpers.setAllowedOriginHashes([0]);
+
+            const iframeCountBefore =
+                document.querySelectorAll('iframe').length;
+
+            window.mParticle.forwarder.testHelpers.sendAdBlockMeasurementSignals(
+                'apps.rokt.com',
+                'test-version'
+            );
+
+            const iframeCountAfter = document.querySelectorAll('iframe').length;
+            iframeCountAfter.should.equal(iframeCountBefore);
+        });
+
+        it('should strip hash fragments from pageUrl', () => {
+            Math.random = () => 0.05;
+            window.__rokt_li_guid__ = 'test-guid-123';
+
+            // window.location.href in test env won't have a fragment,
+            // but we can verify the pageUrl param does not contain '#'
+            window.mParticle.forwarder.testHelpers.sendAdBlockMeasurementSignals(
+                'apps.rokt.com',
+                'test-version'
+            );
+
+            const iframes = document.querySelectorAll('iframe');
+            const srcs = Array.prototype.map.call(
+                iframes,
+                (iframe) => iframe.src
+            );
+
+            srcs.forEach((src) => {
+                src.should.containEql('pageUrl=');
+                // Extract the pageUrl param value
+                const match = src.match(/pageUrl=([^&]*)/);
+                match.should.be.ok();
+                const decodedPageUrl = decodeURIComponent(match[1]);
+                decodedPageUrl.should.not.containEql('#');
+                decodedPageUrl.should.not.containEql('?');
+            });
+        });
+
+        it('should fire measurement signals during initRoktLauncher when guid exists', async () => {
+            Math.random = () => 0.05;
+            window.__rokt_li_guid__ = 'init-test-guid';
+            // Ensure origin hash matches test environment
+            const testOriginHash = window.mParticle.forwarder.testHelpers.djb2(
+                window.location.origin
+            );
+            window.mParticle.forwarder.testHelpers.setAllowedOriginHashes([
+                testOriginHash,
+            ]);
+
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+            window.mParticle.Rokt.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            };
+
+            await mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(
+                () => window.mParticle.forwarder.isInitialized
+            );
+
+            const iframes = document.querySelectorAll('iframe');
+            const srcs = Array.prototype.map.call(
+                iframes,
+                (iframe) => iframe.src
+            );
+
+            const controlIframe = srcs.find(
+                (src) =>
+                    src.indexOf(
+                        'apps.roktecommerce.com/v1/wsdk-init/index.html'
+                    ) !== -1
+            );
+
+            controlIframe.should.be.ok();
+            controlIframe.should.containEql(
+                'launcherInstanceGuid=init-test-guid'
+            );
+        });
+
+        it('should not fire measurement signals during init when guid is absent', async () => {
+            Math.random = () => 0.05;
+            delete window.__rokt_li_guid__;
+            // Ensure origin hash matches test environment
+            const testOriginHash = window.mParticle.forwarder.testHelpers.djb2(
+                window.location.origin
+            );
+            window.mParticle.forwarder.testHelpers.setAllowedOriginHashes([
+                testOriginHash,
+            ]);
+
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+            window.mParticle.Rokt.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            };
+
+            await mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(
+                () => window.mParticle.forwarder.isInitialized
+            );
+
+            const iframes = document.querySelectorAll('iframe');
+            const srcs = Array.prototype.map.call(
+                iframes,
+                (iframe) => iframe.src
+            );
+
+            const controlIframe = srcs.find(
+                (src) =>
+                    src.indexOf(
+                        'apps.roktecommerce.com/v1/wsdk-init/index.html'
+                    ) !== -1
+            );
+
+            (controlIframe === undefined).should.be.true();
+        });
+    });
 });
