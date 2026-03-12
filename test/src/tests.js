@@ -4382,9 +4382,7 @@ describe('Rokt Forwarder', () => {
                 {}
             );
 
-            await waitForCondition(
-                () => window.mParticle.Rokt.attachKitCalled
-            );
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
             var testEvent = {
                 EventName: 'Test Event',
@@ -4407,9 +4405,7 @@ describe('Rokt Forwarder', () => {
                 {}
             );
 
-            await waitForCondition(
-                () => window.mParticle.Rokt.attachKitCalled
-            );
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
             (function () {
                 window.mParticle.forwarder.process({
@@ -4417,7 +4413,7 @@ describe('Rokt Forwarder', () => {
                     EventCategory: EventType.Other,
                     EventDataType: MessageType.PageEvent,
                 });
-            }.should.not.throw());
+            }).should.not.throw();
         });
 
         it('should not throw when window.Rokt is undefined', async () => {
@@ -4429,9 +4425,7 @@ describe('Rokt Forwarder', () => {
                 {}
             );
 
-            await waitForCondition(
-                () => window.mParticle.Rokt.attachKitCalled
-            );
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
             var savedRokt = window.Rokt;
             window.Rokt = undefined;
@@ -4442,7 +4436,7 @@ describe('Rokt Forwarder', () => {
                     EventCategory: EventType.Other,
                     EventDataType: MessageType.PageEvent,
                 });
-            }.should.not.throw());
+            }).should.not.throw();
 
             window.Rokt = savedRokt;
         });
@@ -4461,9 +4455,7 @@ describe('Rokt Forwarder', () => {
                 {}
             );
 
-            await waitForCondition(
-                () => window.mParticle.Rokt.attachKitCalled
-            );
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
             var testEvent = {
                 EventName: 'Purchase',
@@ -4498,9 +4490,7 @@ describe('Rokt Forwarder', () => {
                 {}
             );
 
-            await waitForCondition(
-                () => window.mParticle.Rokt.attachKitCalled
-            );
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
             window.mParticle.forwarder.process({
                 EventName: 'Event A',
@@ -4542,9 +4532,7 @@ describe('Rokt Forwarder', () => {
                 {}
             );
 
-            await waitForCondition(
-                () => window.mParticle.Rokt.attachKitCalled
-            );
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
             receivedEvents.length.should.equal(1);
             receivedEvents[0].EventName.should.equal('Queued Event');
@@ -4576,9 +4564,7 @@ describe('Rokt Forwarder', () => {
                 {}
             );
 
-            await waitForCondition(
-                () => window.mParticle.Rokt.attachKitCalled
-            );
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
             window.mParticle.forwarder.process({
                 EventName: 'Video Watched',
