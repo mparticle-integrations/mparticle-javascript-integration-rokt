@@ -1,3 +1,11 @@
+# [1.17.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.16.0...v1.17.0) (2026-03-12)
+
+
+### Features
+
+* Add Event Stream function ([#64](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/64)) ([1fea071](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/1fea071e4ded678e11afcf54046dbcfc6c1c3df2))
+* Improve observability through additional init signals ([#61](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/61)) ([83bdc6d](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/83bdc6df254f3060587aaa57443d4154c20a666b))
+
 # [1.16.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.15.0...v1.16.0) (2026-02-24)
 
 
