@@ -43,6 +43,7 @@ var constructor = function () {
     self.placementEventMappingLookup = {};
     self.placementEventAttributeMappingLookup = {};
     self.eventQueue = [];
+    self.preloadEventMappingLookup = {};
     self.integrationName = null;
 
     function getEventAttributeValue(event, eventAttributeKey) {
@@ -242,6 +243,12 @@ var constructor = function () {
         self.placementEventAttributeMappingLookup =
             generateMappedEventAttributeLookup(placementEventAttributeMapping);
 
+        var preloadEventMapping = parseSettingsString(
+            settings.preloadEventMapping
+        );
+        self.preloadEventMappingLookup =
+            generateMappedEventLookup(preloadEventMapping);
+
         // Set dynamic OTHER_IDENTITY based on server settings
         // Convert to lowercase since server sends TitleCase (e.g., 'Other' -> 'other')
         if (settings.hashedEmailUserIdentityType) {
@@ -328,7 +335,8 @@ var constructor = function () {
         }
         if (
             isEmpty(self.placementEventMappingLookup) &&
-            isEmpty(self.placementEventAttributeMappingLookup)
+            isEmpty(self.placementEventAttributeMappingLookup) &&
+            isEmpty(self.preloadEventMappingLookup)
         ) {
             return {};
         }
@@ -497,7 +505,10 @@ var constructor = function () {
             applyPlacementEventAttributeMapping(event);
         }
 
-        if (isEmpty(self.placementEventMappingLookup)) {
+        if (
+            isEmpty(self.placementEventMappingLookup) &&
+            isEmpty(self.preloadEventMappingLookup)
+        ) {
             return;
         }
 
@@ -510,6 +521,16 @@ var constructor = function () {
         if (self.placementEventMappingLookup[hashedEvent]) {
             var mappedValue = self.placementEventMappingLookup[hashedEvent];
             window.mParticle.Rokt.setLocalSessionAttribute(mappedValue, true);
+        }
+
+        if (self.preloadEventMappingLookup[hashedEvent]) {
+            var preloadIdentifier =
+                self.preloadEventMappingLookup[hashedEvent];
+            selectPlacements({
+                preload: true,
+                identifier: preloadIdentifier,
+                attributes: event.EventAttributes || {},
+            });
         }
     }
 
