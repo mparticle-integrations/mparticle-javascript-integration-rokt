@@ -491,6 +491,8 @@ var constructor = function () {
             return;
         }
 
+        _sendEventStream(event);
+
         if (
             typeof window.mParticle.Rokt.setLocalSessionAttribute !== 'function'
         ) {
@@ -514,6 +516,12 @@ var constructor = function () {
         if (self.placementEventMappingLookup[hashedEvent]) {
             var mappedValue = self.placementEventMappingLookup[hashedEvent];
             window.mParticle.Rokt.setLocalSessionAttribute(mappedValue, true);
+        }
+    }
+
+    function _sendEventStream(event) {
+        if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
+            window.Rokt.__event_stream__(event);
         }
     }
 

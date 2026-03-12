@@ -4315,6 +4315,272 @@ describe('Rokt Forwarder', () => {
         });
     });
 
+    describe('#_sendEventStream', () => {
+        beforeEach(() => {
+            window.Rokt = new MockRoktForwarder();
+            window.Rokt.createLauncher = async function () {
+                return Promise.resolve({
+                    selectPlacements: function (options) {
+                        window.mParticle.Rokt.selectPlacementsOptions = options;
+                        window.mParticle.Rokt.selectPlacementsCalled = true;
+                    },
+                });
+            };
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+            window.mParticle.Rokt.setLocalSessionAttribute = function (
+                key,
+                value
+            ) {
+                window.mParticle._Store.localSessionAttributes[key] = value;
+            };
+            window.mParticle.Rokt.getLocalSessionAttributes = function () {
+                return window.mParticle._Store.localSessionAttributes;
+            };
+            window.mParticle.forwarder.launcher = {
+                selectPlacements: function (options) {
+                    window.mParticle.Rokt.selectPlacementsOptions = options;
+                    window.mParticle.Rokt.selectPlacementsCalled = true;
+                },
+            };
+            window.mParticle.Rokt.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            };
+        });
+
+        afterEach(() => {
+            delete window.Rokt.__event_stream__;
+            window.mParticle.forwarder.eventQueue = [];
+            window.mParticle.forwarder.isInitialized = false;
+            window.mParticle.Rokt.attachKitCalled = false;
+        });
+
+        it('should forward event to window.Rokt.__event_stream__ when available', async () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            var testEvent = {
+                EventName: 'Test Event',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            };
+
+            window.mParticle.forwarder.process(testEvent);
+
+            receivedEvents.length.should.equal(1);
+            receivedEvents[0].should.deepEqual(testEvent);
+        });
+
+        it('should not throw when window.Rokt.__event_stream__ is not defined', async () => {
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            (function () {
+                window.mParticle.forwarder.process({
+                    EventName: 'Test Event',
+                    EventCategory: EventType.Other,
+                    EventDataType: MessageType.PageEvent,
+                });
+            }).should.not.throw();
+        });
+
+        it('should not throw when window.Rokt is undefined', async () => {
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            var savedRokt = window.Rokt;
+            window.Rokt = undefined;
+
+            (function () {
+                window.mParticle.forwarder.process({
+                    EventName: 'Test Event',
+                    EventCategory: EventType.Other,
+                    EventDataType: MessageType.PageEvent,
+                });
+            }).should.not.throw();
+
+            window.Rokt = savedRokt;
+        });
+
+        it('should forward event with attributes to the event stream', async () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            var testEvent = {
+                EventName: 'Purchase',
+                EventCategory: EventType.Transaction,
+                EventDataType: MessageType.PageEvent,
+                EventAttributes: {
+                    product: 'shoes',
+                    price: '49.99',
+                },
+            };
+
+            window.mParticle.forwarder.process(testEvent);
+
+            receivedEvents.length.should.equal(1);
+            receivedEvents[0].EventAttributes.should.deepEqual({
+                product: 'shoes',
+                price: '49.99',
+            });
+        });
+
+        it('should forward multiple events to the event stream', async () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.process({
+                EventName: 'Event A',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            window.mParticle.forwarder.process({
+                EventName: 'Event B',
+                EventCategory: EventType.Navigation,
+                EventDataType: MessageType.PageView,
+            });
+
+            receivedEvents.length.should.equal(2);
+            receivedEvents[0].EventName.should.equal('Event A');
+            receivedEvents[1].EventName.should.equal('Event B');
+        });
+
+        it('should forward queued events to the event stream after init', async () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            window.mParticle.forwarder.process({
+                EventName: 'Queued Event',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            receivedEvents.length.should.equal(0);
+            window.mParticle.forwarder.eventQueue.length.should.equal(1);
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            receivedEvents.length.should.equal(1);
+            receivedEvents[0].EventName.should.equal('Queued Event');
+        });
+
+        it('should still process placement event mapping alongside event stream', async () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            var placementEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Video Watched>-value',
+                    map: '123466',
+                    maptype: 'EventClass.Id',
+                    value: 'foo-mapped-flag',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    placementEventMapping: placementEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.process({
+                EventName: 'Video Watched',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            receivedEvents.length.should.equal(1);
+            receivedEvents[0].EventName.should.equal('Video Watched');
+
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                'foo-mapped-flag': true,
+            });
+        });
+    });
+
     describe('#parseSettingsString', () => {
         it('should parse null values in a settings string appropriately', () => {
             const settingsString =
