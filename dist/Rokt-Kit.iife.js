@@ -258,6 +258,8 @@ var RoktKit = (function (exports) {
             );
             launcherOptions.integrationName = self.integrationName;
 
+            self.domain = domain;
+
             if (testMode) {
                 self.testHelpers = {
                     generateLauncherScript: generateLauncherScript,
@@ -267,6 +269,12 @@ var RoktKit = (function (exports) {
                     generateMappedEventLookup: generateMappedEventLookup,
                     generateMappedEventAttributeLookup:
                         generateMappedEventAttributeLookup,
+                    sendAdBlockMeasurementSignals: sendAdBlockMeasurementSignals,
+                    createAutoRemovedIframe: createAutoRemovedIframe,
+                    djb2: djb2,
+                    setAllowedOriginHash: function (hash) {
+                        _allowedOriginHash = hash;
+                    },
                 };
                 attachLauncher(accountId, launcherOptions);
                 return;
@@ -486,6 +494,8 @@ var RoktKit = (function (exports) {
                 return;
             }
 
+            _sendEventStream(event);
+
             if (
                 typeof window.mParticle.Rokt.setLocalSessionAttribute !== 'function'
             ) {
@@ -509,6 +519,12 @@ var RoktKit = (function (exports) {
             if (self.placementEventMappingLookup[hashedEvent]) {
                 var mappedValue = self.placementEventMappingLookup[hashedEvent];
                 window.mParticle.Rokt.setLocalSessionAttribute(mappedValue, true);
+            }
+        }
+
+        function _sendEventStream(event) {
+            if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
+                window.Rokt.__event_stream__(event);
             }
         }
 
@@ -564,6 +580,9 @@ var RoktKit = (function (exports) {
 
             // Kit must be initialized before attaching to the Rokt manager
             self.isInitialized = true;
+
+            sendAdBlockMeasurementSignals(self.domain, self.integrationName);
+
             // Attaches the kit to the Rokt manager
             window.mParticle.Rokt.attachKit(self);
             processEventQueue();
@@ -658,11 +677,78 @@ var RoktKit = (function (exports) {
                 window.mParticle.captureTiming(metricName);
             }
         }
+
+        function createAutoRemovedIframe(src) {
+            var iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+            iframe.src = src;
+            iframe.onload = function () {
+                iframe.onload = null;
+                if (iframe.parentNode) {
+                    iframe.parentNode.removeChild(iframe);
+                }
+            };
+            var target = document.body || document.head;
+            if (target) {
+                target.appendChild(iframe);
+            }
+        }
+
+        var ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
+        var INIT_LOG_SAMPLING_RATE = 0.1;
+        var _allowedOriginHash = 1445747545;
+
+        function djb2(str) {
+            var hash = 5381;
+            for (var i = 0; i < str.length; i++) {
+                hash = (hash << 5) + hash + str.charCodeAt(i);
+                hash = hash & hash;
+            }
+            return hash;
+        }
+
+        function sendAdBlockMeasurementSignals(domain, version) {
+            if (djb2(window.location.origin) !== _allowedOriginHash) {
+                return;
+            }
+
+            if (Math.random() >= INIT_LOG_SAMPLING_RATE) {
+                return;
+            }
+
+            var guid = window.__rokt_li_guid__;
+            if (!guid) {
+                return;
+            }
+
+            var pageUrl = window.location.href.split('?')[0].split('#')[0];
+            var params =
+                'version=' +
+                encodeURIComponent(version) +
+                '&launcherInstanceGuid=' +
+                encodeURIComponent(guid) +
+                '&pageUrl=' +
+                encodeURIComponent(pageUrl);
+
+            var existingDomain = domain || 'apps.rokt.com';
+            createAutoRemovedIframe(
+                'https://' + existingDomain + '/v1/wsdk-init/index.html?' + params
+            );
+
+            createAutoRemovedIframe(
+                'https://' +
+                    ADBLOCK_CONTROL_DOMAIN +
+                    '/v1/wsdk-init/index.html?' +
+                    params +
+                    '&isControl=true'
+            );
+        }
     };
 
     function generateIntegrationName(customIntegrationName) {
         var coreSdkVersion = window.mParticle.getVersion();
-        var kitVersion = "1.16.0";
+        var kitVersion = "1.17.0";
         var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
         if (customIntegrationName) {
