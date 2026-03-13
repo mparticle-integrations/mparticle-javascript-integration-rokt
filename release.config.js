@@ -1,5 +1,5 @@
 module.exports = {
-    branches: ['main'],
+    branches: ['staging'],
     tagFormat: 'v${version}',
     repositoryUrl:
         'https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt',
