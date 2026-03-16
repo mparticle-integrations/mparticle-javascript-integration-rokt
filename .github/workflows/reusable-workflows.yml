@@ -17,7 +17,7 @@ jobs:
         name: Check PR for semantic target branch
         uses: mParticle/mparticle-workflows/.github/workflows/pr-branch-target-gitflow.yml@stable
     pr-notify:
-        if: github.event.pull_request.draft == false
+        if: github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
         needs:
             - web-kit-pull-request
         name: Notify GChat
