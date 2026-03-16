@@ -8,27 +8,10 @@ on:
                 required: true
                 default: 'true'
 
-# Prevent race between staging and release workflows
-concurrency:
-    group: staging-pipeline
-    cancel-in-progress: false
-
 jobs:
-    confirm-staging-branch:
-        name: Confirm release is run from staging
-        runs-on: ubuntu-latest
-        steps:
-            - name: Branch Check
-              run: |
-                  if [ "${{ github.ref_name }}" != "staging" ]; then
-                      echo "Release must be run from the staging branch, not '${{ github.ref_name }}'"
-                      exit 1
-                  fi
-
     release:
         name: Perform Release
         runs-on: ubuntu-latest
-        needs: confirm-staging-branch
 
         # OIDC permissions for npm trusted publishing
         permissions:
