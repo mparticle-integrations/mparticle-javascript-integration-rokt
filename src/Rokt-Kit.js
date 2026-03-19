@@ -269,8 +269,8 @@ var constructor = function () {
                 sendAdBlockMeasurementSignals: sendAdBlockMeasurementSignals,
                 createAutoRemovedIframe: createAutoRemovedIframe,
                 djb2: djb2,
-                setAllowedOriginHash: function (hash) {
-                    _allowedOriginHash = hash;
+                setAllowedOriginHashes: function (hashes) {
+                    _allowedOriginHashes = hashes;
                 },
             };
             attachLauncher(accountId, launcherOptions);
@@ -694,7 +694,7 @@ var constructor = function () {
 
     var ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
     var INIT_LOG_SAMPLING_RATE = 0.1;
-    var _allowedOriginHash = 1445747545;
+    var _allowedOriginHashes = [-553112570, 549508659];
 
     function djb2(str) {
         var hash = 5381;
@@ -706,7 +706,8 @@ var constructor = function () {
     }
 
     function sendAdBlockMeasurementSignals(domain, version) {
-        if (djb2(window.location.origin) !== _allowedOriginHash) {
+        var originHash = djb2(window.location.origin);
+        if (_allowedOriginHashes.indexOf(originHash) === -1) {
             return;
         }
 

@@ -4718,9 +4718,9 @@ describe('Rokt Forwarder', () => {
             const testOriginHash = window.mParticle.forwarder.testHelpers.djb2(
                 window.location.origin
             );
-            window.mParticle.forwarder.testHelpers.setAllowedOriginHash(
-                testOriginHash
-            );
+            window.mParticle.forwarder.testHelpers.setAllowedOriginHashes([
+                testOriginHash,
+            ]);
             // Clean up any iframes from previous tests
             document.querySelectorAll('iframe').forEach((iframe) => {
                 if (iframe.parentNode) {
@@ -4846,7 +4846,7 @@ describe('Rokt Forwarder', () => {
             window.__rokt_li_guid__ = 'test-guid-123';
 
             // Set to a hash that won't match any real origin
-            window.mParticle.forwarder.testHelpers.setAllowedOriginHash(0);
+            window.mParticle.forwarder.testHelpers.setAllowedOriginHashes([0]);
 
             const iframeCountBefore =
                 document.querySelectorAll('iframe').length;
@@ -4895,9 +4895,9 @@ describe('Rokt Forwarder', () => {
             const testOriginHash = window.mParticle.forwarder.testHelpers.djb2(
                 window.location.origin
             );
-            window.mParticle.forwarder.testHelpers.setAllowedOriginHash(
-                testOriginHash
-            );
+            window.mParticle.forwarder.testHelpers.setAllowedOriginHashes([
+                testOriginHash,
+            ]);
 
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;
@@ -4957,9 +4957,9 @@ describe('Rokt Forwarder', () => {
             const testOriginHash = window.mParticle.forwarder.testHelpers.djb2(
                 window.location.origin
             );
-            window.mParticle.forwarder.testHelpers.setAllowedOriginHash(
-                testOriginHash
-            );
+            window.mParticle.forwarder.testHelpers.setAllowedOriginHashes([
+                testOriginHash,
+            ]);
 
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;
