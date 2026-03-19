@@ -419,7 +419,28 @@ var constructor = function () {
         // Log custom event for selectPlacements call
         logSelectPlacementsEvent(selectPlacementsAttributes);
 
-        return self.launcher.selectPlacements(selectPlacementsOptions);
+        var selection = self.launcher.selectPlacements(selectPlacementsOptions);
+
+        if (selection && typeof selection.then === 'function') {
+            selection
+                .then(function (sel) {
+                    if (sel && sel.context && sel.context.sessionId) {
+                        sel.context.sessionId
+                            .then(_setRoktSessionId)
+                            .catch(function () {});
+                    }
+                    if (sel && typeof sel.on === 'function') {
+                        sel.on('SESSION_ID_UPDATED').subscribe(function (
+                            event
+                        ) {
+                            _setRoktSessionId(event.body);
+                        });
+                    }
+                })
+                .catch(function () {});
+        }
+
+        return selection;
     }
 
     /**
@@ -526,6 +547,25 @@ var constructor = function () {
     function _sendEventStream(event) {
         if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
             window.Rokt.__event_stream__(event);
+        }
+    }
+
+    function _setRoktSessionId(sessionId) {
+        if (!sessionId || typeof sessionId !== 'string') {
+            return;
+        }
+        try {
+            var mpInstance = window.mParticle.getInstance();
+            if (
+                mpInstance &&
+                typeof mpInstance.setIntegrationAttribute === 'function'
+            ) {
+                mpInstance.setIntegrationAttribute(moduleId, {
+                    roktSessionId: sessionId,
+                });
+            }
+        } catch (e) {
+            // Best effort — never let this break the partner page
         }
     }
 

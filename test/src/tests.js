@@ -4581,6 +4581,252 @@ describe('Rokt Forwarder', () => {
         });
     });
 
+    describe('#_setRoktSessionId', () => {
+        var setIntegrationAttributeCalls;
+
+        beforeEach(() => {
+            setIntegrationAttributeCalls = [];
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+            window.mParticle.Rokt.setLocalSessionAttribute = function (
+                key,
+                value
+            ) {
+                window.mParticle._Store.localSessionAttributes[key] = value;
+            };
+            window.mParticle.Rokt.getLocalSessionAttributes = function () {
+                return window.mParticle._Store.localSessionAttributes;
+            };
+            window.mParticle.Rokt.filters = {
+                userAttributeFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            };
+            window.mParticle.getInstance = function () {
+                return {
+                    setIntegrationAttribute: function (id, attrs) {
+                        setIntegrationAttributeCalls.push({
+                            id: id,
+                            attrs: attrs,
+                        });
+                    },
+                };
+            };
+        });
+
+        afterEach(() => {
+            delete window.mParticle.getInstance;
+            window.mParticle.forwarder.isInitialized = false;
+            window.mParticle.Rokt.attachKitCalled = false;
+        });
+
+        function createMockSelection(sessionId, onSubscribers) {
+            return {
+                context: {
+                    sessionId: sessionId
+                        ? Promise.resolve(sessionId)
+                        : Promise.resolve(''),
+                },
+                on: function (eventType) {
+                    return {
+                        subscribe: function (callback) {
+                            if (onSubscribers) {
+                                onSubscribers.push({
+                                    eventType: eventType,
+                                    callback: callback,
+                                });
+                            }
+                        },
+                    };
+                },
+            };
+        }
+
+        function setupLauncherWithSelection(mockSelection) {
+            window.Rokt.createLauncher = async function (_options) {
+                return Promise.resolve({
+                    selectPlacements: function () {
+                        return Promise.resolve(mockSelection);
+                    },
+                });
+            };
+        }
+
+        it('should set integration attribute when session ID is available via context', async () => {
+            var mockSelection = createMockSelection('rokt-session-abc');
+            setupLauncherWithSelection(mockSelection);
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(
+                () => window.mParticle.forwarder.isInitialized
+            );
+
+            await window.mParticle.forwarder.selectPlacements({
+                identifier: 'test-placement',
+                attributes: {},
+            });
+
+            await waitForCondition(
+                () => setIntegrationAttributeCalls.length > 0
+            );
+
+            setIntegrationAttributeCalls.length.should.equal(1);
+            setIntegrationAttributeCalls[0].id.should.equal(181);
+            setIntegrationAttributeCalls[0].attrs.should.deepEqual({
+                roktSessionId: 'rokt-session-abc',
+            });
+        });
+
+        it('should subscribe to SESSION_ID_UPDATED and update attribute on change', async () => {
+            var subscribers = [];
+            var mockSelection = createMockSelection(
+                'rokt-session-initial',
+                subscribers
+            );
+            setupLauncherWithSelection(mockSelection);
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(
+                () => window.mParticle.forwarder.isInitialized
+            );
+
+            await window.mParticle.forwarder.selectPlacements({
+                identifier: 'test-placement',
+                attributes: {},
+            });
+
+            await waitForCondition(() => subscribers.length > 0);
+
+            var sessionUpdatedSubscriber = subscribers.find(
+                (s) => s.eventType === 'SESSION_ID_UPDATED'
+            );
+            sessionUpdatedSubscriber.should.not.be.undefined();
+
+            sessionUpdatedSubscriber.callback({
+                body: 'rokt-session-refreshed',
+            });
+
+            await waitForCondition(
+                () => setIntegrationAttributeCalls.length >= 2
+            );
+
+            var lastCall =
+                setIntegrationAttributeCalls[
+                    setIntegrationAttributeCalls.length - 1
+                ];
+            lastCall.id.should.equal(181);
+            lastCall.attrs.should.deepEqual({
+                roktSessionId: 'rokt-session-refreshed',
+            });
+        });
+
+        it('should not set integration attribute when session ID is empty', async () => {
+            var mockSelection = createMockSelection('');
+            setupLauncherWithSelection(mockSelection);
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(
+                () => window.mParticle.forwarder.isInitialized
+            );
+
+            await window.mParticle.forwarder.selectPlacements({
+                identifier: 'test-placement',
+                attributes: {},
+            });
+
+            // Give time for any async operations to settle
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            setIntegrationAttributeCalls.length.should.equal(0);
+        });
+
+        it('should not throw when mParticle.getInstance is unavailable', async () => {
+            var mockSelection = createMockSelection('rokt-session-abc');
+            setupLauncherWithSelection(mockSelection);
+            delete window.mParticle.getInstance;
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(
+                () => window.mParticle.forwarder.isInitialized
+            );
+
+            // Should not throw
+            await window.mParticle.forwarder.selectPlacements({
+                identifier: 'test-placement',
+                attributes: {},
+            });
+
+            // Give time for async operations
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            setIntegrationAttributeCalls.length.should.equal(0);
+        });
+
+        it('should still return the selection promise to callers', async () => {
+            var mockSelection = createMockSelection('rokt-session-abc');
+            setupLauncherWithSelection(mockSelection);
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(
+                () => window.mParticle.forwarder.isInitialized
+            );
+
+            var result = await window.mParticle.forwarder.selectPlacements({
+                identifier: 'test-placement',
+                attributes: {},
+            });
+
+            result.should.equal(mockSelection);
+        });
+    });
+
     describe('#parseSettingsString', () => {
         it('should parse null values in a settings string appropriately', () => {
             const settingsString =
