@@ -32,8 +32,6 @@ The Rokt web kit (`@mparticle/web-rokt-kit`) is an mParticle integration kit (fo
     karma.config.js       # Karma test runner config
     lib/                  # Test utilities
     end-to-end-testapp/   # E2E test app
-  docs/
-    adr/                  # Architecture Decision Records
   rollup.config.js        # Build configuration
   package.json
 ```
