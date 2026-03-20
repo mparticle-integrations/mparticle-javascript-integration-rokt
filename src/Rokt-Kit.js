@@ -412,9 +412,6 @@ var constructor = function () {
             attributes: selectPlacementsAttributes,
         });
 
-        // Log custom event for selectPlacements call
-        logSelectPlacementsEvent(selectPlacementsAttributes);
-
         var selection = self.launcher.selectPlacements(selectPlacementsOptions);
 
         if (selection && typeof selection.then === 'function') {
@@ -422,15 +419,13 @@ var constructor = function () {
                 .then(function (sel) {
                     if (sel && sel.context && sel.context.sessionId) {
                         sel.context.sessionId
-                            .then(_setRoktSessionId)
+                            .then(function (sessionId) {
+                                _setRoktSessionId(sessionId);
+                                logSelectPlacementsEvent(
+                                    selectPlacementsAttributes
+                                );
+                            })
                             .catch(function () {});
-                    }
-                    if (sel && typeof sel.on === 'function') {
-                        sel.on('SESSION_ID_UPDATED').subscribe(function (
-                            event
-                        ) {
-                            _setRoktSessionId(event.body);
-                        });
                     }
                 })
                 .catch(function () {});
