@@ -257,6 +257,40 @@ var constructor = function () {
 
         self.domain = domain;
 
+        // Register reporting services with the core SDK
+        var reportingConfig = {
+            loggingUrl: settings.loggingUrl,
+            errorUrl: settings.errorUrl,
+            isLoggingEnabled:
+                settings.isLoggingEnabled === 'true' ||
+                settings.isLoggingEnabled === true,
+        };
+        var errorReportingService = new ErrorReportingService(
+            reportingConfig,
+            generateIntegrationName(launcherOptions.integrationName),
+            window.__rokt_li_guid__
+        );
+        var loggingService = new LoggingService(
+            reportingConfig,
+            errorReportingService,
+            generateIntegrationName(launcherOptions.integrationName)
+        );
+
+        self.errorReportingService = errorReportingService;
+        self.loggingService = loggingService;
+
+        if (
+            window.mParticle &&
+            window.mParticle.registerErrorReportingService
+        ) {
+            window.mParticle.registerErrorReportingService(
+                errorReportingService
+            );
+        }
+        if (window.mParticle && window.mParticle.registerLoggingService) {
+            window.mParticle.registerLoggingService(loggingService);
+        }
+
         if (testMode) {
             self.testHelpers = {
                 generateLauncherScript: generateLauncherScript,
@@ -855,6 +889,252 @@ function isString(value) {
     return typeof value === 'string';
 }
 
+// --- Reporting Services ---
+
+var ErrorCodes = {
+    UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+    UNHANDLED_EXCEPTION: 'UNHANDLED_EXCEPTION',
+    IDENTITY_REQUEST: 'IDENTITY_REQUEST',
+};
+
+var WSDKErrorSeverity = {
+    ERROR: 'ERROR',
+    INFO: 'INFO',
+    WARNING: 'WARNING',
+};
+
+var DEFAULT_LOGGING_URL = 'apps.rokt-api.com/v1/log';
+var DEFAULT_ERROR_URL = 'apps.rokt-api.com/v1/errors';
+var RATE_LIMIT_PER_SEVERITY = 10;
+
+function RateLimiter() {
+    this._logCount = {};
+}
+
+RateLimiter.prototype.incrementAndCheck = function (severity) {
+    var count = this._logCount[severity] || 0;
+    var newCount = count + 1;
+    this._logCount[severity] = newCount;
+    return newCount > RATE_LIMIT_PER_SEVERITY;
+};
+
+function ErrorReportingService(
+    config,
+    sdkVersion,
+    launcherInstanceGuid,
+    rateLimiter
+) {
+    var self = this;
+    self._loggingUrl =
+        'https://' + ((config && config.loggingUrl) || DEFAULT_LOGGING_URL);
+    self._errorUrl =
+        'https://' + ((config && config.errorUrl) || DEFAULT_ERROR_URL);
+    self._isLoggingEnabled = (config && config.isLoggingEnabled) || false;
+    self._sdkVersion = sdkVersion || '';
+    self._launcherInstanceGuid = launcherInstanceGuid;
+    self._rateLimiter = rateLimiter || new RateLimiter();
+    self._store = null;
+    self._reporter = 'mp-wsdk';
+    self._isEnabled = _isReportingEnabled(self);
+}
+
+function _isReportingEnabled(svc) {
+    return (
+        _isDebugModeEnabled() ||
+        (_isRoktDomainPresent() && svc._isLoggingEnabled)
+    );
+}
+
+function _isRoktDomainPresent() {
+    return typeof window !== 'undefined' && Boolean(window['ROKT_DOMAIN']);
+}
+
+function _isDebugModeEnabled() {
+    return (
+        typeof window !== 'undefined' &&
+        window.location &&
+        window.location.search &&
+        window.location.search
+            .toLowerCase()
+            .indexOf('mp_enable_logging=true') !== -1
+    );
+}
+
+function _getUrl() {
+    return typeof window !== 'undefined' && window.location
+        ? window.location.href
+        : undefined;
+}
+
+function _getUserAgent() {
+    return typeof window !== 'undefined' && window.navigator
+        ? window.navigator.userAgent
+        : undefined;
+}
+
+function _getVersion(svc) {
+    var integrationName =
+        svc._store && typeof svc._store.getIntegrationName === 'function'
+            ? svc._store.getIntegrationName()
+            : null;
+    return integrationName || 'mParticle_wsdkv_' + svc._sdkVersion;
+}
+
+function _getIntegration(svc) {
+    var integrationName =
+        svc._store && typeof svc._store.getIntegrationName === 'function'
+            ? svc._store.getIntegrationName()
+            : null;
+    return integrationName || 'mp-wsdk';
+}
+
+function _getHeaders(svc) {
+    var headers = {
+        Accept: 'text/plain;charset=UTF-8',
+        'Content-Type': 'application/json',
+        'rokt-launcher-version': _getVersion(svc),
+        'rokt-wsdk-version': 'joint',
+    };
+
+    if (svc._launcherInstanceGuid) {
+        headers['rokt-launcher-instance-guid'] = svc._launcherInstanceGuid;
+    }
+
+    var accountId =
+        svc._store && typeof svc._store.getRoktAccountId === 'function'
+            ? svc._store.getRoktAccountId()
+            : null;
+    if (accountId) {
+        headers['rokt-account-id'] = accountId;
+    }
+
+    return headers;
+}
+
+function _buildLogRequest(svc, severity, msg, code, stackTrace) {
+    return {
+        additionalInformation: {
+            message: msg,
+            version: _getVersion(svc),
+        },
+        severity: severity,
+        code: code || ErrorCodes.UNKNOWN_ERROR,
+        url: _getUrl(),
+        deviceInfo: _getUserAgent(),
+        stackTrace: stackTrace,
+        reporter: svc._reporter,
+        integration: _getIntegration(svc),
+    };
+}
+
+function _canSendLog(svc, severity) {
+    return svc._isEnabled && !svc._rateLimiter.incrementAndCheck(severity);
+}
+
+function _sendToServer(svc, url, severity, msg, code, stackTrace) {
+    if (!_canSendLog(svc, severity)) {
+        return;
+    }
+
+    try {
+        var logRequest = _buildLogRequest(svc, severity, msg, code, stackTrace);
+        var payload = {
+            method: 'POST',
+            headers: _getHeaders(svc),
+            body: JSON.stringify(logRequest),
+        };
+        fetch(url, payload).catch(function (error) {
+            console.error('ErrorReportingService: Failed to send log', error);
+        });
+    } catch (error) {
+        console.error('ErrorReportingService: Failed to send log', error);
+    }
+}
+
+ErrorReportingService.prototype.setStore = function (store) {
+    this._store = store;
+};
+
+ErrorReportingService.prototype.report = function (error) {
+    if (!error) {
+        return;
+    }
+    var severity = error.severity || WSDKErrorSeverity.ERROR;
+    var url =
+        severity === WSDKErrorSeverity.INFO ? this._loggingUrl : this._errorUrl;
+    _sendToServer(
+        this,
+        url,
+        severity,
+        error.message,
+        error.code,
+        error.stackTrace
+    );
+};
+
+function LoggingService(config, errorReportingService, sdkVersion) {
+    var self = this;
+    self._loggingUrl =
+        'https://' + ((config && config.loggingUrl) || DEFAULT_LOGGING_URL);
+    self._errorReportingService = errorReportingService;
+    self._sdkVersion = sdkVersion || '';
+    self._store = null;
+    self._reporter = 'mp-wsdk';
+    self._isLoggingEnabled = (config && config.isLoggingEnabled) || false;
+    self._rateLimiter = new RateLimiter();
+    self._isEnabled = _isReportingEnabled(self);
+    self._launcherInstanceGuid =
+        errorReportingService && errorReportingService._launcherInstanceGuid;
+}
+
+LoggingService.prototype.setStore = function (store) {
+    this._store = store;
+};
+
+LoggingService.prototype.log = function (entry) {
+    if (!entry) {
+        return;
+    }
+    var self = this;
+    if (!_canSendLog(self, WSDKErrorSeverity.INFO)) {
+        return;
+    }
+
+    try {
+        var logRequest = _buildLogRequest(
+            self,
+            WSDKErrorSeverity.INFO,
+            entry.message,
+            entry.code
+        );
+        var payload = {
+            method: 'POST',
+            headers: _getHeaders(self),
+            body: JSON.stringify(logRequest),
+        };
+        fetch(self._loggingUrl, payload).catch(function (error) {
+            console.error('LoggingService: Failed to send log', error);
+            if (self._errorReportingService) {
+                self._errorReportingService.report({
+                    message:
+                        'LoggingService: Failed to send log: ' + error.message,
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    severity: WSDKErrorSeverity.ERROR,
+                });
+            }
+        });
+    } catch (error) {
+        console.error('LoggingService: Failed to send log', error);
+        if (self._errorReportingService) {
+            self._errorReportingService.report({
+                message: 'LoggingService: Failed to send log: ' + error.message,
+                code: ErrorCodes.UNKNOWN_ERROR,
+                severity: WSDKErrorSeverity.ERROR,
+            });
+        }
+    }
+};
+
 if (window && window.mParticle && window.mParticle.addForwarder) {
     window.mParticle.addForwarder({
         name: name,
@@ -863,6 +1143,22 @@ if (window && window.mParticle && window.mParticle.addForwarder) {
     });
 }
 
+// Expose reporting classes for kit consumers and tests
+if (typeof window !== 'undefined') {
+    window.RoktReporting = {
+        ErrorReportingService: ErrorReportingService,
+        LoggingService: LoggingService,
+        RateLimiter: RateLimiter,
+        ErrorCodes: ErrorCodes,
+        WSDKErrorSeverity: WSDKErrorSeverity,
+    };
+}
+
 module.exports = {
     register: register,
+    ErrorReportingService: ErrorReportingService,
+    LoggingService: LoggingService,
+    RateLimiter: RateLimiter,
+    ErrorCodes: ErrorCodes,
+    WSDKErrorSeverity: WSDKErrorSeverity,
 };
