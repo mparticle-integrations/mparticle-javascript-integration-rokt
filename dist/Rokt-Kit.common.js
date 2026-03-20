@@ -1,3 +1,7 @@
+'use strict';
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
 /* eslint-disable no-undef */
 //  Copyright 2025 mParticle, Inc.
 //
@@ -412,32 +416,10 @@ var constructor = function () {
             attributes: selectPlacementsAttributes,
         });
 
-        var selection = self.launcher.selectPlacements(selectPlacementsOptions);
+        // Log custom event for selectPlacements call
+        logSelectPlacementsEvent(selectPlacementsAttributes);
 
-        // After selection resolves, sync the Rokt session ID back to mParticle
-        // as an integration attribute so server-side integrations can link events.
-        // We log the custom event AFTER setting the attribute because
-        // setIntegrationAttribute alone doesn't fire a network request —
-        // if the user closes the page before another event fires, the server
-        // would never receive the session ID.
-        if (selection && typeof selection.then === 'function') {
-            selection
-                .then(function (sel) {
-                    if (sel && sel.context && sel.context.sessionId) {
-                        sel.context.sessionId
-                            .then(function (sessionId) {
-                                _setRoktSessionId(sessionId);
-                                logSelectPlacementsEvent(
-                                    selectPlacementsAttributes
-                                );
-                            })
-                            .catch(function () {});
-                    }
-                })
-                .catch(function () {});
-        }
-
-        return selection;
+        return self.launcher.selectPlacements(selectPlacementsOptions);
     }
 
     /**
@@ -544,25 +526,6 @@ var constructor = function () {
     function _sendEventStream(event) {
         if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
             window.Rokt.__event_stream__(event);
-        }
-    }
-
-    function _setRoktSessionId(sessionId) {
-        if (!sessionId || typeof sessionId !== 'string') {
-            return;
-        }
-        try {
-            var mpInstance = window.mParticle.getInstance();
-            if (
-                mpInstance &&
-                typeof mpInstance.setIntegrationAttribute === 'function'
-            ) {
-                mpInstance.setIntegrationAttribute(moduleId, {
-                    roktSessionId: sessionId,
-                });
-            }
-        } catch (e) {
-            // Best effort — never let this break the partner page
         }
     }
 
@@ -786,7 +749,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = process.env.PACKAGE_VERSION;
+    var kitVersion = "1.17.0";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
@@ -904,6 +867,10 @@ if (window && window.mParticle && window.mParticle.addForwarder) {
     });
 }
 
-module.exports = {
+var RoktKit = {
     register: register,
 };
+var RoktKit_1 = RoktKit.register;
+
+exports.default = RoktKit;
+exports.register = RoktKit_1;
