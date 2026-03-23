@@ -431,10 +431,18 @@ var constructor = function () {
                                     selectPlacementsAttributes
                                 );
                             })
-                            .catch(function () {});
+                            .catch(function () {
+                                logSelectPlacementsEvent(
+                                    selectPlacementsAttributes
+                                );
+                            });
+                    } else {
+                        logSelectPlacementsEvent(selectPlacementsAttributes);
                     }
                 })
-                .catch(function () {});
+                .catch(function () {
+                    logSelectPlacementsEvent(selectPlacementsAttributes);
+                });
         }
 
         return selection;
