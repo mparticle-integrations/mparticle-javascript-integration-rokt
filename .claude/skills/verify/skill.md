@@ -35,7 +35,7 @@ npm run test
 
 ## Notes
 
-- This is a plain JavaScript (ES6) project — there is no TypeScript compilation step.
+- This is a plain JavaScript project — kit source is ES5-style; tests/tooling may use ES6. There is no TypeScript compilation step.
 - Build uses Rollup and produces IIFE and CommonJS bundles.
 - Tests run in real browsers (Chrome, Firefox) via Karma, not in Node/jsdom.
 - `npm run test:debug` launches Chrome in non-headless mode for interactive debugging.
