@@ -281,12 +281,6 @@ var constructor = function () {
         self.errorReportingService = errorReportingService;
         self.loggingService = loggingService;
 
-        console.debug('[RoktKit] Reporting config:', reportingConfig);
-        console.debug(
-            '[RoktKit] Reporting enabled:',
-            errorReportingService._isEnabled
-        );
-
         if (
             window.mParticle &&
             window.mParticle.registerErrorReportingService
@@ -294,13 +288,9 @@ var constructor = function () {
             window.mParticle.registerErrorReportingService(
                 errorReportingService
             );
-            console.debug(
-                '[RoktKit] Registered ErrorReportingService with core SDK'
-            );
         }
         if (window.mParticle && window.mParticle.registerLoggingService) {
             window.mParticle.registerLoggingService(loggingService);
-            console.debug('[RoktKit] Registered LoggingService with core SDK');
         }
 
         if (testMode) {
@@ -1039,11 +1029,6 @@ function _canSendLog(svc, severity) {
 
 function _sendToServer(svc, url, severity, msg, code, stackTrace) {
     if (!_canSendLog(svc, severity)) {
-        console.debug(
-            '[RoktKit] Log suppressed (disabled or rate limited):',
-            severity,
-            msg
-        );
         return;
     }
 
@@ -1054,7 +1039,6 @@ function _sendToServer(svc, url, severity, msg, code, stackTrace) {
             headers: _getHeaders(svc),
             body: JSON.stringify(logRequest),
         };
-        console.debug('[RoktKit] Sending', severity, 'to', url, logRequest);
         fetch(url, payload).catch(function (error) {
             console.error('ErrorReportingService: Failed to send log', error);
         });
