@@ -23,6 +23,7 @@ jobs:
         name: Notify GChat
         permissions:
             id-token: write
+            contents: read
         uses: ROKT/rokt-workflows/.github/workflows/oss_pr_opened_notification.yml@main
         secrets:
             gchat_webhook: ${{ secrets.GCHAT_PRS_WEBHOOK }}
