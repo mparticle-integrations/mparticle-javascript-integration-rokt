@@ -10,7 +10,7 @@ The Rokt web kit (`@mparticle/web-rokt-kit`) is an mParticle integration kit (fo
 
 ## Tech Stack
 
-- **Language**: JavaScript (ES6) — NOT TypeScript
+- **Language**: ES5-style JavaScript (uses `var`, no arrow functions) — NOT TypeScript
 - **Build Tool**: Rollup (IIFE and CommonJS output)
 - **Testing**: Karma + Mocha/Chai (real browser tests in Chrome and Firefox)
 - **Package Manager**: npm
@@ -58,36 +58,10 @@ npm run watch          # Watch and rebuild on changes
 
 ## Architecture
 
-### Event Flow
-
-```
-mParticle SDK → Kit's process() → Event Queue → Rokt __event_stream__()
-```
-
-### Kit Lifecycle
-
-1. mParticle loads and registers the kit via `addForwarder()`
-2. Kit's `init()` called with settings and config
-3. Rokt launcher script appended to DOM
-4. Events queued until launcher is ready
-5. Once ready, queue is drained and events flow directly
-
-### Key Components
-
-| Component | Purpose |
-|-----------|---------|
-| `initForwarder()` | Kit initialization, config parsing, launcher setup |
-| `processEvent()` | Event processing pipeline with queuing |
-| `selectPlacements()` | Core API for Rokt placement selection |
-| `hashAttributes()` | SHA256 hashing via Rokt launcher |
-| `_sendEventStream()` | Forwards mParticle events to Rokt |
-
-### Integration with Core SDK
-
-- Kit registers as a forwarder with `window.mParticle.addForwarder()`
-- Kit attaches to Rokt manager: `window.mParticle.Rokt.attachKit(self)`
-- Accesses mParticle APIs via `window.mParticle.*`
-- Receives configuration from mParticle server-side kit settings
+- Kit is an mParticle forwarder that self-registers via `window.mParticle.addForwarder()` at load time
+- Kit attaches to the Rokt manager: `window.mParticle.Rokt.attachKit(self)`
+- Rokt launcher loads asynchronously — events are queued until it's ready
+- Configuration comes from mParticle server-side kit settings
 
 ## Testing Patterns
 
@@ -107,4 +81,4 @@ mParticle SDK → Kit's process() → Event Queue → Rokt __event_stream__()
 
 ## Available Skills
 
-- **`/verify`**: Run lint, build, and tests to validate your changes before committing. See `.claude/skills/verify/skill.md`.
+- **`/verify`**: Run lint, build, and tests to validate your changes. **You MUST run `/verify` before committing or opening a pull request.** Do not skip this step. See `.claude/skills/verify/skill.md`.
