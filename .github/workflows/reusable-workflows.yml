@@ -21,6 +21,8 @@ jobs:
         needs:
             - web-kit-pull-request
         name: Notify GChat
+        permissions:
+            id-token: write
         uses: ROKT/rokt-workflows/.github/workflows/oss_pr_opened_notification.yml@main
         secrets:
             gchat_webhook: ${{ secrets.GCHAT_PRS_WEBHOOK }}
