@@ -267,17 +267,25 @@ var constructor = function () {
         };
         var errorReportingService = new ErrorReportingService(
             reportingConfig,
-            generateIntegrationName(launcherOptions.integrationName),
-            window.__rokt_li_guid__
+            self.integrationName,
+            window.__rokt_li_guid__,
+            settings.accountId
         );
         var loggingService = new LoggingService(
             reportingConfig,
             errorReportingService,
-            generateIntegrationName(launcherOptions.integrationName)
+            self.integrationName,
+            settings.accountId
         );
 
         self.errorReportingService = errorReportingService;
         self.loggingService = loggingService;
+
+        console.debug('[RoktKit] Reporting config:', reportingConfig);
+        console.debug(
+            '[RoktKit] Reporting enabled:',
+            errorReportingService._isEnabled
+        );
 
         if (
             window.mParticle &&
@@ -286,9 +294,13 @@ var constructor = function () {
             window.mParticle.registerErrorReportingService(
                 errorReportingService
             );
+            console.debug(
+                '[RoktKit] Registered ErrorReportingService with core SDK'
+            );
         }
         if (window.mParticle && window.mParticle.registerLoggingService) {
             window.mParticle.registerLoggingService(loggingService);
+            console.debug('[RoktKit] Registered LoggingService with core SDK');
         }
 
         if (testMode) {
@@ -306,6 +318,11 @@ var constructor = function () {
                 setAllowedOriginHash: function (hash) {
                     _allowedOriginHash = hash;
                 },
+                ErrorReportingService: ErrorReportingService,
+                LoggingService: LoggingService,
+                RateLimiter: RateLimiter,
+                ErrorCodes: ErrorCodes,
+                WSDKErrorSeverity: WSDKErrorSeverity,
             };
             attachLauncher(accountId, launcherOptions);
             return;
@@ -920,8 +937,9 @@ RateLimiter.prototype.incrementAndCheck = function (severity) {
 
 function ErrorReportingService(
     config,
-    sdkVersion,
+    integrationName,
     launcherInstanceGuid,
+    accountId,
     rateLimiter
 ) {
     var self = this;
@@ -930,10 +948,10 @@ function ErrorReportingService(
     self._errorUrl =
         'https://' + ((config && config.errorUrl) || DEFAULT_ERROR_URL);
     self._isLoggingEnabled = (config && config.isLoggingEnabled) || false;
-    self._sdkVersion = sdkVersion || '';
+    self._integrationName = integrationName || '';
     self._launcherInstanceGuid = launcherInstanceGuid;
+    self._accountId = accountId || null;
     self._rateLimiter = rateLimiter || new RateLimiter();
-    self._store = null;
     self._reporter = 'mp-wsdk';
     self._isEnabled = _isReportingEnabled(self);
 }
@@ -973,19 +991,11 @@ function _getUserAgent() {
 }
 
 function _getVersion(svc) {
-    var integrationName =
-        svc._store && typeof svc._store.getIntegrationName === 'function'
-            ? svc._store.getIntegrationName()
-            : null;
-    return integrationName || 'mParticle_wsdkv_' + svc._sdkVersion;
+    return svc._integrationName || '';
 }
 
 function _getIntegration(svc) {
-    var integrationName =
-        svc._store && typeof svc._store.getIntegrationName === 'function'
-            ? svc._store.getIntegrationName()
-            : null;
-    return integrationName || 'mp-wsdk';
+    return svc._integrationName || '';
 }
 
 function _getHeaders(svc) {
@@ -1000,12 +1010,8 @@ function _getHeaders(svc) {
         headers['rokt-launcher-instance-guid'] = svc._launcherInstanceGuid;
     }
 
-    var accountId =
-        svc._store && typeof svc._store.getRoktAccountId === 'function'
-            ? svc._store.getRoktAccountId()
-            : null;
-    if (accountId) {
-        headers['rokt-account-id'] = accountId;
+    if (svc._accountId) {
+        headers['rokt-account-id'] = svc._accountId;
     }
 
     return headers;
@@ -1033,6 +1039,11 @@ function _canSendLog(svc, severity) {
 
 function _sendToServer(svc, url, severity, msg, code, stackTrace) {
     if (!_canSendLog(svc, severity)) {
+        console.debug(
+            '[RoktKit] Log suppressed (disabled or rate limited):',
+            severity,
+            msg
+        );
         return;
     }
 
@@ -1043,6 +1054,7 @@ function _sendToServer(svc, url, severity, msg, code, stackTrace) {
             headers: _getHeaders(svc),
             body: JSON.stringify(logRequest),
         };
+        console.debug('[RoktKit] Sending', severity, 'to', url, logRequest);
         fetch(url, payload).catch(function (error) {
             console.error('ErrorReportingService: Failed to send log', error);
         });
@@ -1050,10 +1062,6 @@ function _sendToServer(svc, url, severity, msg, code, stackTrace) {
         console.error('ErrorReportingService: Failed to send log', error);
     }
 }
-
-ErrorReportingService.prototype.setStore = function (store) {
-    this._store = store;
-};
 
 ErrorReportingService.prototype.report = function (error) {
     if (!error) {
@@ -1072,24 +1080,26 @@ ErrorReportingService.prototype.report = function (error) {
     );
 };
 
-function LoggingService(config, errorReportingService, sdkVersion) {
+function LoggingService(
+    config,
+    errorReportingService,
+    integrationName,
+    accountId,
+    rateLimiter
+) {
     var self = this;
     self._loggingUrl =
         'https://' + ((config && config.loggingUrl) || DEFAULT_LOGGING_URL);
     self._errorReportingService = errorReportingService;
-    self._sdkVersion = sdkVersion || '';
-    self._store = null;
+    self._integrationName = integrationName || '';
+    self._accountId = accountId || null;
     self._reporter = 'mp-wsdk';
     self._isLoggingEnabled = (config && config.isLoggingEnabled) || false;
-    self._rateLimiter = new RateLimiter();
+    self._rateLimiter = rateLimiter || new RateLimiter();
     self._isEnabled = _isReportingEnabled(self);
     self._launcherInstanceGuid =
         errorReportingService && errorReportingService._launcherInstanceGuid;
 }
-
-LoggingService.prototype.setStore = function (store) {
-    this._store = store;
-};
 
 LoggingService.prototype.log = function (entry) {
     if (!entry) {
@@ -1141,17 +1151,6 @@ if (window && window.mParticle && window.mParticle.addForwarder) {
         constructor: constructor,
         getId: getId,
     });
-}
-
-// Expose reporting classes for kit consumers and tests
-if (typeof window !== 'undefined') {
-    window.RoktReporting = {
-        ErrorReportingService: ErrorReportingService,
-        LoggingService: LoggingService,
-        RateLimiter: RateLimiter,
-        ErrorCodes: ErrorCodes,
-        WSDKErrorSeverity: WSDKErrorSeverity,
-    };
 }
 
 module.exports = {

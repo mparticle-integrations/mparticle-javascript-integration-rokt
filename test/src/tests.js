@@ -5,8 +5,7 @@ const packageVersion = require('../../package.json').version;
 const sdkVersion = 'mParticle_wsdkv_1.2.3';
 const kitVersion = 'kitv_' + packageVersion;
 
-// Reporting service classes are exposed on window by the kit IIFE
-// They will be accessed as window.ErrorReportingService, etc.
+// Reporting service classes are exposed via testHelpers after kit init
 
 const waitForCondition = async (conditionFn, timeout = 200, interval = 10) => {
     return new Promise((resolve, reject) => {
@@ -25,15 +24,12 @@ const waitForCondition = async (conditionFn, timeout = 200, interval = 10) => {
 };
 
 describe('Rokt Forwarder', () => {
-    // Reporting service classes from the kit IIFE (loaded via window.RoktReporting)
-    var ErrorReportingService =
-        window.RoktReporting && window.RoktReporting.ErrorReportingService;
-    var LoggingService =
-        window.RoktReporting && window.RoktReporting.LoggingService;
-    var RateLimiter = window.RoktReporting && window.RoktReporting.RateLimiter;
-    var ErrorCodes = window.RoktReporting && window.RoktReporting.ErrorCodes;
-    var WSDKErrorSeverity =
-        window.RoktReporting && window.RoktReporting.WSDKErrorSeverity;
+    // Reporting service classes from testHelpers (populated after kit init)
+    var ErrorReportingService;
+    var LoggingService;
+    var RateLimiter;
+    var ErrorCodes;
+    var WSDKErrorSeverity;
 
     var EventType = {
         Unknown: 0,
@@ -161,7 +157,41 @@ describe('Rokt Forwarder', () => {
         this.currentLauncher = function () {};
     };
 
-    before(() => {});
+    before(async () => {
+        // Run a minimal init in testMode to populate testHelpers
+        window.Rokt = new MockRoktForwarder();
+        window.mParticle.Rokt = window.Rokt;
+        window.mParticle.Rokt.attachKit = async (kit) => {
+            window.mParticle.Rokt.kit = kit;
+            Promise.resolve();
+        };
+        window.mParticle.Rokt.filters = {
+            userAttributesFilters: [],
+            filterUserAttributes: function (attributes) {
+                return attributes;
+            },
+            filteredUser: {
+                getMPID: function () {
+                    return '123';
+                },
+            },
+        };
+        await mParticle.forwarder.init(
+            { accountId: '000000' },
+            reportService.cb,
+            true,
+            null,
+            {}
+        );
+
+        var testHelpers = window.mParticle.forwarder.testHelpers;
+        ErrorReportingService =
+            testHelpers && testHelpers.ErrorReportingService;
+        LoggingService = testHelpers && testHelpers.LoggingService;
+        RateLimiter = testHelpers && testHelpers.RateLimiter;
+        ErrorCodes = testHelpers && testHelpers.ErrorCodes;
+        WSDKErrorSeverity = testHelpers && testHelpers.WSDKErrorSeverity;
+    });
 
     beforeEach(() => {
         window.Rokt = new MockRoktForwarder();
@@ -5238,20 +5268,13 @@ describe('Rokt Forwarder', () => {
             ).should.be.true();
         });
 
-        it('should include rokt-account-id header when store provides it', () => {
+        it('should include rokt-account-id header when accountId is provided', () => {
             var service = new ErrorReportingService(
                 { isLoggingEnabled: true },
-                '1.0.0',
-                'test-guid'
+                'test-integration',
+                'test-guid',
+                '1234567890'
             );
-            service.setStore({
-                getRoktAccountId: function () {
-                    return '1234567890';
-                },
-                getIntegrationName: function () {
-                    return null;
-                },
-            });
 
             service.report({
                 message: 'test',
@@ -5264,20 +5287,12 @@ describe('Rokt Forwarder', () => {
             );
         });
 
-        it('should not include rokt-account-id header when store does not provide it', () => {
+        it('should not include rokt-account-id header when accountId is not provided', () => {
             var service = new ErrorReportingService(
                 { isLoggingEnabled: true },
-                '1.0.0',
+                'test-integration',
                 'test-guid'
             );
-            service.setStore({
-                getRoktAccountId: function () {
-                    return null;
-                },
-                getIntegrationName: function () {
-                    return null;
-                },
-            });
 
             service.report({
                 message: 'test',
@@ -5333,17 +5348,9 @@ describe('Rokt Forwarder', () => {
         it('should include all required fields in the log request body', () => {
             var service = new ErrorReportingService(
                 { isLoggingEnabled: true },
-                '1.0.0',
+                'test-integration',
                 'test-guid'
             );
-            service.setStore({
-                getRoktAccountId: function () {
-                    return null;
-                },
-                getIntegrationName: function () {
-                    return 'test-integration';
-                },
-            });
 
             service.report({
                 message: 'error message',
@@ -5362,10 +5369,10 @@ describe('Rokt Forwarder', () => {
             body.integration.should.equal('test-integration');
         });
 
-        it('should use default integration values when store has no integration name', () => {
+        it('should use empty integration values when no integration name is provided', () => {
             var service = new ErrorReportingService(
                 { isLoggingEnabled: true },
-                '1.0.0',
+                '',
                 'test-guid'
             );
 
@@ -5376,10 +5383,8 @@ describe('Rokt Forwarder', () => {
 
             var body = JSON.parse(fetchCalls[0].options.body);
             body.reporter.should.equal('mp-wsdk');
-            body.integration.should.equal('mp-wsdk');
-            body.additionalInformation.version.should.equal(
-                'mParticle_wsdkv_1.0.0'
-            );
+            body.integration.should.equal('');
+            body.additionalInformation.version.should.equal('');
         });
 
         it('should not throw when fetch fails', (done) => {
@@ -5607,8 +5612,9 @@ describe('Rokt Forwarder', () => {
 
             var service = new ErrorReportingService(
                 { isLoggingEnabled: true },
-                '1.0.0',
+                'test-integration',
                 'test-guid',
+                null,
                 customLimiter
             );
 
