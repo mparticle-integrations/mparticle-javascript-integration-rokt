@@ -5634,12 +5634,12 @@ describe('Rokt Forwarder', () => {
             var registeredErrorService = null;
             var registeredLoggingService = null;
 
-            window.mParticle.registerErrorReportingService = function (
+            window.mParticle._registerErrorReportingService = function (
                 service
             ) {
                 registeredErrorService = service;
             };
-            window.mParticle.registerLoggingService = function (service) {
+            window.mParticle._registerLoggingService = function (service) {
                 registeredLoggingService = service;
             };
 
@@ -5680,13 +5680,13 @@ describe('Rokt Forwarder', () => {
             (typeof registeredLoggingService.log).should.equal('function');
 
             // Cleanup
-            delete window.mParticle.registerErrorReportingService;
-            delete window.mParticle.registerLoggingService;
+            delete window.mParticle._registerErrorReportingService;
+            delete window.mParticle._registerLoggingService;
         });
 
         it('should not throw when registration methods do not exist', async () => {
-            delete window.mParticle.registerErrorReportingService;
-            delete window.mParticle.registerLoggingService;
+            delete window.mParticle._registerErrorReportingService;
+            delete window.mParticle._registerLoggingService;
 
             window.Rokt = new MockRoktForwarder();
             window.mParticle.Rokt = window.Rokt;

@@ -283,14 +283,14 @@ var constructor = function () {
 
         if (
             window.mParticle &&
-            window.mParticle.registerErrorReportingService
+            window.mParticle._registerErrorReportingService
         ) {
-            window.mParticle.registerErrorReportingService(
+            window.mParticle._registerErrorReportingService(
                 errorReportingService
             );
         }
-        if (window.mParticle && window.mParticle.registerLoggingService) {
-            window.mParticle.registerLoggingService(loggingService);
+        if (window.mParticle && window.mParticle._registerLoggingService) {
+            window.mParticle._registerLoggingService(loggingService);
         }
 
         if (testMode) {
