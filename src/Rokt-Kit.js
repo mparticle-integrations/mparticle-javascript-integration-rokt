@@ -275,6 +275,7 @@ var constructor = function () {
             reportingConfig,
             errorReportingService,
             self.integrationName,
+            window.__rokt_li_guid__,
             settings.accountId
         );
 
@@ -308,6 +309,7 @@ var constructor = function () {
                 setAllowedOriginHash: function (hash) {
                     _allowedOriginHash = hash;
                 },
+                ReportingTransport: ReportingTransport,
                 ErrorReportingService: ErrorReportingService,
                 LoggingService: LoggingService,
                 RateLimiter: RateLimiter,
@@ -925,7 +927,9 @@ RateLimiter.prototype.incrementAndCheck = function (severity) {
     return newCount > RATE_LIMIT_PER_SEVERITY;
 };
 
-function ErrorReportingService(
+// --- ReportingTransport: shared transport layer for reporting services ---
+
+function ReportingTransport(
     config,
     integrationName,
     launcherInstanceGuid,
@@ -933,10 +937,6 @@ function ErrorReportingService(
     rateLimiter
 ) {
     var self = this;
-    self._loggingUrl =
-        'https://' + ((config && config.loggingUrl) || DEFAULT_LOGGING_URL);
-    self._errorUrl =
-        'https://' + ((config && config.errorUrl) || DEFAULT_ERROR_URL);
     self._isLoggingEnabled = (config && config.isLoggingEnabled) || false;
     self._integrationName = integrationName || '';
     self._launcherInstanceGuid = launcherInstanceGuid;
@@ -946,10 +946,67 @@ function ErrorReportingService(
     self._isEnabled = _isReportingEnabled(self);
 }
 
-function _isReportingEnabled(svc) {
+ReportingTransport.prototype.send = function (
+    url,
+    severity,
+    msg,
+    code,
+    stackTrace,
+    onError
+) {
+    if (!this._isEnabled || this._rateLimiter.incrementAndCheck(severity)) {
+        return;
+    }
+
+    try {
+        var logRequest = {
+            additionalInformation: {
+                message: msg,
+                version: this._integrationName || '',
+            },
+            severity: severity,
+            code: code || ErrorCodes.UNKNOWN_ERROR,
+            url: _getUrl(),
+            deviceInfo: _getUserAgent(),
+            stackTrace: stackTrace,
+            reporter: this._reporter,
+            integration: this._integrationName || '',
+        };
+        var headers = {
+            Accept: 'text/plain;charset=UTF-8',
+            'Content-Type': 'application/json',
+            'rokt-launcher-version': this._integrationName || '',
+            'rokt-wsdk-version': 'joint',
+        };
+        if (this._launcherInstanceGuid) {
+            headers['rokt-launcher-instance-guid'] = this._launcherInstanceGuid;
+        }
+        if (this._accountId) {
+            headers['rokt-account-id'] = this._accountId;
+        }
+        var payload = {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(logRequest),
+        };
+        fetch(url, payload).catch(function (error) {
+            console.error('ReportingTransport: Failed to send log', error);
+            if (onError) {
+                onError(error);
+            }
+        });
+    } catch (error) {
+        console.error('ReportingTransport: Failed to send log', error);
+        if (onError) {
+            onError(error);
+        }
+    }
+};
+
+function _isReportingEnabled(transport) {
     return (
         _isDebugModeEnabled() ||
-        (_isRoktDomainPresent() && svc._isLoggingEnabled)
+        (_isRoktDomainPresent() && transport._isLoggingEnabled)
     );
 }
 
@@ -980,71 +1037,24 @@ function _getUserAgent() {
         : undefined;
 }
 
-function _getVersion(svc) {
-    return svc._integrationName || '';
-}
+// --- ErrorReportingService: handles ERROR and WARNING severity ---
 
-function _getIntegration(svc) {
-    return svc._integrationName || '';
-}
-
-function _getHeaders(svc) {
-    var headers = {
-        Accept: 'text/plain;charset=UTF-8',
-        'Content-Type': 'application/json',
-        'rokt-launcher-version': _getVersion(svc),
-        'rokt-wsdk-version': 'joint',
-    };
-
-    if (svc._launcherInstanceGuid) {
-        headers['rokt-launcher-instance-guid'] = svc._launcherInstanceGuid;
-    }
-
-    if (svc._accountId) {
-        headers['rokt-account-id'] = svc._accountId;
-    }
-
-    return headers;
-}
-
-function _buildLogRequest(svc, severity, msg, code, stackTrace) {
-    return {
-        additionalInformation: {
-            message: msg,
-            version: _getVersion(svc),
-        },
-        severity: severity,
-        code: code || ErrorCodes.UNKNOWN_ERROR,
-        url: _getUrl(),
-        deviceInfo: _getUserAgent(),
-        stackTrace: stackTrace,
-        reporter: svc._reporter,
-        integration: _getIntegration(svc),
-    };
-}
-
-function _canSendLog(svc, severity) {
-    return svc._isEnabled && !svc._rateLimiter.incrementAndCheck(severity);
-}
-
-function _sendToServer(svc, url, severity, msg, code, stackTrace) {
-    if (!_canSendLog(svc, severity)) {
-        return;
-    }
-
-    try {
-        var logRequest = _buildLogRequest(svc, severity, msg, code, stackTrace);
-        var payload = {
-            method: 'POST',
-            headers: _getHeaders(svc),
-            body: JSON.stringify(logRequest),
-        };
-        fetch(url, payload).catch(function (error) {
-            console.error('ErrorReportingService: Failed to send log', error);
-        });
-    } catch (error) {
-        console.error('ErrorReportingService: Failed to send log', error);
-    }
+function ErrorReportingService(
+    config,
+    integrationName,
+    launcherInstanceGuid,
+    accountId,
+    rateLimiter
+) {
+    this._transport = new ReportingTransport(
+        config,
+        integrationName,
+        launcherInstanceGuid,
+        accountId,
+        rateLimiter
+    );
+    this._errorUrl =
+        'https://' + ((config && config.errorUrl) || DEFAULT_ERROR_URL);
 }
 
 ErrorReportingService.prototype.report = function (error) {
@@ -1052,11 +1062,8 @@ ErrorReportingService.prototype.report = function (error) {
         return;
     }
     var severity = error.severity || WSDKErrorSeverity.ERROR;
-    var url =
-        severity === WSDKErrorSeverity.INFO ? this._loggingUrl : this._errorUrl;
-    _sendToServer(
-        this,
-        url,
+    this._transport.send(
+        this._errorUrl,
         severity,
         error.message,
         error.code,
@@ -1064,25 +1071,26 @@ ErrorReportingService.prototype.report = function (error) {
     );
 };
 
+// --- LoggingService: handles INFO severity ---
+
 function LoggingService(
     config,
     errorReportingService,
     integrationName,
+    launcherInstanceGuid,
     accountId,
     rateLimiter
 ) {
-    var self = this;
-    self._loggingUrl =
+    this._transport = new ReportingTransport(
+        config,
+        integrationName,
+        launcherInstanceGuid,
+        accountId,
+        rateLimiter
+    );
+    this._loggingUrl =
         'https://' + ((config && config.loggingUrl) || DEFAULT_LOGGING_URL);
-    self._errorReportingService = errorReportingService;
-    self._integrationName = integrationName || '';
-    self._accountId = accountId || null;
-    self._reporter = 'mp-wsdk';
-    self._isLoggingEnabled = (config && config.isLoggingEnabled) || false;
-    self._rateLimiter = rateLimiter || new RateLimiter();
-    self._isEnabled = _isReportingEnabled(self);
-    self._launcherInstanceGuid =
-        errorReportingService && errorReportingService._launcherInstanceGuid;
+    this._errorReportingService = errorReportingService;
 }
 
 LoggingService.prototype.log = function (entry) {
@@ -1090,24 +1098,13 @@ LoggingService.prototype.log = function (entry) {
         return;
     }
     var self = this;
-    if (!_canSendLog(self, WSDKErrorSeverity.INFO)) {
-        return;
-    }
-
-    try {
-        var logRequest = _buildLogRequest(
-            self,
-            WSDKErrorSeverity.INFO,
-            entry.message,
-            entry.code
-        );
-        var payload = {
-            method: 'POST',
-            headers: _getHeaders(self),
-            body: JSON.stringify(logRequest),
-        };
-        fetch(self._loggingUrl, payload).catch(function (error) {
-            console.error('LoggingService: Failed to send log', error);
+    self._transport.send(
+        self._loggingUrl,
+        WSDKErrorSeverity.INFO,
+        entry.message,
+        entry.code,
+        undefined,
+        function (error) {
             if (self._errorReportingService) {
                 self._errorReportingService.report({
                     message:
@@ -1116,17 +1113,8 @@ LoggingService.prototype.log = function (entry) {
                     severity: WSDKErrorSeverity.ERROR,
                 });
             }
-        });
-    } catch (error) {
-        console.error('LoggingService: Failed to send log', error);
-        if (self._errorReportingService) {
-            self._errorReportingService.report({
-                message: 'LoggingService: Failed to send log: ' + error.message,
-                code: ErrorCodes.UNKNOWN_ERROR,
-                severity: WSDKErrorSeverity.ERROR,
-            });
         }
-    }
+    );
 };
 
 if (window && window.mParticle && window.mParticle.addForwarder) {
@@ -1139,6 +1127,7 @@ if (window && window.mParticle && window.mParticle.addForwarder) {
 
 module.exports = {
     register: register,
+    ReportingTransport: ReportingTransport,
     ErrorReportingService: ErrorReportingService,
     LoggingService: LoggingService,
     RateLimiter: RateLimiter,

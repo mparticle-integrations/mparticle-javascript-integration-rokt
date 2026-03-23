@@ -25,6 +25,7 @@ const waitForCondition = async (conditionFn, timeout = 200, interval = 10) => {
 
 describe('Rokt Forwarder', () => {
     // Reporting service classes from testHelpers (populated after kit init)
+    var _ReportingTransport;
     var ErrorReportingService;
     var LoggingService;
     var RateLimiter;
@@ -185,6 +186,7 @@ describe('Rokt Forwarder', () => {
         );
 
         var testHelpers = window.mParticle.forwarder.testHelpers;
+        _ReportingTransport = testHelpers && testHelpers.ReportingTransport;
         ErrorReportingService =
             testHelpers && testHelpers.ErrorReportingService;
         LoggingService = testHelpers && testHelpers.LoggingService;
@@ -5098,7 +5100,6 @@ describe('Rokt Forwarder', () => {
             var service = new ErrorReportingService(
                 {
                     errorUrl: 'test.com/v1/errors',
-                    loggingUrl: 'test.com/v1/log',
                     isLoggingEnabled: true,
                 },
                 '1.0.0',
@@ -5125,7 +5126,6 @@ describe('Rokt Forwarder', () => {
             var service = new ErrorReportingService(
                 {
                     errorUrl: 'test.com/v1/errors',
-                    loggingUrl: 'test.com/v1/log',
                     isLoggingEnabled: true,
                 },
                 '1.0.0',
@@ -5144,11 +5144,10 @@ describe('Rokt Forwarder', () => {
             body.severity.should.equal('WARNING');
         });
 
-        it('should send info reports to the logging endpoint', () => {
+        it('should send info reports to the error endpoint (error service only handles error url)', () => {
             var service = new ErrorReportingService(
                 {
                     errorUrl: 'test.com/v1/errors',
-                    loggingUrl: 'test.com/v1/log',
                     isLoggingEnabled: true,
                 },
                 '1.0.0',
@@ -5162,7 +5161,7 @@ describe('Rokt Forwarder', () => {
             });
 
             fetchCalls.length.should.equal(1);
-            fetchCalls[0].url.should.equal('https://test.com/v1/log');
+            fetchCalls[0].url.should.equal('https://test.com/v1/errors');
             var body = JSON.parse(fetchCalls[0].options.body);
             body.severity.should.equal('INFO');
         });
@@ -5321,7 +5320,7 @@ describe('Rokt Forwarder', () => {
             body.code.should.equal('UNKNOWN_ERROR');
         });
 
-        it('should use default Rokt URLs when not configured', () => {
+        it('should use default Rokt error URL when not configured', () => {
             var service = new ErrorReportingService(
                 { isLoggingEnabled: true },
                 '1.0.0',
@@ -5336,13 +5335,6 @@ describe('Rokt Forwarder', () => {
             fetchCalls[0].url.should.equal(
                 'https://apps.rokt-api.com/v1/errors'
             );
-
-            service.report({
-                message: 'test info',
-                severity: WSDKErrorSeverity.INFO,
-            });
-
-            fetchCalls[1].url.should.equal('https://apps.rokt-api.com/v1/log');
         });
 
         it('should include all required fields in the log request body', () => {
@@ -5412,7 +5404,7 @@ describe('Rokt Forwarder', () => {
             setTimeout(function () {
                 consoleErrors.length.should.be.above(0);
                 consoleErrors[0][0].should.equal(
-                    'ErrorReportingService: Failed to send log'
+                    'ReportingTransport: Failed to send log'
                 );
                 console.error = originalConsoleError;
                 done();
@@ -5464,7 +5456,8 @@ describe('Rokt Forwarder', () => {
             var service = new LoggingService(
                 { loggingUrl: 'test.com/v1/log', isLoggingEnabled: true },
                 errorService,
-                '1.0.0'
+                '1.0.0',
+                'test-guid'
             );
 
             service.log({
@@ -5482,7 +5475,6 @@ describe('Rokt Forwarder', () => {
         it('should report failure through ErrorReportingService on fetch error', (done) => {
             var errorReports = [];
             var errorService = {
-                _launcherInstanceGuid: 'test-guid',
                 report: function (error) {
                     errorReports.push(error);
                 },
@@ -5496,7 +5488,8 @@ describe('Rokt Forwarder', () => {
             var service = new LoggingService(
                 { isLoggingEnabled: true },
                 errorService,
-                '1.0.0'
+                '1.0.0',
+                'test-guid'
             );
 
             service.log({ message: 'test' });
@@ -5519,7 +5512,8 @@ describe('Rokt Forwarder', () => {
             var service = new LoggingService(
                 { isLoggingEnabled: true },
                 errorService,
-                '1.0.0'
+                '1.0.0',
+                'test-guid'
             );
 
             service.log(null);
