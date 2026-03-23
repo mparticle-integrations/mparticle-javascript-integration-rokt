@@ -10,7 +10,7 @@ The Rokt web kit (`@mparticle/web-rokt-kit`) is an mParticle integration kit (fo
 
 ## Tech Stack
 
-- **Language**: ES5-style JavaScript (uses `var`, no arrow functions) — NOT TypeScript
+- **Language**: Plain JavaScript project — kit source is ES5-style; tests/tooling may use ES6. There is no TypeScript compilation step.
 - **Build Tool**: Rollup (IIFE and CommonJS output)
 - **Testing**: Karma + Mocha/Chai (real browser tests in Chrome and Firefox)
 - **Package Manager**: npm
