@@ -2892,6 +2892,47 @@ describe('Rokt Forwarder', () => {
                 );
             });
 
+            it('should log event when selectPlacements returns a non-thenable value', async () => {
+                window.Rokt.createLauncher = async function () {
+                    return Promise.resolve({
+                        selectPlacements: function () {
+                            // Returns a non-thenable (no .then method)
+                            return undefined;
+                        },
+                    });
+                };
+
+                await window.mParticle.forwarder.init(
+                    {
+                        accountId: '123456',
+                    },
+                    reportService.cb,
+                    true,
+                    null,
+                    {
+                        'cached-user-attr': 'cached-value',
+                    }
+                );
+
+                await waitForCondition(
+                    () => window.mParticle.forwarder.isInitialized
+                );
+
+                await window.mParticle.forwarder.selectPlacements({
+                    identifier: 'test-placement',
+                    attributes: {
+                        'new-attr': 'new-value',
+                    },
+                });
+
+                await waitForCondition(() => mParticle.loggedEvents.length > 0);
+
+                mParticle.loggedEvents.length.should.equal(1);
+                mParticle.loggedEvents[0].eventName.should.equal(
+                    'selectPlacements'
+                );
+            });
+
             it('should skip logging when mParticle.logEvent is not available', async () => {
                 var originalLogEvent = window.mParticle.logEvent;
                 window.mParticle.logEvent = undefined;
