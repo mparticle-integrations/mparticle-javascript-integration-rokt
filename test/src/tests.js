@@ -4567,6 +4567,461 @@ describe('Rokt Forwarder', () => {
 
             window.mParticle.forwarder.eventQueue.should.deepEqual([]);
         });
+
+        it('should call selectPlacements with preload: true when event matches preloadEventMapping', async () => {
+            const preloadEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Ready to Checkout>-value',
+                    map: '999999',
+                    maptype: 'EventClass.Id',
+                    value: 'checkout-placement',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    preloadEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+            window.mParticle.Rokt.selectPlacementsOptions = null;
+
+            window.mParticle.forwarder.process({
+                EventName: 'Ready to Checkout',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+                EventAttributes: {
+                    cart_total: '99.99',
+                },
+            });
+
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(true);
+            window.mParticle.Rokt.selectPlacementsOptions.preload.should.equal(
+                true
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.identifier.should.equal(
+                'checkout-placement'
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.attributes.cart_total.should.equal(
+                '99.99'
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.attributes.mpid.should.equal(
+                '123'
+            );
+        });
+
+        it('should not call selectPlacements for non-matching events when preloadEventMapping is configured', async () => {
+            const preloadEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Ready to Checkout>-value',
+                    map: '999999',
+                    maptype: 'EventClass.Id',
+                    value: 'checkout-placement',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    preloadEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+
+            window.mParticle.forwarder.process({
+                EventName: 'Some Other Event',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(false);
+        });
+
+        it('should forward event attributes to selectPlacements when preloadEventMapping matches', async () => {
+            const preloadEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Ready to Checkout>-value',
+                    map: '999999',
+                    maptype: 'EventClass.Id',
+                    value: 'checkout-placement',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    preloadEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {
+                    'user-attr': 'user-value',
+                }
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+            window.mParticle.Rokt.selectPlacementsOptions = null;
+
+            window.mParticle.forwarder.process({
+                EventName: 'Ready to Checkout',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+                EventAttributes: {
+                    cart_total: '99.99',
+                    payment_method: 'credit_card',
+                },
+            });
+
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(true);
+            window.mParticle.Rokt.selectPlacementsOptions.attributes.cart_total.should.equal(
+                '99.99'
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.attributes.payment_method.should.equal(
+                'credit_card'
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.attributes.mpid.should.equal(
+                '123'
+            );
+        });
+
+        it('should handle preloadEventMapping match when event has no EventAttributes', async () => {
+            const preloadEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Ready to Checkout>-value',
+                    map: '999999',
+                    maptype: 'EventClass.Id',
+                    value: 'checkout-placement',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    preloadEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+            window.mParticle.Rokt.selectPlacementsOptions = null;
+
+            window.mParticle.forwarder.process({
+                EventName: 'Ready to Checkout',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(true);
+            window.mParticle.Rokt.selectPlacementsOptions.preload.should.equal(
+                true
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.identifier.should.equal(
+                'checkout-placement'
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.attributes.mpid.should.equal(
+                '123'
+            );
+        });
+
+        it('should support placementEventMapping and preloadEventMapping independently', async () => {
+            const placementEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Video Watched>-value',
+                    map: '123466',
+                    maptype: 'EventClass.Id',
+                    value: 'foo-mapped-flag',
+                },
+            ]);
+
+            const preloadEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Ready to Checkout>-value',
+                    map: '999999',
+                    maptype: 'EventClass.Id',
+                    value: 'checkout-placement',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    placementEventMapping,
+                    preloadEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+
+            // Placement event should set session attribute but not call selectPlacements
+            window.mParticle.forwarder.process({
+                EventName: 'Video Watched',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                'foo-mapped-flag': true,
+            });
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(false);
+
+            // Preload event should call selectPlacements but not set session attribute
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+
+            window.mParticle.forwarder.process({
+                EventName: 'Ready to Checkout',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+                EventAttributes: {
+                    cart_total: '50.00',
+                },
+            });
+
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(true);
+            window.mParticle.Rokt.selectPlacementsOptions.preload.should.equal(
+                true
+            );
+        });
+
+        it('should trigger both session attribute and selectPlacements when same event is in both mappings', async () => {
+            const hashedEvent = 'hashed-<48Ready to Checkout>-value';
+
+            const placementEventMapping = JSON.stringify([
+                {
+                    jsmap: hashedEvent,
+                    map: '999999',
+                    maptype: 'EventClass.Id',
+                    value: 'checkout-flag',
+                },
+            ]);
+
+            const preloadEventMapping = JSON.stringify([
+                {
+                    jsmap: hashedEvent,
+                    map: '999999',
+                    maptype: 'EventClass.Id',
+                    value: 'checkout-placement',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    placementEventMapping,
+                    preloadEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+            window.mParticle.Rokt.selectPlacementsOptions = null;
+
+            window.mParticle.forwarder.process({
+                EventName: 'Ready to Checkout',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+                EventAttributes: {
+                    cart_total: '75.00',
+                },
+            });
+
+            // Session attribute should be set
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                'checkout-flag': true,
+            });
+
+            // selectPlacements should also be called
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(true);
+            window.mParticle.Rokt.selectPlacementsOptions.preload.should.equal(
+                true
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.identifier.should.equal(
+                'checkout-placement'
+            );
+        });
+
+        it('should replay preload events queued before kit init', async () => {
+            const preloadEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Ready to Checkout>-value',
+                    map: '999999',
+                    maptype: 'EventClass.Id',
+                    value: 'checkout-placement',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    preloadEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            // Queue an event before kit is ready
+            window.mParticle.forwarder.process({
+                EventName: 'Ready to Checkout',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+                EventAttributes: {
+                    cart_total: '25.00',
+                },
+            });
+
+            window.mParticle.forwarder.eventQueue.length.should.equal(1);
+
+            // Wait for kit initialization to process the queue
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.eventQueue.length.should.equal(0);
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(true);
+            window.mParticle.Rokt.selectPlacementsOptions.preload.should.equal(
+                true
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.identifier.should.equal(
+                'checkout-placement'
+            );
+        });
+
+        it('should support all three mapping types together', async () => {
+            const placementEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Video Watched>-value',
+                    map: '123466',
+                    maptype: 'EventClass.Id',
+                    value: 'video-flag',
+                },
+            ]);
+
+            const placementEventAttributeMapping = JSON.stringify([
+                {
+                    jsmap: null,
+                    map: 'URL',
+                    maptype: 'EventAttributeClass.Name',
+                    value: 'hasUrl',
+                    conditions: [{ operator: 'exists' }],
+                },
+            ]);
+
+            const preloadEventMapping = JSON.stringify([
+                {
+                    jsmap: 'hashed-<48Ready to Checkout>-value',
+                    map: '999999',
+                    maptype: 'EventClass.Id',
+                    value: 'checkout-placement',
+                },
+            ]);
+
+            await window.mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    placementEventMapping,
+                    placementEventAttributeMapping,
+                    preloadEventMapping,
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            // Event with URL triggers attribute mapping
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+
+            window.mParticle.forwarder.process({
+                EventName: 'Browse',
+                EventCategory: EventType.Unknown,
+                EventDataType: MessageType.PageView,
+                EventAttributes: {
+                    URL: 'https://example.com',
+                },
+            });
+
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                hasUrl: true,
+            });
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(false);
+
+            // Video Watched triggers placement event mapping
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+
+            window.mParticle.forwarder.process({
+                EventName: 'Video Watched',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({
+                'video-flag': true,
+            });
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(false);
+
+            // Ready to Checkout triggers preload mapping
+            window.mParticle._Store.localSessionAttributes = {};
+            window.mParticle.Rokt.selectPlacementsCalled = false;
+
+            window.mParticle.forwarder.process({
+                EventName: 'Ready to Checkout',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+                EventAttributes: {
+                    cart_total: '100.00',
+                },
+            });
+
+            window.mParticle._Store.localSessionAttributes.should.deepEqual({});
+            window.mParticle.Rokt.selectPlacementsCalled.should.equal(true);
+            window.mParticle.Rokt.selectPlacementsOptions.preload.should.equal(
+                true
+            );
+            window.mParticle.Rokt.selectPlacementsOptions.identifier.should.equal(
+                'checkout-placement'
+            );
+        });
     });
 
     describe('#_sendEventStream', () => {
