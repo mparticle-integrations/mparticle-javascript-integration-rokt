@@ -1,3 +1,10 @@
+## [1.18.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.18.0...v1.18.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* Add logSelectPlacementsEvent to falsey selection value ([#76](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/76)) ([8a0d0b1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/8a0d0b1f41e4c0c45622ef2754464ff6b4ef6ddd))
+
 # [1.18.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.17.0...v1.18.0) (2026-03-24)
 
 
