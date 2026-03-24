@@ -447,6 +447,8 @@ var constructor = function () {
                 .catch(function () {
                     logSelectPlacementsEvent(selectPlacementsAttributes);
                 });
+        } else {
+            logSelectPlacementsEvent(selectPlacementsAttributes);
         }
 
         return selection;
@@ -806,7 +808,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.18.0";
+    var kitVersion = "1.18.1";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
