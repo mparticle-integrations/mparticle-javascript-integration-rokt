@@ -82,6 +82,11 @@ describe('Rokt Forwarder', () => {
     mParticle._Store = {
         localSessionAttributes: {},
     };
+    mParticle.sessionManager = {
+        getSession: function () {
+            return 'test-mp-session-id';
+        },
+    };
     mParticle._getActiveForwarders = function () {
         return [];
     };
@@ -114,6 +119,7 @@ describe('Rokt Forwarder', () => {
             self.integrationName = options.integrationName;
             self.noFunctional = options.noFunctional;
             self.noTargeting = options.noTargeting;
+            self.mpSessionId = options.mpSessionId;
             self.createLauncherCalled = true;
             self.isInitialized = true;
             self.sandbox = options.sandbox;
@@ -130,6 +136,7 @@ describe('Rokt Forwarder', () => {
             self.integrationName = options.integrationName;
             self.noFunctional = options.noFunctional;
             self.noTargeting = options.noTargeting;
+            self.mpSessionId = options.mpSessionId;
             self.createLocalLauncherCalled = true;
             self.isInitialized = true;
             self.sandbox = options.sandbox;
@@ -841,6 +848,40 @@ describe('Rokt Forwarder', () => {
             await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
             window.mParticle.Rokt.createLauncherCalled.should.equal(true);
+        });
+
+        it('should pass mpSessionId from mParticle sessionManager to createLauncher', async () => {
+            window.mParticle.sessionManager = {
+                getSession: function () {
+                    return 'my-mp-session-123';
+                },
+            };
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            window.mParticle.Rokt.mpSessionId.should.equal('my-mp-session-123');
+        });
+
+        it('should not pass mpSessionId when sessionManager is unavailable', async () => {
+            delete window.mParticle.sessionManager;
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            (window.mParticle.Rokt.mpSessionId === undefined).should.equal(
+                true
+            );
         });
     });
 
