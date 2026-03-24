@@ -1,3 +1,17 @@
+# [1.18.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.17.0...v1.18.0) (2026-03-24)
+
+
+### Bug Fixes
+
+* **ci:** add contents read permission for pr-notify workflow ([#73](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/73)) ([7c84013](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/7c84013f3b8e1b26eae4d298e624abea4d2eea1d))
+* **ci:** add id-token permission for pr-notify workflow ([#72](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/72)) ([fa278ff](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/fa278ff2f3cdd2def3f370151627abddeb1ba73e))
+
+
+### Features
+
+* pass mParticle session ID to Rokt SDK on launcher creation ([#74](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/74)) ([1a5b591](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/1a5b59199caa15ac5261b9bec77b13f66d9e5d0f))
+* sync Rokt session ID to mParticle via setIntegrationAttribute ([#67](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/67)) ([021b2a5](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/021b2a544e2db4eece85190b0f98231445d27a50))
+
 # [1.17.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.16.0...v1.17.0) (2026-03-12)
 
 
