@@ -539,11 +539,19 @@ var constructor = function () {
     }
 
     function attachLauncher(accountId, launcherOptions) {
+        var mpSessionId =
+            window.mParticle &&
+            window.mParticle.sessionManager &&
+            typeof window.mParticle.sessionManager.getSession === 'function'
+                ? window.mParticle.sessionManager.getSession()
+                : undefined;
+
         var options = mergeObjects(
             {
                 accountId: accountId,
             },
-            launcherOptions || {}
+            launcherOptions || {},
+            mpSessionId ? { mpSessionId: mpSessionId } : {}
         );
 
         if (isPartnerInLocalLauncherTestGroup()) {
