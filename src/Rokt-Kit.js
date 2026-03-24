@@ -443,6 +443,8 @@ var constructor = function () {
                 .catch(function () {
                     logSelectPlacementsEvent(selectPlacementsAttributes);
                 });
+        } else {
+            logSelectPlacementsEvent(selectPlacementsAttributes);
         }
 
         return selection;
