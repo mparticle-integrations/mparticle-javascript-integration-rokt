@@ -4681,7 +4681,7 @@ describe('Rokt Forwarder', () => {
 
             window.mParticle.forwarder.process(originalEvent);
 
-            should.not.exist(originalEvent.UserAttributes);
+            originalEvent.should.not.have.property('UserAttributes');
             receivedEvents[0].UserAttributes.should.deepEqual({
                 firstName: 'John',
             });
