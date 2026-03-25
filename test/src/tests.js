@@ -4647,7 +4647,11 @@ describe('Rokt Forwarder', () => {
             window.mParticle.forwarder.process(testEvent);
 
             receivedEvents.length.should.equal(1);
-            receivedEvents[0].should.deepEqual(testEvent);
+            receivedEvents[0].EventName.should.equal('Test Event');
+            receivedEvents[0].EventCategory.should.equal(EventType.Other);
+            receivedEvents[0].EventDataType.should.equal(
+                MessageType.PageEvent
+            );
         });
 
         it('should not throw when window.Rokt.__event_stream__ is not defined', async () => {
@@ -4832,6 +4836,128 @@ describe('Rokt Forwarder', () => {
             window.mParticle._Store.localSessionAttributes.should.deepEqual({
                 'foo-mapped-flag': true,
             });
+        });
+
+        it('should enrich event with Kit userAttributes before forwarding', async () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.setUserAttribute('email', 'test@example.com');
+            window.mParticle.forwarder.setUserAttribute('plan', 'premium');
+
+            window.mParticle.forwarder.process({
+                EventName: 'Page View',
+                EventCategory: EventType.Navigation,
+                EventDataType: MessageType.PageView,
+            });
+
+            receivedEvents.length.should.equal(1);
+            receivedEvents[0].UserAttributes.should.deepEqual({
+                email: 'test@example.com',
+                plan: 'premium',
+            });
+            receivedEvents[0].EventName.should.equal('Page View');
+        });
+
+        it('should use Kit userAttributes over event-level UserAttributes', async () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.setUserAttribute('email', 'fresh@example.com');
+
+            window.mParticle.forwarder.process({
+                EventName: 'Test',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+                UserAttributes: { email: 'stale@example.com' },
+            });
+
+            receivedEvents.length.should.equal(1);
+            receivedEvents[0].UserAttributes.email.should.equal(
+                'fresh@example.com'
+            );
+        });
+
+        it('should not mutate the original event object', async () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.setUserAttribute('key', 'value');
+
+            var originalEvent = {
+                EventName: 'Original',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            };
+
+            window.mParticle.forwarder.process(originalEvent);
+
+            (originalEvent.UserAttributes === undefined).should.equal(true);
+            receivedEvents[0].UserAttributes.should.deepEqual({ key: 'value' });
+        });
+
+        it('should send empty UserAttributes when Kit has no user attributes', async () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.userAttributes = {};
+
+            window.mParticle.forwarder.process({
+                EventName: 'Test',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            receivedEvents.length.should.equal(1);
+            receivedEvents[0].UserAttributes.should.deepEqual({});
         });
     });
 

@@ -553,7 +553,10 @@ var constructor = function () {
 
     function _sendEventStream(event) {
         if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
-            window.Rokt.__event_stream__(event);
+            var enrichedEvent = mergeObjects({}, event, {
+                UserAttributes: self.userAttributes,
+            });
+            window.Rokt.__event_stream__(enrichedEvent);
         }
     }
 
