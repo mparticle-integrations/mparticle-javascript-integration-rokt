@@ -42,6 +42,7 @@ var RoktKit = (function (exports) {
         self.placementEventMappingLookup = {};
         self.placementEventAttributeMappingLookup = {};
         self.eventQueue = [];
+        self.eventStreamQueue = [];
         self.integrationName = null;
 
         function getEventAttributeValue(event, eventAttributeKey) {
@@ -272,8 +273,8 @@ var RoktKit = (function (exports) {
                     sendAdBlockMeasurementSignals: sendAdBlockMeasurementSignals,
                     createAutoRemovedIframe: createAutoRemovedIframe,
                     djb2: djb2,
-                    setAllowedOriginHash: function (hash) {
-                        _allowedOriginHash = hash;
+                    setAllowedOriginHashes: function (hashes) {
+                        _allowedOriginHashes = hashes;
                     },
                 };
                 attachLauncher(accountId, launcherOptions);
@@ -554,9 +555,24 @@ var RoktKit = (function (exports) {
             }
         }
 
+        function _enrichEvent(event) {
+            return mergeObjects({}, event, {
+                UserAttributes: self.userAttributes,
+            });
+        }
+
         function _sendEventStream(event) {
             if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
-                window.Rokt.__event_stream__(event);
+                if (self.eventStreamQueue.length) {
+                    var queuedEvents = self.eventStreamQueue;
+                    self.eventStreamQueue = [];
+                    for (var i = 0; i < queuedEvents.length; i++) {
+                        window.Rokt.__event_stream__(_enrichEvent(queuedEvents[i]));
+                    }
+                }
+                window.Rokt.__event_stream__(_enrichEvent(event));
+            } else {
+                self.eventStreamQueue.push(event);
             }
         }
 
@@ -756,7 +772,7 @@ var RoktKit = (function (exports) {
 
         var ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
         var INIT_LOG_SAMPLING_RATE = 0.1;
-        var _allowedOriginHash = 1445747545;
+        var _allowedOriginHashes = [-553112570, 549508659];
 
         function djb2(str) {
             var hash = 5381;
@@ -768,7 +784,8 @@ var RoktKit = (function (exports) {
         }
 
         function sendAdBlockMeasurementSignals(domain, version) {
-            if (djb2(window.location.origin) !== _allowedOriginHash) {
+            var originHash = djb2(window.location.origin);
+            if (_allowedOriginHashes.indexOf(originHash) === -1) {
                 return;
             }
 
@@ -807,7 +824,7 @@ var RoktKit = (function (exports) {
 
     function generateIntegrationName(customIntegrationName) {
         var coreSdkVersion = window.mParticle.getVersion();
-        var kitVersion = "1.18.1";
+        var kitVersion = "1.19.0";
         var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
         if (customIntegrationName) {
