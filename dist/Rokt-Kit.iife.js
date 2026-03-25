@@ -524,10 +524,7 @@ var RoktKit = (function (exports) {
 
         function _sendEventStream(event) {
             if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
-                var enrichedEvent = mergeObjects({}, event, {
-                    UserAttributes: self.userAttributes,
-                });
-                window.Rokt.__event_stream__(enrichedEvent);
+                window.Rokt.__event_stream__(event);
             }
         }
 
