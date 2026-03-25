@@ -4571,6 +4571,7 @@ describe('Rokt Forwarder', () => {
 
     describe('#_sendEventStream', () => {
         beforeEach(() => {
+            window.mParticle.forwarder.eventStreamQueue = [];
             window.Rokt = new MockRoktForwarder();
             window.Rokt.createLauncher = async function () {
                 return Promise.resolve({
@@ -4618,6 +4619,7 @@ describe('Rokt Forwarder', () => {
         afterEach(() => {
             delete window.Rokt.__event_stream__;
             window.mParticle.forwarder.eventQueue = [];
+            window.mParticle.forwarder.eventStreamQueue = [];
             window.mParticle.forwarder.isInitialized = false;
             window.mParticle.Rokt.attachKitCalled = false;
         });
@@ -4650,7 +4652,7 @@ describe('Rokt Forwarder', () => {
             receivedEvents[0].should.deepEqual(testEvent);
         });
 
-        it('should not throw when window.Rokt.__event_stream__ is not defined', async () => {
+        it('should queue event when window.Rokt.__event_stream__ is not defined', async () => {
             await window.mParticle.forwarder.init(
                 { accountId: '123456' },
                 reportService.cb,
@@ -4661,16 +4663,23 @@ describe('Rokt Forwarder', () => {
 
             await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
 
+            var testEvent = {
+                EventName: 'Test Event',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            };
+
             (function () {
-                window.mParticle.forwarder.process({
-                    EventName: 'Test Event',
-                    EventCategory: EventType.Other,
-                    EventDataType: MessageType.PageEvent,
-                });
+                window.mParticle.forwarder.process(testEvent);
             }).should.not.throw();
+
+            window.mParticle.forwarder.eventStreamQueue.length.should.equal(1);
+            window.mParticle.forwarder.eventStreamQueue[0].should.deepEqual(
+                testEvent
+            );
         });
 
-        it('should not throw when window.Rokt is undefined', async () => {
+        it('should queue event when window.Rokt is undefined', async () => {
             await window.mParticle.forwarder.init(
                 { accountId: '123456' },
                 reportService.cb,
@@ -4684,13 +4693,20 @@ describe('Rokt Forwarder', () => {
             var savedRokt = window.Rokt;
             window.Rokt = undefined;
 
+            var testEvent = {
+                EventName: 'Test Event',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            };
+
             (function () {
-                window.mParticle.forwarder.process({
-                    EventName: 'Test Event',
-                    EventCategory: EventType.Other,
-                    EventDataType: MessageType.PageEvent,
-                });
+                window.mParticle.forwarder.process(testEvent);
             }).should.not.throw();
+
+            window.mParticle.forwarder.eventStreamQueue.length.should.equal(1);
+            window.mParticle.forwarder.eventStreamQueue[0].should.deepEqual(
+                testEvent
+            );
 
             window.Rokt = savedRokt;
         });
@@ -4832,6 +4848,48 @@ describe('Rokt Forwarder', () => {
             window.mParticle._Store.localSessionAttributes.should.deepEqual({
                 'foo-mapped-flag': true,
             });
+        });
+
+        it('should flush queued events in FIFO order when __event_stream__ becomes available', async () => {
+            await window.mParticle.forwarder.init(
+                { accountId: '123456' },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            await waitForCondition(() => window.mParticle.Rokt.attachKitCalled);
+
+            window.mParticle.forwarder.process({
+                EventName: 'Event A',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+            window.mParticle.forwarder.process({
+                EventName: 'Event B',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            window.mParticle.forwarder.eventStreamQueue.length.should.equal(2);
+
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            window.mParticle.forwarder.process({
+                EventName: 'Event C',
+                EventCategory: EventType.Other,
+                EventDataType: MessageType.PageEvent,
+            });
+
+            receivedEvents.length.should.equal(3);
+            receivedEvents[0].EventName.should.equal('Event A');
+            receivedEvents[1].EventName.should.equal('Event B');
+            receivedEvents[2].EventName.should.equal('Event C');
+            window.mParticle.forwarder.eventStreamQueue.length.should.equal(0);
         });
     });
 

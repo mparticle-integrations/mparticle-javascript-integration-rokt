@@ -39,6 +39,7 @@ var constructor = function () {
     self.placementEventMappingLookup = {};
     self.placementEventAttributeMappingLookup = {};
     self.eventQueue = [];
+    self.eventStreamQueue = [];
     self.integrationName = null;
 
     function getEventAttributeValue(event, eventAttributeKey) {
@@ -553,7 +554,16 @@ var constructor = function () {
 
     function _sendEventStream(event) {
         if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
+            if (self.eventStreamQueue.length) {
+                var queuedEvents = self.eventStreamQueue;
+                self.eventStreamQueue = [];
+                for (var i = 0; i < queuedEvents.length; i++) {
+                    window.Rokt.__event_stream__(queuedEvents[i]);
+                }
+            }
             window.Rokt.__event_stream__(event);
+        } else {
+            self.eventStreamQueue.push(event);
         }
     }
 
