@@ -258,6 +258,43 @@ var constructor = function () {
 
         self.domain = domain;
 
+        // Register reporting services with the core SDK
+        var reportingConfig = {
+            loggingUrl: settings.loggingUrl,
+            errorUrl: settings.errorUrl,
+            isLoggingEnabled:
+                settings.isLoggingEnabled === 'true' ||
+                settings.isLoggingEnabled === true,
+        };
+        var errorReportingService = new ErrorReportingService(
+            reportingConfig,
+            self.integrationName,
+            window.__rokt_li_guid__,
+            settings.accountId
+        );
+        var loggingService = new LoggingService(
+            reportingConfig,
+            errorReportingService,
+            self.integrationName,
+            window.__rokt_li_guid__,
+            settings.accountId
+        );
+
+        self.errorReportingService = errorReportingService;
+        self.loggingService = loggingService;
+
+        if (
+            window.mParticle &&
+            window.mParticle._registerErrorReportingService
+        ) {
+            window.mParticle._registerErrorReportingService(
+                errorReportingService
+            );
+        }
+        if (window.mParticle && window.mParticle._registerLoggingService) {
+            window.mParticle._registerLoggingService(loggingService);
+        }
+
         if (testMode) {
             self.testHelpers = {
                 generateLauncherScript: generateLauncherScript,
@@ -273,6 +310,12 @@ var constructor = function () {
                 setAllowedOriginHash: function (hash) {
                     _allowedOriginHash = hash;
                 },
+                ReportingTransport: ReportingTransport,
+                ErrorReportingService: ErrorReportingService,
+                LoggingService: LoggingService,
+                RateLimiter: RateLimiter,
+                ErrorCodes: ErrorCodes,
+                WSDKErrorSeverity: WSDKErrorSeverity,
             };
             attachLauncher(accountId, launcherOptions);
             return;
@@ -924,6 +967,225 @@ function isString(value) {
     return typeof value === 'string';
 }
 
+// --- Reporting Services ---
+
+var ErrorCodes = {
+    UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+    UNHANDLED_EXCEPTION: 'UNHANDLED_EXCEPTION',
+    IDENTITY_REQUEST: 'IDENTITY_REQUEST',
+};
+
+var WSDKErrorSeverity = {
+    ERROR: 'ERROR',
+    INFO: 'INFO',
+    WARNING: 'WARNING',
+};
+
+var DEFAULT_LOGGING_URL = 'apps.rokt-api.com/v1/log';
+var DEFAULT_ERROR_URL = 'apps.rokt-api.com/v1/errors';
+var RATE_LIMIT_PER_SEVERITY = 10;
+
+function RateLimiter() {
+    this._logCount = {};
+}
+
+RateLimiter.prototype.incrementAndCheck = function (severity) {
+    var count = this._logCount[severity] || 0;
+    var newCount = count + 1;
+    this._logCount[severity] = newCount;
+    return newCount > RATE_LIMIT_PER_SEVERITY;
+};
+
+// --- ReportingTransport: shared transport layer for reporting services ---
+
+function ReportingTransport(
+    config,
+    integrationName,
+    launcherInstanceGuid,
+    accountId,
+    rateLimiter
+) {
+    var self = this;
+    self._isLoggingEnabled = (config && config.isLoggingEnabled) || false;
+    self._integrationName = integrationName || '';
+    self._launcherInstanceGuid = launcherInstanceGuid;
+    self._accountId = accountId || null;
+    self._rateLimiter = rateLimiter || new RateLimiter();
+    self._reporter = 'mp-wsdk';
+    self._isEnabled = _isReportingEnabled(self);
+}
+
+ReportingTransport.prototype.send = function (
+    url,
+    severity,
+    msg,
+    code,
+    stackTrace,
+    onError
+) {
+    if (!this._isEnabled || this._rateLimiter.incrementAndCheck(severity)) {
+        return;
+    }
+
+    try {
+        var logRequest = {
+            additionalInformation: {
+                message: msg,
+                version: this._integrationName || '',
+            },
+            severity: severity,
+            code: code || ErrorCodes.UNKNOWN_ERROR,
+            url: _getUrl(),
+            deviceInfo: _getUserAgent(),
+            stackTrace: stackTrace,
+            reporter: this._reporter,
+            integration: this._integrationName || '',
+        };
+        var headers = {
+            Accept: 'text/plain;charset=UTF-8',
+            'Content-Type': 'application/json',
+            'rokt-launcher-version': this._integrationName || '',
+            'rokt-wsdk-version': 'joint',
+        };
+        if (this._launcherInstanceGuid) {
+            headers['rokt-launcher-instance-guid'] = this._launcherInstanceGuid;
+        }
+        if (this._accountId) {
+            headers['rokt-account-id'] = this._accountId;
+        }
+        var payload = {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(logRequest),
+        };
+        fetch(url, payload).catch(function (error) {
+            console.error('ReportingTransport: Failed to send log', error);
+            if (onError) {
+                onError(error);
+            }
+        });
+    } catch (error) {
+        console.error('ReportingTransport: Failed to send log', error);
+        if (onError) {
+            onError(error);
+        }
+    }
+};
+
+function _isReportingEnabled(transport) {
+    return (
+        _isDebugModeEnabled() ||
+        (_isRoktDomainPresent() && transport._isLoggingEnabled)
+    );
+}
+
+function _isRoktDomainPresent() {
+    return typeof window !== 'undefined' && Boolean(window['ROKT_DOMAIN']);
+}
+
+function _isDebugModeEnabled() {
+    return (
+        typeof window !== 'undefined' &&
+        window.location &&
+        window.location.search &&
+        window.location.search
+            .toLowerCase()
+            .indexOf('mp_enable_logging=true') !== -1
+    );
+}
+
+function _getUrl() {
+    return typeof window !== 'undefined' && window.location
+        ? window.location.href
+        : undefined;
+}
+
+function _getUserAgent() {
+    return typeof window !== 'undefined' && window.navigator
+        ? window.navigator.userAgent
+        : undefined;
+}
+
+// --- ErrorReportingService: handles ERROR and WARNING severity ---
+
+function ErrorReportingService(
+    config,
+    integrationName,
+    launcherInstanceGuid,
+    accountId,
+    rateLimiter
+) {
+    this._transport = new ReportingTransport(
+        config,
+        integrationName,
+        launcherInstanceGuid,
+        accountId,
+        rateLimiter
+    );
+    this._errorUrl =
+        'https://' + ((config && config.errorUrl) || DEFAULT_ERROR_URL);
+}
+
+ErrorReportingService.prototype.report = function (error) {
+    if (!error) {
+        return;
+    }
+    var severity = error.severity || WSDKErrorSeverity.ERROR;
+    this._transport.send(
+        this._errorUrl,
+        severity,
+        error.message,
+        error.code,
+        error.stackTrace
+    );
+};
+
+// --- LoggingService: handles INFO severity ---
+
+function LoggingService(
+    config,
+    errorReportingService,
+    integrationName,
+    launcherInstanceGuid,
+    accountId,
+    rateLimiter
+) {
+    this._transport = new ReportingTransport(
+        config,
+        integrationName,
+        launcherInstanceGuid,
+        accountId,
+        rateLimiter
+    );
+    this._loggingUrl =
+        'https://' + ((config && config.loggingUrl) || DEFAULT_LOGGING_URL);
+    this._errorReportingService = errorReportingService;
+}
+
+LoggingService.prototype.log = function (entry) {
+    if (!entry) {
+        return;
+    }
+    var self = this;
+    self._transport.send(
+        self._loggingUrl,
+        WSDKErrorSeverity.INFO,
+        entry.message,
+        entry.code,
+        undefined,
+        function (error) {
+            if (self._errorReportingService) {
+                self._errorReportingService.report({
+                    message:
+                        'LoggingService: Failed to send log: ' + error.message,
+                    code: ErrorCodes.UNKNOWN_ERROR,
+                    severity: WSDKErrorSeverity.ERROR,
+                });
+            }
+        }
+    );
+};
+
 if (window && window.mParticle && window.mParticle.addForwarder) {
     window.mParticle.addForwarder({
         name: name,
@@ -934,4 +1196,10 @@ if (window && window.mParticle && window.mParticle.addForwarder) {
 
 module.exports = {
     register: register,
+    ReportingTransport: ReportingTransport,
+    ErrorReportingService: ErrorReportingService,
+    LoggingService: LoggingService,
+    RateLimiter: RateLimiter,
+    ErrorCodes: ErrorCodes,
+    WSDKErrorSeverity: WSDKErrorSeverity,
 };
