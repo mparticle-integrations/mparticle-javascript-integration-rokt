@@ -4674,7 +4674,9 @@ describe('Rokt Forwarder', () => {
             }).should.not.throw();
 
             window.mParticle.forwarder.eventStreamQueue.length.should.equal(1);
-            window.mParticle.forwarder.eventStreamQueue[0].should.deepEqual(testEvent);
+            window.mParticle.forwarder.eventStreamQueue[0].should.deepEqual(
+                testEvent
+            );
         });
 
         it('should queue event when window.Rokt is undefined', async () => {
@@ -4702,7 +4704,9 @@ describe('Rokt Forwarder', () => {
             }).should.not.throw();
 
             window.mParticle.forwarder.eventStreamQueue.length.should.equal(1);
-            window.mParticle.forwarder.eventStreamQueue[0].should.deepEqual(testEvent);
+            window.mParticle.forwarder.eventStreamQueue[0].should.deepEqual(
+                testEvent
+            );
 
             window.Rokt = savedRokt;
         });
@@ -4887,7 +4891,6 @@ describe('Rokt Forwarder', () => {
             receivedEvents[2].EventName.should.equal('Event C');
             window.mParticle.forwarder.eventStreamQueue.length.should.equal(0);
         });
-
     });
 
     describe('#_setRoktSessionId', () => {
