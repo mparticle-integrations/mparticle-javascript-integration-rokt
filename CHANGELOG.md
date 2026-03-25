@@ -1,3 +1,17 @@
+# [1.19.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.18.1...v1.19.0) (2026-03-25)
+
+
+### Bug Fixes
+
+* Update adblock measurement target origin ([#68](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/68)) ([8a524c2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/8a524c21c82a48d756d35ef294ad9342ab7ac4ba))
+
+
+### Features
+
+* add /verify skill and AGENTS.md for agent guidance ([#69](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/69)) ([21134b0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/21134b05eae9868c08d412fc1f95bd62f3583cee)), closes [hi#level](https://github.com/hi/issues/level)
+* add defensive queue to _sendEventStream to prevent event loss ([#78](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/78)) ([82b8dfc](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/82b8dfc4248d05795be0bad117a16de0f6a4f694))
+* enrich event stream with Kit userAttributes ([#79](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/79)) ([7c27cd3](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/7c27cd30a22328a2b117d9c39e5f256784f0e1af))
+
 ## [1.18.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.18.0...v1.18.1) (2026-03-24)
 
 
