@@ -552,16 +552,22 @@ var constructor = function () {
         }
     }
 
+    function _enrichEvent(event) {
+        return mergeObjects({}, event, {
+            UserAttributes: self.userAttributes,
+        });
+    }
+
     function _sendEventStream(event) {
         if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
             if (self.eventStreamQueue.length) {
                 var queuedEvents = self.eventStreamQueue;
                 self.eventStreamQueue = [];
                 for (var i = 0; i < queuedEvents.length; i++) {
-                    window.Rokt.__event_stream__(queuedEvents[i]);
+                    window.Rokt.__event_stream__(_enrichEvent(queuedEvents[i]));
                 }
             }
-            window.Rokt.__event_stream__(event);
+            window.Rokt.__event_stream__(_enrichEvent(event));
         } else {
             self.eventStreamQueue.push(event);
         }
