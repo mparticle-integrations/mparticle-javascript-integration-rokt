@@ -595,6 +595,7 @@ var constructor = function () {
     function onUserIdentified(filteredUser) {
         self.filters.filteredUser = filteredUser;
         self.userAttributes = filteredUser.getAllUserAttributes();
+        _sendEventStream(_buildIdentityEvent('User Identified', filteredUser));
     }
 
     function _buildIdentityEvent(eventName, filteredUser) {
@@ -632,6 +633,11 @@ var constructor = function () {
     function onLogoutComplete(filteredUser) {
         self.userAttributes = filteredUser.getAllUserAttributes();
         _sendEventStream(_buildIdentityEvent('User Logout', filteredUser));
+    }
+
+    function onModifyComplete(filteredUser) {
+        self.userAttributes = filteredUser.getAllUserAttributes();
+        _sendEventStream(_buildIdentityEvent('User Modified', filteredUser));
     }
 
     function setUserAttribute(key, value) {
@@ -752,6 +758,7 @@ var constructor = function () {
     this.onUserIdentified = onUserIdentified;
     this.onLoginComplete = onLoginComplete;
     this.onLogoutComplete = onLogoutComplete;
+    this.onModifyComplete = onModifyComplete;
     this.removeUserAttribute = removeUserAttribute;
 
     /**
