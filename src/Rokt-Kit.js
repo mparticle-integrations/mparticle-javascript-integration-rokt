@@ -597,22 +597,41 @@ var constructor = function () {
         self.userAttributes = filteredUser.getAllUserAttributes();
     }
 
-    function onLoginComplete(filteredUser) {
-        self.userAttributes = filteredUser.getAllUserAttributes();
-        _sendEventStream({
-            EventName: 'User Login',
+    function _buildIdentityEvent(eventName, filteredUser) {
+        var mpid =
+            filteredUser.getMPID && typeof filteredUser.getMPID === 'function'
+                ? filteredUser.getMPID()
+                : null;
+        var sessionId =
+            window.mParticle &&
+            window.mParticle.sessionManager &&
+            typeof window.mParticle.sessionManager.getSession === 'function'
+                ? window.mParticle.sessionManager.getSession()
+                : null;
+        var userIdentities =
+            filteredUser.getUserIdentities &&
+            typeof filteredUser.getUserIdentities === 'function'
+                ? filteredUser.getUserIdentities().userIdentities
+                : null;
+
+        return {
+            EventName: eventName,
             EventDataType: 10, // MessageType.Profile
             Timestamp: Date.now(),
-        });
+            MPID: mpid,
+            SessionId: sessionId,
+            UserIdentities: userIdentities,
+        };
+    }
+
+    function onLoginComplete(filteredUser) {
+        self.userAttributes = filteredUser.getAllUserAttributes();
+        _sendEventStream(_buildIdentityEvent('User Login', filteredUser));
     }
 
     function onLogoutComplete(filteredUser) {
         self.userAttributes = filteredUser.getAllUserAttributes();
-        _sendEventStream({
-            EventName: 'User Logout',
-            EventDataType: 10, // MessageType.Profile
-            Timestamp: Date.now(),
-        });
+        _sendEventStream(_buildIdentityEvent('User Logout', filteredUser));
     }
 
     function setUserAttribute(key, value) {

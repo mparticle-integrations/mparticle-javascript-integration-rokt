@@ -3150,6 +3150,13 @@ describe('Rokt Forwarder', () => {
     });
 
     describe('#onLoginComplete', () => {
+        beforeEach(() => {
+            window.mParticle.sessionManager = {
+                getSession: function () {
+                    return 'test-mp-session-id';
+                },
+            };
+        });
         afterEach(() => {
             delete window.Rokt.__event_stream__;
             window.mParticle.forwarder.eventStreamQueue = [];
@@ -3177,6 +3184,14 @@ describe('Rokt Forwarder', () => {
                 getAllUserAttributes: function () {
                     return { 'user-attr': 'user-value' };
                 },
+                getMPID: function () {
+                    return 'login-mpid-123';
+                },
+                getUserIdentities: function () {
+                    return {
+                        userIdentities: { email: 'jenny@example.com' },
+                    };
+                },
             });
 
             receivedEvents.length.should.equal(1);
@@ -3185,6 +3200,49 @@ describe('Rokt Forwarder', () => {
             receivedEvents[0].UserAttributes.should.deepEqual({
                 'user-attr': 'user-value',
             });
+            receivedEvents[0].MPID.should.equal('login-mpid-123');
+            receivedEvents[0].SessionId.should.equal('test-mp-session-id');
+            receivedEvents[0].UserIdentities.should.deepEqual({
+                email: 'jenny@example.com',
+            });
+        });
+
+        it('should include null MPID and null UserIdentities when filteredUser has no getMPID or getUserIdentities', () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            window.mParticle.forwarder.onLoginComplete({
+                getAllUserAttributes: function () {
+                    return {};
+                },
+            });
+
+            receivedEvents.length.should.equal(1);
+            (receivedEvents[0].MPID === null).should.be.true();
+            (receivedEvents[0].UserIdentities === null).should.be.true();
+        });
+
+        it('should include null SessionId when sessionManager is unavailable', () => {
+            delete window.mParticle.sessionManager;
+
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            window.mParticle.forwarder.onLoginComplete({
+                getAllUserAttributes: function () {
+                    return {};
+                },
+                getMPID: function () {
+                    return 'some-mpid';
+                },
+            });
+
+            receivedEvents.length.should.equal(1);
+            (receivedEvents[0].SessionId === null).should.be.true();
         });
 
         it('should queue event when window.Rokt.__event_stream__ is not available', () => {
@@ -3225,6 +3283,13 @@ describe('Rokt Forwarder', () => {
     });
 
     describe('#onLogoutComplete', () => {
+        beforeEach(() => {
+            window.mParticle.sessionManager = {
+                getSession: function () {
+                    return 'test-mp-session-id';
+                },
+            };
+        });
         afterEach(() => {
             delete window.Rokt.__event_stream__;
             window.mParticle.forwarder.eventStreamQueue = [];
@@ -3252,12 +3317,25 @@ describe('Rokt Forwarder', () => {
                 getAllUserAttributes: function () {
                     return {};
                 },
+                getMPID: function () {
+                    return 'logout-mpid-456';
+                },
+                getUserIdentities: function () {
+                    return {
+                        userIdentities: { customerid: 'cust-789' },
+                    };
+                },
             });
 
             receivedEvents.length.should.equal(1);
             receivedEvents[0].EventName.should.equal('User Logout');
             receivedEvents[0].EventDataType.should.equal(10);
             receivedEvents[0].UserAttributes.should.deepEqual({});
+            receivedEvents[0].MPID.should.equal('logout-mpid-456');
+            receivedEvents[0].SessionId.should.equal('test-mp-session-id');
+            receivedEvents[0].UserIdentities.should.deepEqual({
+                customerid: 'cust-789',
+            });
         });
 
         it('should queue event when window.Rokt.__event_stream__ is not available', () => {
