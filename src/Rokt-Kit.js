@@ -597,6 +597,24 @@ var constructor = function () {
         self.userAttributes = filteredUser.getAllUserAttributes();
     }
 
+    function onLoginComplete(filteredUser) {
+        self.userAttributes = filteredUser.getAllUserAttributes();
+        _sendEventStream({
+            EventName: 'User Login',
+            EventDataType: 10, // MessageType.Profile
+            Timestamp: Date.now(),
+        });
+    }
+
+    function onLogoutComplete(filteredUser) {
+        self.userAttributes = filteredUser.getAllUserAttributes();
+        _sendEventStream({
+            EventName: 'User Logout',
+            EventDataType: 10, // MessageType.Profile
+            Timestamp: Date.now(),
+        });
+    }
+
     function setUserAttribute(key, value) {
         self.userAttributes[key] = value;
     }
@@ -713,6 +731,8 @@ var constructor = function () {
     this.setExtensionData = setExtensionData;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
+    this.onLoginComplete = onLoginComplete;
+    this.onLogoutComplete = onLogoutComplete;
     this.removeUserAttribute = removeUserAttribute;
 
     /**

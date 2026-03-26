@@ -3149,6 +3149,154 @@ describe('Rokt Forwarder', () => {
         });
     });
 
+    describe('#onLoginComplete', () => {
+        afterEach(() => {
+            delete window.Rokt.__event_stream__;
+            window.mParticle.forwarder.eventStreamQueue = [];
+        });
+
+        it('should update userAttributes from the filtered user', () => {
+            window.mParticle.forwarder.onLoginComplete({
+                getAllUserAttributes: function () {
+                    return { 'user-attr': 'user-value' };
+                },
+            });
+
+            window.mParticle.forwarder.userAttributes.should.deepEqual({
+                'user-attr': 'user-value',
+            });
+        });
+
+        it('should send a User Login event to window.Rokt.__event_stream__', () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            window.mParticle.forwarder.onLoginComplete({
+                getAllUserAttributes: function () {
+                    return { 'user-attr': 'user-value' };
+                },
+            });
+
+            receivedEvents.length.should.equal(1);
+            receivedEvents[0].EventName.should.equal('User Login');
+            receivedEvents[0].EventDataType.should.equal(10);
+            receivedEvents[0].UserAttributes.should.deepEqual({
+                'user-attr': 'user-value',
+            });
+        });
+
+        it('should queue event when window.Rokt.__event_stream__ is not available', () => {
+            window.mParticle.forwarder.onLoginComplete({
+                getAllUserAttributes: function () {
+                    return {};
+                },
+            });
+
+            window.mParticle.forwarder.eventStreamQueue.length.should.equal(1);
+            window.mParticle.forwarder.eventStreamQueue[0].EventName.should.equal(
+                'User Login'
+            );
+            window.mParticle.forwarder.eventStreamQueue[0].EventDataType.should.equal(
+                10
+            );
+        });
+
+        it('should queue event when window.Rokt is undefined', () => {
+            var savedRokt = window.Rokt;
+            window.Rokt = undefined;
+
+            (function () {
+                window.mParticle.forwarder.onLoginComplete({
+                    getAllUserAttributes: function () {
+                        return {};
+                    },
+                });
+            }).should.not.throw();
+
+            window.mParticle.forwarder.eventStreamQueue.length.should.equal(1);
+            window.mParticle.forwarder.eventStreamQueue[0].EventName.should.equal(
+                'User Login'
+            );
+
+            window.Rokt = savedRokt;
+        });
+    });
+
+    describe('#onLogoutComplete', () => {
+        afterEach(() => {
+            delete window.Rokt.__event_stream__;
+            window.mParticle.forwarder.eventStreamQueue = [];
+        });
+
+        it('should update userAttributes from the filtered user', () => {
+            window.mParticle.forwarder.onLogoutComplete({
+                getAllUserAttributes: function () {
+                    return { 'remaining-attr': 'some-value' };
+                },
+            });
+
+            window.mParticle.forwarder.userAttributes.should.deepEqual({
+                'remaining-attr': 'some-value',
+            });
+        });
+
+        it('should send a User Logout event to window.Rokt.__event_stream__', () => {
+            var receivedEvents = [];
+            window.Rokt.__event_stream__ = function (event) {
+                receivedEvents.push(event);
+            };
+
+            window.mParticle.forwarder.onLogoutComplete({
+                getAllUserAttributes: function () {
+                    return {};
+                },
+            });
+
+            receivedEvents.length.should.equal(1);
+            receivedEvents[0].EventName.should.equal('User Logout');
+            receivedEvents[0].EventDataType.should.equal(10);
+            receivedEvents[0].UserAttributes.should.deepEqual({});
+        });
+
+        it('should queue event when window.Rokt.__event_stream__ is not available', () => {
+            window.mParticle.forwarder.onLogoutComplete({
+                getAllUserAttributes: function () {
+                    return {};
+                },
+            });
+
+            window.mParticle.forwarder.eventStreamQueue.length.should.equal(1);
+            window.mParticle.forwarder.eventStreamQueue[0].EventName.should.equal(
+                'User Logout'
+            );
+            window.mParticle.forwarder.eventStreamQueue[0].EventDataType.should.equal(
+                10
+            );
+        });
+
+        it('should queue event when window.Rokt is undefined', () => {
+            var savedRokt = window.Rokt;
+            window.Rokt = undefined;
+
+            (function () {
+                window.mParticle.forwarder.onLogoutComplete({
+                    getAllUserAttributes: function () {
+                        return {};
+                    },
+                });
+            }).should.not.throw();
+
+            window.mParticle.forwarder.eventStreamQueue.length.should.equal(1);
+            window.mParticle.forwarder.eventStreamQueue[0].EventName.should.equal(
+                'User Logout'
+            );
+
+            window.Rokt = savedRokt;
+        });
+    });
+
     describe('#fetchOptimizely', () => {
         // Helper functions for setting up Optimizely mocks
         function setupValidOptimizelyMock(experiments) {
