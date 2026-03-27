@@ -595,7 +595,7 @@ var constructor = function () {
     function onUserIdentified(filteredUser) {
         self.filters.filteredUser = filteredUser;
         self.userAttributes = filteredUser.getAllUserAttributes();
-        _sendEventStream(_buildIdentityEvent('User Identified', filteredUser));
+        _sendEventStream(_buildIdentityEvent('identify', filteredUser));
     }
 
     function _buildIdentityEvent(eventName, filteredUser) {
@@ -627,17 +627,17 @@ var constructor = function () {
 
     function onLoginComplete(filteredUser) {
         self.userAttributes = filteredUser.getAllUserAttributes();
-        _sendEventStream(_buildIdentityEvent('User Login', filteredUser));
+        _sendEventStream(_buildIdentityEvent('login', filteredUser));
     }
 
     function onLogoutComplete(filteredUser) {
         self.userAttributes = filteredUser.getAllUserAttributes();
-        _sendEventStream(_buildIdentityEvent('User Logout', filteredUser));
+        _sendEventStream(_buildIdentityEvent('logout', filteredUser));
     }
 
     function onModifyComplete(filteredUser) {
         self.userAttributes = filteredUser.getAllUserAttributes();
-        _sendEventStream(_buildIdentityEvent('User Modified', filteredUser));
+        _sendEventStream(_buildIdentityEvent('modify_user', filteredUser));
     }
 
     function setUserAttribute(key, value) {
