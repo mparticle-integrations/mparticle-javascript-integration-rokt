@@ -617,7 +617,7 @@ var constructor = function () {
 
         return {
             EventName: eventName,
-            EventDataType: 10, // MessageType.Profile
+            EventDataType: 14, // MessageType.Profile
             Timestamp: Date.now(),
             MPID: mpid,
             SessionId: sessionId,

@@ -3180,7 +3180,7 @@ describe('Rokt Forwarder', () => {
 
             receivedEvents.length.should.equal(1);
             receivedEvents[0].EventName.should.equal('identify');
-            receivedEvents[0].EventDataType.should.equal(10);
+            receivedEvents[0].EventDataType.should.equal(14);
             receivedEvents[0].MPID.should.equal('identified-mpid-123');
             receivedEvents[0].SessionId.should.equal('test-mp-session-id');
             receivedEvents[0].UserAttributes.should.deepEqual({
@@ -3258,7 +3258,7 @@ describe('Rokt Forwarder', () => {
 
             receivedEvents.length.should.equal(1);
             receivedEvents[0].EventName.should.equal('login');
-            receivedEvents[0].EventDataType.should.equal(10);
+            receivedEvents[0].EventDataType.should.equal(14);
             receivedEvents[0].UserAttributes.should.deepEqual({
                 'user-attr': 'user-value',
             });
@@ -3319,7 +3319,7 @@ describe('Rokt Forwarder', () => {
                 'login'
             );
             window.mParticle.forwarder.eventStreamQueue[0].EventDataType.should.equal(
-                10
+                14
             );
         });
 
@@ -3391,7 +3391,7 @@ describe('Rokt Forwarder', () => {
 
             receivedEvents.length.should.equal(1);
             receivedEvents[0].EventName.should.equal('logout');
-            receivedEvents[0].EventDataType.should.equal(10);
+            receivedEvents[0].EventDataType.should.equal(14);
             receivedEvents[0].UserAttributes.should.deepEqual({});
             receivedEvents[0].MPID.should.equal('logout-mpid-456');
             receivedEvents[0].SessionId.should.equal('test-mp-session-id');
@@ -3412,7 +3412,7 @@ describe('Rokt Forwarder', () => {
                 'logout'
             );
             window.mParticle.forwarder.eventStreamQueue[0].EventDataType.should.equal(
-                10
+                14
             );
         });
 
@@ -3490,7 +3490,7 @@ describe('Rokt Forwarder', () => {
 
             receivedEvents.length.should.equal(1);
             receivedEvents[0].EventName.should.equal('modify_user');
-            receivedEvents[0].EventDataType.should.equal(10);
+            receivedEvents[0].EventDataType.should.equal(14);
             receivedEvents[0].MPID.should.equal('modify-mpid-789');
             receivedEvents[0].SessionId.should.equal('test-mp-session-id');
             receivedEvents[0].UserAttributes.should.deepEqual({
@@ -3519,7 +3519,7 @@ describe('Rokt Forwarder', () => {
                 'modify_user'
             );
             window.mParticle.forwarder.eventStreamQueue[0].EventDataType.should.equal(
-                10
+                14
             );
         });
 
