@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.19.0...v1.20.0) (2026-03-30)
+
+
+### Features
+
+* support sending login, logout, identify, and modify_user events ([#81](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/81)) ([78061a5](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/78061a54a85feb25c3e27dff445eae7f6c855b90))
+
 # [1.19.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.18.1...v1.19.0) (2026-03-25)
 
 
