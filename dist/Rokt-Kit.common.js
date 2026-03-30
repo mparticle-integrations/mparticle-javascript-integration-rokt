@@ -599,6 +599,49 @@ var constructor = function () {
     function onUserIdentified(filteredUser) {
         self.filters.filteredUser = filteredUser;
         self.userAttributes = filteredUser.getAllUserAttributes();
+        _sendEventStream(_buildIdentityEvent('identify', filteredUser));
+    }
+
+    function _buildIdentityEvent(eventName, filteredUser) {
+        var mpid =
+            filteredUser.getMPID && typeof filteredUser.getMPID === 'function'
+                ? filteredUser.getMPID()
+                : null;
+        var sessionId =
+            window.mParticle &&
+            window.mParticle.sessionManager &&
+            typeof window.mParticle.sessionManager.getSession === 'function'
+                ? window.mParticle.sessionManager.getSession()
+                : null;
+        var userIdentities =
+            filteredUser.getUserIdentities &&
+            typeof filteredUser.getUserIdentities === 'function'
+                ? filteredUser.getUserIdentities().userIdentities
+                : null;
+
+        return {
+            EventName: eventName,
+            EventDataType: 14, // MessageType.Profile
+            Timestamp: Date.now(),
+            MPID: mpid,
+            SessionId: sessionId,
+            UserIdentities: userIdentities,
+        };
+    }
+
+    function onLoginComplete(filteredUser) {
+        self.userAttributes = filteredUser.getAllUserAttributes();
+        _sendEventStream(_buildIdentityEvent('login', filteredUser));
+    }
+
+    function onLogoutComplete(filteredUser) {
+        self.userAttributes = filteredUser.getAllUserAttributes();
+        _sendEventStream(_buildIdentityEvent('logout', filteredUser));
+    }
+
+    function onModifyComplete(filteredUser) {
+        self.userAttributes = filteredUser.getAllUserAttributes();
+        _sendEventStream(_buildIdentityEvent('modify_user', filteredUser));
     }
 
     function setUserAttribute(key, value) {
@@ -717,6 +760,9 @@ var constructor = function () {
     this.setExtensionData = setExtensionData;
     this.setUserAttribute = setUserAttribute;
     this.onUserIdentified = onUserIdentified;
+    this.onLoginComplete = onLoginComplete;
+    this.onLogoutComplete = onLogoutComplete;
+    this.onModifyComplete = onModifyComplete;
     this.removeUserAttribute = removeUserAttribute;
 
     /**
@@ -825,7 +871,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.19.0";
+    var kitVersion = "1.20.0";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
