@@ -16,12 +16,18 @@ Run lint, build, and tests to verify the current state of the codebase.
 npm run lint
 ```
 
-**Build + Tests:**
+**Build:**
+```bash
+npm run build
+```
+
+**Tests:**
 ```bash
 npm run test
 ```
 
-> `npm run test` runs `npm run build && npm run build:test && karma start test/karma.config.js` — it builds the source, builds the test bundle, and runs Karma with Mocha/Chai in Chrome and Firefox.
+> `npm run test` runs Vitest in headless jsdom mode.
+> `npm run build` runs Vite and produces IIFE and CommonJS bundles + TypeScript type declarations.
 
 2. Report results in this format:
 
@@ -35,7 +41,8 @@ npm run test
 
 ## Notes
 
-- This is a plain JavaScript project — kit source is ES5-style; tests/tooling may use ES6. There is no TypeScript compilation step.
-- Build uses Rollup and produces IIFE and CommonJS bundles.
-- Tests run in real browsers (Chrome, Firefox) via Karma, not in Node/jsdom.
-- `npm run test:debug` launches Chrome in non-headless mode for interactive debugging.
+- TypeScript project — source is `src/Rokt-Kit.ts`, tests are `test/src/tests.spec.ts`
+- Build uses Vite and produces `dist/Rokt-Kit.iife.js`, `dist/Rokt-Kit.common.js`, and `dist/Rokt-Kit.d.ts`
+- Tests run in jsdom via Vitest (no browser required)
+- `npm run test:watch` runs Vitest in watch mode for development
+- `npm run test:coverage` generates a V8 coverage report

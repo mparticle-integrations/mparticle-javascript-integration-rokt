@@ -10,42 +10,45 @@ The Rokt web kit (`@mparticle/web-rokt-kit`) is an mParticle integration kit (fo
 
 ## Tech Stack
 
-- **Language**: Plain JavaScript project — kit source is ES5-style; tests/tooling may use ES6. There is no TypeScript compilation step.
-- **Build Tool**: Rollup (IIFE and CommonJS output)
-- **Testing**: Karma + Mocha/Chai (real browser tests in Chrome and Firefox)
+- **Language**: TypeScript 5.5 with `strict: true`
+- **Build Tool**: Vite (library mode, IIFE + CJS output)
+- **Testing**: Vitest with `jsdom` environment
 - **Package Manager**: npm
-- **Code Quality**: ESLint
+- **Code Quality**: ESLint v9 flat config + `@typescript-eslint/recommended`
+- **Formatting**: Prettier (120 chars, single quotes, trailing commas)
 
 ## Project Structure
 
 ```
 /
   src/
-    Rokt-Kit.js           # Single monolithic source file (~900 lines)
+    Rokt-Kit.ts           # Single monolithic source file
   dist/
     Rokt-Kit.iife.js      # Browser bundle (IIFE)
     Rokt-Kit.common.js    # npm bundle (CommonJS)
+    Rokt-Kit.d.ts         # Type definitions
   test/
     src/
-      tests.js            # Mocha/Chai test suite
-    config.js             # Test mParticle configuration
-    karma.config.js       # Karma test runner config
+      tests.spec.ts       # Vitest test suite
+    vitest.setup.ts       # Global test setup / mParticle mock
     lib/                  # Test utilities
     end-to-end-testapp/   # E2E test app
-  rollup.config.js        # Build configuration
+  vite.config.ts          # Build + test configuration
+  tsconfig.json           # TypeScript config (src only)
+  tsconfig.test.json      # TypeScript config (src + test)
+  eslint.config.mjs       # ESLint v9 flat config
   package.json
 ```
 
 ## Key Commands
 
 ```bash
-npm run build          # Build IIFE and CommonJS bundles
-npm run build:test     # Build test bundle
-npm run lint           # ESLint check (src/ and test/src/)
+npm run build          # Vite build (IIFE + CJS + type defs)
+npm run lint           # ESLint check
 npm run lint:fix       # ESLint autofix
-npm run test           # Build + build tests + run Karma
-npm run test:debug     # Non-headless Chrome for debugging
-npm run watch          # Watch and rebuild on changes
+npm run test           # Vitest run
+npm run test:watch     # Vitest watch mode
+npm run test:coverage  # Vitest with V8 coverage
 ```
 
 ## Build Artifacts — Do Not Commit
@@ -54,10 +57,10 @@ The `dist/` folder, `CHANGELOG.md`, and version bumps in `package.json`/`package
 
 ## Code Conventions
 
-- **Single source file**: All kit logic lives in `src/Rokt-Kit.js`
-- **Constructor function pattern**: `var constructor = function() { ... }` with `var self = this;`
-- **var declarations**: The codebase uses `var` throughout — match this style
-- **No TypeScript**: No type annotations, no interfaces, no generics
+- **Single source file**: All kit logic lives in `src/Rokt-Kit.ts`
+- **TypeScript class pattern**: `class RoktKit { ... }` with typed public/private members
+- **const/let**: Use `const` for values that don't change, `let` for reassignable variables
+- **Strict TypeScript**: `strict: true` — all values must be typed, no implicit `any`
 - **Module registration**: Kit self-registers via `window.mParticle.addForwarder()` at load time
 
 ## Architecture
@@ -69,19 +72,19 @@ The `dist/` folder, `CHANGELOG.md`, and version bumps in `package.json`/`package
 
 ## Testing Patterns
 
-- Tests use Mocha `describe`/`it` blocks with Chai `expect` assertions
-- mParticle SDK is mocked in test config
-- Rokt launcher is mocked with spy functions
+- Tests use Vitest `describe`/`it` blocks with `expect()` assertions
+- `window.mParticle` is mocked in `test/vitest.setup.ts`
+- Rokt launcher is mocked with `vi.fn()` spy functions
 - `beforeEach` resets kit state between tests
-- Tests run in real browsers (Chrome, Firefox) via Karma
+- Tests run headlessly in jsdom via Vitest
 
 ## Common Gotchas
 
-1. **Single file**: All changes go in `src/Rokt-Kit.js` — there are no imports/modules
+1. **Single file**: All changes go in `src/Rokt-Kit.ts` — there are no imports/modules
 2. **Browser-only**: Code runs in browser context, `window` is always available
 3. **Async launcher**: Rokt launcher loads asynchronously — events must be queued until ready
-4. **var scope**: Use `var` not `let`/`const` to match existing style
-5. **self reference**: Use `var self = this;` pattern for callback context
+4. **Window extensions**: `window.Rokt` and `window.mParticle.Rokt` are typed via `declare global`
+5. **Test isolation**: Each test resets `window.mParticle.forwarder` state in `beforeEach`
 
 ## Available Skills
 
