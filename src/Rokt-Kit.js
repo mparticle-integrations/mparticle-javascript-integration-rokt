@@ -642,6 +642,12 @@ var constructor = function () {
 
     function setUserAttribute(key, value) {
         self.userAttributes[key] = value;
+        _sendEventStream(
+            _buildIdentityEvent(
+                'set_user_attributes',
+                self.filters.filteredUser || {}
+            )
+        );
     }
 
     function removeUserAttribute(key) {

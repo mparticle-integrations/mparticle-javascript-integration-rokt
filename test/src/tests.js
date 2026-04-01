@@ -3111,6 +3111,128 @@ describe('Rokt Forwarder', () => {
                 'test-attribute': 'test-value',
             });
         });
+
+        describe('event stream', () => {
+            beforeEach(() => {
+                window.mParticle.forwarder.eventStreamQueue = [];
+                window.mParticle.sessionManager = {
+                    getSession: function () {
+                        return 'test-mp-session-id';
+                    },
+                };
+            });
+
+            afterEach(() => {
+                delete window.Rokt.__event_stream__;
+                window.mParticle.forwarder.eventStreamQueue = [];
+            });
+
+            it('should send a set_user_attributes event to window.Rokt.__event_stream__', () => {
+                var receivedEvents = [];
+                window.Rokt.__event_stream__ = function (event) {
+                    receivedEvents.push(event);
+                };
+
+                window.mParticle.forwarder.setUserAttribute(
+                    'test-attribute',
+                    'test-value'
+                );
+
+                receivedEvents.length.should.equal(1);
+                receivedEvents[0].EventName.should.equal('set_user_attributes');
+                receivedEvents[0].EventDataType.should.equal(14);
+            });
+
+            it('should include updated UserAttributes in the event', () => {
+                var receivedEvents = [];
+                window.Rokt.__event_stream__ = function (event) {
+                    receivedEvents.push(event);
+                };
+
+                window.mParticle.forwarder.setUserAttribute(
+                    'new-attr',
+                    'new-value'
+                );
+
+                receivedEvents[0].UserAttributes.should.deepEqual({
+                    'new-attr': 'new-value',
+                });
+            });
+
+            it('should include MPID from filteredUser and SessionId from sessionManager', () => {
+                var receivedEvents = [];
+                window.Rokt.__event_stream__ = function (event) {
+                    receivedEvents.push(event);
+                };
+
+                window.mParticle.forwarder.filters.filteredUser = {
+                    getMPID: function () {
+                        return 'attr-mpid-123';
+                    },
+                    getUserIdentities: function () {
+                        return {
+                            userIdentities: { email: 'user@example.com' },
+                        };
+                    },
+                };
+
+                window.mParticle.forwarder.setUserAttribute('k', 'v');
+
+                receivedEvents[0].MPID.should.equal('attr-mpid-123');
+                receivedEvents[0].SessionId.should.equal('test-mp-session-id');
+                receivedEvents[0].UserIdentities.should.deepEqual({
+                    email: 'user@example.com',
+                });
+            });
+
+            it('should include null MPID and null UserIdentities when filteredUser is not set', () => {
+                var receivedEvents = [];
+                window.Rokt.__event_stream__ = function (event) {
+                    receivedEvents.push(event);
+                };
+
+                window.mParticle.forwarder.filters.filteredUser = null;
+                window.mParticle.forwarder.setUserAttribute('k', 'v');
+
+                (receivedEvents[0].MPID === null).should.be.true();
+                (receivedEvents[0].UserIdentities === null).should.be.true();
+            });
+
+            it('should queue event when window.Rokt.__event_stream__ is not available', () => {
+                window.mParticle.forwarder.setUserAttribute(
+                    'queued-attr',
+                    'queued-value'
+                );
+
+                window.mParticle.forwarder.eventStreamQueue.length.should.equal(
+                    1
+                );
+                window.mParticle.forwarder.eventStreamQueue[0].EventName.should.equal(
+                    'set_user_attributes'
+                );
+                window.mParticle.forwarder.eventStreamQueue[0].EventDataType.should.equal(
+                    14
+                );
+            });
+
+            it('should not throw when window.Rokt is undefined', () => {
+                var savedRokt = window.Rokt;
+                window.Rokt = undefined;
+
+                (function () {
+                    window.mParticle.forwarder.setUserAttribute('k', 'v');
+                }).should.not.throw();
+
+                window.mParticle.forwarder.eventStreamQueue.length.should.equal(
+                    1
+                );
+                window.mParticle.forwarder.eventStreamQueue[0].EventName.should.equal(
+                    'set_user_attributes'
+                );
+
+                window.Rokt = savedRokt;
+            });
+        });
     });
 
     describe('#removeUserAttribute', () => {
