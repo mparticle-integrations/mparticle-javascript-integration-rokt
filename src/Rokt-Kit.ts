@@ -911,29 +911,13 @@ class RoktKit {
 
     const selection = this.launcher!.selectPlacements(selectPlacementsOptions);
 
-    // After selection resolves, sync the Rokt session ID back to mParticle
-    if (selection && typeof (selection as Promise<RoktSelection>).then === 'function') {
-      (selection as Promise<RoktSelection>)
-        .then((sel) => {
-          if (sel && sel.context && sel.context.sessionId) {
-            sel.context.sessionId
-              .then((sessionId) => {
-                this.setRoktSessionId(sessionId);
-                this.logSelectPlacementsEvent(selectPlacementsAttributes);
-              })
-              .catch(() => {
-                this.logSelectPlacementsEvent(selectPlacementsAttributes);
-              });
-          } else {
-            this.logSelectPlacementsEvent(selectPlacementsAttributes);
-          }
-        })
-        .catch(() => {
-          this.logSelectPlacementsEvent(selectPlacementsAttributes);
-        });
-    } else {
-      this.logSelectPlacementsEvent(selectPlacementsAttributes);
-    }
+    // After selection resolves, sync the Rokt session ID back to mParticle, then log
+    const logSelection = () => this.logSelectPlacementsEvent(selectPlacementsAttributes);
+
+    void Promise.resolve(selection)
+      .then((sel) => sel?.context?.sessionId?.then((sessionId) => this.setRoktSessionId(sessionId)))
+      .catch(() => undefined)
+      .finally(logSelection);
 
     return selection;
   }

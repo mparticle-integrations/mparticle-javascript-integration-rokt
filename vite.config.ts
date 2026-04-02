@@ -5,6 +5,7 @@ import { resolve } from 'path';
 
 export default defineConfig({
   build: {
+    target: 'es2020',
     lib: {
       entry: resolve(__dirname, 'src/Rokt-Kit.ts'),
       name: 'RoktKit',
