@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.20.0...v1.21.0) (2026-04-03)
+
+
+### Features
+
+* send set_user_attributes event ([#82](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/82)) ([9995f09](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/9995f09a008a5acc6355306e109a683f8d80cd91))
+
 # [1.20.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.19.0...v1.20.0) (2026-03-30)
 
 
