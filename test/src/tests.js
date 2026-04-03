@@ -5,6 +5,8 @@ const packageVersion = require('../../package.json').version;
 const sdkVersion = 'mParticle_wsdkv_1.2.3';
 const kitVersion = 'kitv_' + packageVersion;
 
+// Reporting service classes are exposed via testHelpers after kit init
+
 const waitForCondition = async (conditionFn, timeout = 200, interval = 10) => {
     return new Promise((resolve, reject) => {
         const startTime = Date.now();
@@ -22,6 +24,14 @@ const waitForCondition = async (conditionFn, timeout = 200, interval = 10) => {
 };
 
 describe('Rokt Forwarder', () => {
+    // Reporting service classes from testHelpers (populated after kit init)
+    var _ReportingTransport;
+    var ErrorReportingService;
+    var LoggingService;
+    var RateLimiter;
+    var ErrorCodes;
+    var WSDKErrorSeverity;
+
     var EventType = {
         Unknown: 0,
         Navigation: 1,
@@ -155,7 +165,42 @@ describe('Rokt Forwarder', () => {
         this.currentLauncher = function () {};
     };
 
-    before(() => {});
+    before(async () => {
+        // Run a minimal init in testMode to populate testHelpers
+        window.Rokt = new MockRoktForwarder();
+        window.mParticle.Rokt = window.Rokt;
+        window.mParticle.Rokt.attachKit = async (kit) => {
+            window.mParticle.Rokt.kit = kit;
+            Promise.resolve();
+        };
+        window.mParticle.Rokt.filters = {
+            userAttributesFilters: [],
+            filterUserAttributes: function (attributes) {
+                return attributes;
+            },
+            filteredUser: {
+                getMPID: function () {
+                    return '123';
+                },
+            },
+        };
+        await mParticle.forwarder.init(
+            { accountId: '000000' },
+            reportService.cb,
+            true,
+            null,
+            {}
+        );
+
+        var testHelpers = window.mParticle.forwarder.testHelpers;
+        _ReportingTransport = testHelpers && testHelpers.ReportingTransport;
+        ErrorReportingService =
+            testHelpers && testHelpers.ErrorReportingService;
+        LoggingService = testHelpers && testHelpers.LoggingService;
+        RateLimiter = testHelpers && testHelpers.RateLimiter;
+        ErrorCodes = testHelpers && testHelpers.ErrorCodes;
+        WSDKErrorSeverity = testHelpers && testHelpers.WSDKErrorSeverity;
+    });
 
     beforeEach(() => {
         window.Rokt = new MockRoktForwarder();
@@ -6161,6 +6206,668 @@ describe('Rokt Forwarder', () => {
             );
 
             (controlIframe === undefined).should.be.true();
+        });
+    });
+
+    describe('ErrorReportingService', () => {
+        var originalFetch;
+        var mockFetch;
+        var fetchCalls;
+        var originalROKT_DOMAIN;
+        var originalLocation;
+        var originalNavigator;
+
+        beforeEach(() => {
+            fetchCalls = [];
+            mockFetch = function (url, options) {
+                fetchCalls.push({ url: url, options: options });
+                return Promise.resolve({ ok: true });
+            };
+            originalFetch = window.fetch;
+            window.fetch = mockFetch;
+
+            originalROKT_DOMAIN = window.ROKT_DOMAIN;
+            window.ROKT_DOMAIN = 'set';
+
+            originalLocation = window.location;
+            originalNavigator = window.navigator;
+        });
+
+        afterEach(() => {
+            window.fetch = originalFetch;
+            window.ROKT_DOMAIN = originalROKT_DOMAIN;
+            try {
+                Object.defineProperty(window, 'location', {
+                    writable: true,
+                    value: originalLocation,
+                });
+            } catch (_e) {}
+            try {
+                Object.defineProperty(window, 'navigator', {
+                    writable: true,
+                    value: originalNavigator,
+                });
+            } catch (_e) {}
+        });
+
+        it('should send error reports to the errors endpoint', () => {
+            var service = new ErrorReportingService(
+                {
+                    errorUrl: 'test.com/v1/errors',
+                    isLoggingEnabled: true,
+                },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'test error',
+                code: ErrorCodes.UNHANDLED_EXCEPTION,
+                severity: WSDKErrorSeverity.ERROR,
+                stackTrace: 'stack',
+            });
+
+            fetchCalls.length.should.equal(1);
+            fetchCalls[0].url.should.equal('https://test.com/v1/errors');
+            var body = JSON.parse(fetchCalls[0].options.body);
+            body.severity.should.equal('ERROR');
+            body.code.should.equal('UNHANDLED_EXCEPTION');
+            body.stackTrace.should.equal('stack');
+            body.reporter.should.equal('mp-wsdk');
+        });
+
+        it('should send warning reports to the errors endpoint', () => {
+            var service = new ErrorReportingService(
+                {
+                    errorUrl: 'test.com/v1/errors',
+                    isLoggingEnabled: true,
+                },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'test warning',
+                code: ErrorCodes.UNHANDLED_EXCEPTION,
+                severity: WSDKErrorSeverity.WARNING,
+            });
+
+            fetchCalls.length.should.equal(1);
+            fetchCalls[0].url.should.equal('https://test.com/v1/errors');
+            var body = JSON.parse(fetchCalls[0].options.body);
+            body.severity.should.equal('WARNING');
+        });
+
+        it('should send info reports to the error endpoint (error service only handles error url)', () => {
+            var service = new ErrorReportingService(
+                {
+                    errorUrl: 'test.com/v1/errors',
+                    isLoggingEnabled: true,
+                },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'info message',
+                code: ErrorCodes.UNHANDLED_EXCEPTION,
+                severity: WSDKErrorSeverity.INFO,
+            });
+
+            fetchCalls.length.should.equal(1);
+            fetchCalls[0].url.should.equal('https://test.com/v1/errors');
+            var body = JSON.parse(fetchCalls[0].options.body);
+            body.severity.should.equal('INFO');
+        });
+
+        it('should not send when ROKT_DOMAIN is missing and feature flag is off', () => {
+            window.ROKT_DOMAIN = undefined;
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: false },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'should not send',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            fetchCalls.length.should.equal(0);
+        });
+
+        it('should not send when feature flag is off and debug mode is off', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: false },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'should not send',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            fetchCalls.length.should.equal(0);
+        });
+
+        it('should send when debug mode is enabled even without ROKT_DOMAIN', () => {
+            window.ROKT_DOMAIN = undefined;
+            // Set debug mode via location search using history.pushState
+            var originalSearch = window.location.search;
+            window.history.pushState(
+                {},
+                '',
+                window.location.pathname + '?mp_enable_logging=true'
+            );
+
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: false },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'debug message',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            fetchCalls.length.should.equal(1);
+
+            // Restore original URL
+            window.history.pushState(
+                {},
+                '',
+                window.location.pathname + originalSearch
+            );
+        });
+
+        it('should include correct headers', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'test',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            fetchCalls.length.should.equal(1);
+            var headers = fetchCalls[0].options.headers;
+            headers['Accept'].should.equal('text/plain;charset=UTF-8');
+            headers['Content-Type'].should.equal('application/json');
+            headers['rokt-launcher-instance-guid'].should.equal('test-guid');
+            headers['rokt-wsdk-version'].should.equal('joint');
+        });
+
+        it('should omit rokt-launcher-instance-guid header when guid is undefined', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '1.0.0',
+                undefined
+            );
+
+            service.report({
+                message: 'test',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            fetchCalls.length.should.equal(1);
+            var headers = fetchCalls[0].options.headers;
+            (
+                headers['rokt-launcher-instance-guid'] === undefined
+            ).should.be.true();
+        });
+
+        it('should include rokt-account-id header when accountId is provided', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                'test-integration',
+                'test-guid',
+                '1234567890'
+            );
+
+            service.report({
+                message: 'test',
+                severity: WSDKErrorSeverity.WARNING,
+            });
+
+            fetchCalls.length.should.equal(1);
+            fetchCalls[0].options.headers['rokt-account-id'].should.equal(
+                '1234567890'
+            );
+        });
+
+        it('should not include rokt-account-id header when accountId is not provided', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                'test-integration',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'test',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            fetchCalls.length.should.equal(1);
+            (
+                fetchCalls[0].options.headers['rokt-account-id'] === undefined
+            ).should.be.true();
+        });
+
+        it('should use default UNKNOWN_ERROR code when code is not provided', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'test',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            var body = JSON.parse(fetchCalls[0].options.body);
+            body.code.should.equal('UNKNOWN_ERROR');
+        });
+
+        it('should use default Rokt error URL when not configured', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'test error',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            fetchCalls[0].url.should.equal(
+                'https://apps.rokt-api.com/v1/errors'
+            );
+        });
+
+        it('should include all required fields in the log request body', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                'test-integration',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'error message',
+                code: ErrorCodes.IDENTITY_REQUEST,
+                severity: WSDKErrorSeverity.ERROR,
+                stackTrace: 'stack trace here',
+            });
+
+            var body = JSON.parse(fetchCalls[0].options.body);
+            body.additionalInformation.message.should.equal('error message');
+            body.additionalInformation.version.should.equal('test-integration');
+            body.severity.should.equal('ERROR');
+            body.code.should.equal('IDENTITY_REQUEST');
+            body.stackTrace.should.equal('stack trace here');
+            body.reporter.should.equal('mp-wsdk');
+            body.integration.should.equal('test-integration');
+        });
+
+        it('should use empty integration values when no integration name is provided', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'test',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            var body = JSON.parse(fetchCalls[0].options.body);
+            body.reporter.should.equal('mp-wsdk');
+            body.integration.should.equal('');
+            body.additionalInformation.version.should.equal('');
+        });
+
+        it('should not throw when fetch fails', (done) => {
+            window.fetch = function () {
+                return Promise.reject(new Error('Network failure'));
+            };
+            var consoleErrors = [];
+            var originalConsoleError = console.error;
+            console.error = function () {
+                consoleErrors.push(Array.prototype.slice.call(arguments));
+            };
+
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report({
+                message: 'test',
+                severity: WSDKErrorSeverity.ERROR,
+            });
+
+            // Wait for the promise rejection to be handled
+            setTimeout(function () {
+                consoleErrors.length.should.be.above(0);
+                consoleErrors[0][0].should.equal(
+                    'ReportingTransport: Failed to send log'
+                );
+                console.error = originalConsoleError;
+                done();
+            }, 50);
+        });
+
+        it('should not send when report is called with null', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.report(null);
+            fetchCalls.length.should.equal(0);
+        });
+    });
+
+    describe('LoggingService', () => {
+        var originalFetch;
+        var mockFetch;
+        var fetchCalls;
+        var originalROKT_DOMAIN;
+
+        beforeEach(() => {
+            fetchCalls = [];
+            mockFetch = function (url, options) {
+                fetchCalls.push({ url: url, options: options });
+                return Promise.resolve({ ok: true });
+            };
+            originalFetch = window.fetch;
+            window.fetch = mockFetch;
+
+            originalROKT_DOMAIN = window.ROKT_DOMAIN;
+            window.ROKT_DOMAIN = 'set';
+        });
+
+        afterEach(() => {
+            window.fetch = originalFetch;
+            window.ROKT_DOMAIN = originalROKT_DOMAIN;
+        });
+
+        it('should always send to the logging endpoint with severity INFO', () => {
+            var errorService = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '1.0.0',
+                'test-guid'
+            );
+            var service = new LoggingService(
+                { loggingUrl: 'test.com/v1/log', isLoggingEnabled: true },
+                errorService,
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.log({
+                message: 'log entry',
+                code: ErrorCodes.UNKNOWN_ERROR,
+            });
+
+            fetchCalls.length.should.equal(1);
+            fetchCalls[0].url.should.equal('https://test.com/v1/log');
+            var body = JSON.parse(fetchCalls[0].options.body);
+            body.severity.should.equal('INFO');
+            body.additionalInformation.message.should.equal('log entry');
+        });
+
+        it('should report failure through ErrorReportingService on fetch error', (done) => {
+            var errorReports = [];
+            var errorService = {
+                report: function (error) {
+                    errorReports.push(error);
+                },
+            };
+            window.fetch = function () {
+                return Promise.reject(new Error('Network failure'));
+            };
+            var originalConsoleError = console.error;
+            console.error = function () {};
+
+            var service = new LoggingService(
+                { isLoggingEnabled: true },
+                errorService,
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.log({ message: 'test' });
+
+            setTimeout(function () {
+                errorReports.length.should.be.above(0);
+                errorReports[0].severity.should.equal('ERROR');
+                errorReports[0].message.should.containEql('Failed to send log');
+                console.error = originalConsoleError;
+                done();
+            }, 50);
+        });
+
+        it('should not send when log is called with null', () => {
+            var errorService = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '1.0.0',
+                'test-guid'
+            );
+            var service = new LoggingService(
+                { isLoggingEnabled: true },
+                errorService,
+                '1.0.0',
+                'test-guid'
+            );
+
+            service.log(null);
+            fetchCalls.length.should.equal(0);
+        });
+    });
+
+    describe('RateLimiter', () => {
+        it('should allow up to 10 logs per severity then rate limit', () => {
+            var limiter = new RateLimiter();
+            for (var i = 0; i < 10; i++) {
+                limiter.incrementAndCheck('ERROR').should.be.false();
+            }
+            limiter.incrementAndCheck('ERROR').should.be.true();
+            limiter.incrementAndCheck('ERROR').should.be.true();
+        });
+
+        it('should allow up to 10 warning logs then rate limit', () => {
+            var limiter = new RateLimiter();
+            for (var i = 0; i < 10; i++) {
+                limiter.incrementAndCheck('WARNING').should.be.false();
+            }
+            limiter.incrementAndCheck('WARNING').should.be.true();
+        });
+
+        it('should allow up to 10 info logs then rate limit', () => {
+            var limiter = new RateLimiter();
+            for (var i = 0; i < 10; i++) {
+                limiter.incrementAndCheck('INFO').should.be.false();
+            }
+            limiter.incrementAndCheck('INFO').should.be.true();
+        });
+
+        it('should track rate limits independently per severity', () => {
+            var limiter = new RateLimiter();
+            for (var i = 0; i < 10; i++) {
+                limiter.incrementAndCheck('ERROR');
+            }
+            limiter.incrementAndCheck('ERROR').should.be.true();
+            limiter.incrementAndCheck('WARNING').should.be.false();
+        });
+    });
+
+    describe('ErrorReportingService rate limiting', () => {
+        var originalFetch;
+        var fetchCalls;
+        var originalROKT_DOMAIN;
+
+        beforeEach(() => {
+            fetchCalls = [];
+            originalFetch = window.fetch;
+            window.fetch = function (url, options) {
+                fetchCalls.push({ url: url, options: options });
+                return Promise.resolve({ ok: true });
+            };
+
+            originalROKT_DOMAIN = window.ROKT_DOMAIN;
+            window.ROKT_DOMAIN = 'set';
+        });
+
+        afterEach(() => {
+            window.fetch = originalFetch;
+            window.ROKT_DOMAIN = originalROKT_DOMAIN;
+        });
+
+        it('should rate limit after 10 errors', () => {
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                '1.0.0',
+                'test-guid'
+            );
+
+            for (var i = 0; i < 15; i++) {
+                service.report({
+                    message: 'error ' + i,
+                    severity: WSDKErrorSeverity.ERROR,
+                });
+            }
+
+            fetchCalls.length.should.equal(10);
+        });
+
+        it('should rate limit with custom rate limiter', () => {
+            var count = 0;
+            var customLimiter = {
+                incrementAndCheck: function () {
+                    return ++count > 3;
+                },
+            };
+
+            var service = new ErrorReportingService(
+                { isLoggingEnabled: true },
+                'test-integration',
+                'test-guid',
+                null,
+                customLimiter
+            );
+
+            for (var i = 0; i < 5; i++) {
+                service.report({
+                    message: 'error ' + i,
+                    severity: WSDKErrorSeverity.ERROR,
+                });
+            }
+
+            fetchCalls.length.should.equal(3);
+        });
+    });
+
+    describe('Reporting service registration', () => {
+        it('should register services with mParticle if methods exist', async () => {
+            var registeredErrorService = null;
+            var registeredLoggingService = null;
+
+            window.mParticle._registerErrorReportingService = function (
+                service
+            ) {
+                registeredErrorService = service;
+            };
+            window.mParticle._registerLoggingService = function (service) {
+                registeredLoggingService = service;
+            };
+
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+            window.mParticle.Rokt.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            };
+
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                    isLoggingEnabled: 'true',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            (registeredErrorService !== null).should.be.true();
+            (registeredLoggingService !== null).should.be.true();
+            (typeof registeredErrorService.report).should.equal('function');
+            (typeof registeredLoggingService.log).should.equal('function');
+
+            // Cleanup
+            delete window.mParticle._registerErrorReportingService;
+            delete window.mParticle._registerLoggingService;
+        });
+
+        it('should not throw when registration methods do not exist', async () => {
+            delete window.mParticle._registerErrorReportingService;
+            delete window.mParticle._registerLoggingService;
+
+            window.Rokt = new MockRoktForwarder();
+            window.mParticle.Rokt = window.Rokt;
+            window.mParticle.Rokt.attachKitCalled = false;
+            window.mParticle.Rokt.attachKit = async (kit) => {
+                window.mParticle.Rokt.attachKitCalled = true;
+                window.mParticle.Rokt.kit = kit;
+                Promise.resolve();
+            };
+            window.mParticle.Rokt.filters = {
+                userAttributesFilters: [],
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                },
+            };
+
+            // Should not throw
+            await mParticle.forwarder.init(
+                {
+                    accountId: '123456',
+                },
+                reportService.cb,
+                true,
+                null,
+                {}
+            );
+
+            window.mParticle.forwarder.isInitialized.should.not.be.undefined();
         });
     });
 });
