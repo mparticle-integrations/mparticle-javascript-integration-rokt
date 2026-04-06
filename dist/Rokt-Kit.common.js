@@ -646,6 +646,12 @@ var constructor = function () {
 
     function setUserAttribute(key, value) {
         self.userAttributes[key] = value;
+        _sendEventStream(
+            _buildIdentityEvent(
+                'set_user_attributes',
+                self.filters.filteredUser || {}
+            )
+        );
     }
 
     function removeUserAttribute(key) {
@@ -871,7 +877,7 @@ var constructor = function () {
 
 function generateIntegrationName(customIntegrationName) {
     var coreSdkVersion = window.mParticle.getVersion();
-    var kitVersion = "1.20.0";
+    var kitVersion = "1.21.0";
     var name = 'mParticle_' + 'wsdkv_' + coreSdkVersion + '_kitv_' + kitVersion;
 
     if (customIntegrationName) {
