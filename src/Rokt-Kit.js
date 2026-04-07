@@ -17,6 +17,13 @@ var name = 'Rokt';
 var moduleId = 181;
 var EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 
+var PRELOAD_CONFIGS = {
+    '2550745407543340151': {
+        requiredAttributes: ['email', 'firstname', 'cartitems'],
+        identifier: 'RoktExperience',
+    },
+};
+
 var constructor = function () {
     var self = this;
     var PerformanceMarks = {
@@ -40,6 +47,8 @@ var constructor = function () {
     self.placementEventAttributeMappingLookup = {};
     self.eventQueue = [];
     self.integrationName = null;
+    self.accountId = null;
+    self.hasPreloaded = false;
 
     function getEventAttributeValue(event, eventAttributeKey) {
         var attributes = event && event.EventAttributes;
@@ -221,6 +230,7 @@ var constructor = function () {
         filteredUserAttributes
     ) {
         var accountId = settings.accountId;
+        self.accountId = accountId;
         var roktExtensions = extractRoktExtensions(settings.roktExtensions);
         self.userAttributes = filteredUserAttributes || {};
         self.onboardingExpProvider = settings.onboardingExpProvider;
@@ -517,6 +527,8 @@ var constructor = function () {
             var mappedValue = self.placementEventMappingLookup[hashedEvent];
             window.mParticle.Rokt.setLocalSessionAttribute(mappedValue, true);
         }
+
+        tryPreloadIfReady();
     }
 
     function _sendEventStream(event) {
@@ -528,10 +540,12 @@ var constructor = function () {
     function onUserIdentified(filteredUser) {
         self.filters.filteredUser = filteredUser;
         self.userAttributes = filteredUser.getAllUserAttributes();
+        tryPreloadIfReady();
     }
 
     function setUserAttribute(key, value) {
         self.userAttributes[key] = value;
+        tryPreloadIfReady();
     }
 
     function removeUserAttribute(key) {
@@ -583,6 +597,7 @@ var constructor = function () {
         // Attaches the kit to the Rokt manager
         window.mParticle.Rokt.attachKit(self);
         processEventQueue();
+        tryPreloadIfReady();
     }
 
     // mParticle Kit Callback Methods
@@ -649,6 +664,34 @@ var constructor = function () {
      */
     function isKitReady() {
         return !!(self.isInitialized && self.launcher);
+    }
+
+    function tryPreloadIfReady() {
+        if (!isKitReady() || self.hasPreloaded) {
+            return;
+        }
+        var config = PRELOAD_CONFIGS[self.accountId];
+        if (!config) {
+            return;
+        }
+        var mergedAttributes = mergeObjects(
+            returnUserIdentities(self.filters && self.filters.filteredUser),
+            self.userAttributes,
+            returnLocalSessionAttributes()
+        );
+        for (var i = 0; i < config.requiredAttributes.length; i++) {
+            if (mergedAttributes[config.requiredAttributes[i]] == null) {
+                return;
+            }
+        }
+        self.hasPreloaded = true;
+        selectPlacements({
+            identifier: config.identifier,
+            omitUrl: true,
+            preload: true,
+        }).catch(function (err) {
+            console.error('Rokt Kit: preload failed', err);
+        });
     }
 
     function isPartnerInLocalLauncherTestGroup() {

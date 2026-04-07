@@ -2895,6 +2895,124 @@ describe('Rokt Forwarder', () => {
         });
     });
 
+    describe('#tryPreloadIfReady', () => {
+        var ULTA_ACCOUNT_ID = '2550745407543340151';
+        var preloadCallOptions;
+        var preloadCallCount;
+
+        beforeEach(() => {
+            preloadCallOptions = null;
+            preloadCallCount = 0;
+
+            window.mParticle.Rokt.setLocalSessionAttribute = function (
+                key,
+                value
+            ) {
+                mParticle._Store.localSessionAttributes[key] = value;
+            };
+            window.mParticle.Rokt.getLocalSessionAttributes = function () {
+                return mParticle._Store.localSessionAttributes || {};
+            };
+            mParticle._Store.localSessionAttributes = {};
+
+            window.mParticle.forwarder.isInitialized = true;
+            window.mParticle.forwarder.accountId = ULTA_ACCOUNT_ID;
+            window.mParticle.forwarder.hasPreloaded = false;
+            window.mParticle.forwarder.launcher = {
+                selectPlacements: function (options) {
+                    preloadCallCount++;
+                    preloadCallOptions = options;
+                    return Promise.resolve();
+                },
+            };
+            window.mParticle.forwarder.filters = {
+                filterUserAttributes: function (attributes) {
+                    return attributes;
+                },
+                filteredUser: {
+                    getMPID: function () {
+                        return '123';
+                    },
+                    getUserIdentities: function () {
+                        return { userIdentities: {} };
+                    },
+                },
+            };
+        });
+
+        it('should not preload for an unknown account id', () => {
+            window.mParticle.forwarder.accountId = '999999';
+            window.mParticle.forwarder.userAttributes = {
+                email: 'test@example.com',
+                firstname: 'Jane',
+                cartitems: '2',
+            };
+
+            window.mParticle.forwarder.setUserAttribute('email', 'test@example.com');
+
+            preloadCallCount.should.equal(0);
+        });
+
+        it('should not preload when only some required attributes are present', () => {
+            window.mParticle.forwarder.setUserAttribute('email', 'test@example.com');
+            window.mParticle.forwarder.setUserAttribute('firstname', 'Jane');
+
+            preloadCallCount.should.equal(0);
+        });
+
+        it('should preload when all required attributes are set via setUserAttribute', async () => {
+            window.mParticle.forwarder.setUserAttribute('email', 'test@example.com');
+            window.mParticle.forwarder.setUserAttribute('firstname', 'Jane');
+            window.mParticle.forwarder.setUserAttribute('cartitems', '3');
+
+            preloadCallCount.should.equal(1);
+            preloadCallOptions.identifier.should.equal('RoktExperience');
+            preloadCallOptions.omitUrl.should.equal(true);
+            preloadCallOptions.preload.should.equal(true);
+        });
+
+        it('should preload when all required attributes are provided via onUserIdentified', () => {
+            window.mParticle.forwarder.onUserIdentified({
+                getAllUserAttributes: function () {
+                    return {
+                        email: 'test@example.com',
+                        firstname: 'Jane',
+                        cartitems: '3',
+                    };
+                },
+                getMPID: function () {
+                    return '123';
+                },
+                getUserIdentities: function () {
+                    return { userIdentities: {} };
+                },
+            });
+
+            preloadCallCount.should.equal(1);
+            preloadCallOptions.identifier.should.equal('RoktExperience');
+            preloadCallOptions.omitUrl.should.equal(true);
+            preloadCallOptions.preload.should.equal(true);
+        });
+
+        it('should only preload once per session even when attributes are updated again', () => {
+            window.mParticle.forwarder.setUserAttribute('email', 'test@example.com');
+            window.mParticle.forwarder.setUserAttribute('firstname', 'Jane');
+            window.mParticle.forwarder.setUserAttribute('cartitems', '3');
+            window.mParticle.forwarder.setUserAttribute('cartitems', '5');
+
+            preloadCallCount.should.equal(1);
+        });
+
+        it('should not preload if the kit is not initialized', () => {
+            window.mParticle.forwarder.isInitialized = false;
+            window.mParticle.forwarder.setUserAttribute('email', 'test@example.com');
+            window.mParticle.forwarder.setUserAttribute('firstname', 'Jane');
+            window.mParticle.forwarder.setUserAttribute('cartitems', '3');
+
+            preloadCallCount.should.equal(0);
+        });
+    });
+
     describe('#fetchOptimizely', () => {
         // Helper functions for setting up Optimizely mocks
         function setupValidOptimizelyMock(experiments) {
