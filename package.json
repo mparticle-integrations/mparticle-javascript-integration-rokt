@@ -3,9 +3,18 @@
   "version": "1.21.0",
   "description": "mParticle integration kit for Rokt",
   "main": "dist/Rokt-Kit.common.js",
+  "module": "dist/Rokt-Kit.esm.js",
   "types": "dist/Rokt-Kit.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/Rokt-Kit.d.ts",
+      "import": "./dist/Rokt-Kit.esm.js",
+      "require": "./dist/Rokt-Kit.common.js"
+    }
+  },
   "files": [
     "dist/Rokt-Kit.common.js",
+    "dist/Rokt-Kit.esm.js",
     "dist/Rokt-Kit.iife.js",
     "dist/Rokt-Kit.d.ts"
   ],
@@ -16,8 +25,7 @@
     "lint:fix": "eslint \"src/**/*.ts\" \"test/**/*.ts\" --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:coverage": "vitest run --coverage"
   },
   "publishConfig": {
     "access": "public",

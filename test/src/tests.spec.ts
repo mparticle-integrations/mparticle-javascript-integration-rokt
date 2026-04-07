@@ -2890,12 +2890,60 @@ describe('Rokt Forwarder', () => {
   });
 
   describe('#setUserAttribute', () => {
+    beforeEach(() => {
+      (window as any).mParticle.sessionManager = {
+        getSession: function () {
+          return 'test-mp-session-id';
+        },
+      };
+    });
+    afterEach(() => {
+      delete (window as any).Rokt.__event_stream__;
+      (window as any).mParticle.forwarder.eventStreamQueue = [];
+    });
+
     it('should set the user attribute', async () => {
       (window as any).mParticle.forwarder.setUserAttribute('test-attribute', 'test-value');
 
       expect((window as any).mParticle.forwarder.userAttributes).toEqual({
         'test-attribute': 'test-value',
       });
+    });
+
+    it('should send a set_user_attributes event to window.Rokt.__event_stream__', () => {
+      const receivedEvents: any[] = [];
+      (window as any).Rokt.__event_stream__ = function (event: any) {
+        receivedEvents.push(event);
+      };
+
+      (window as any).mParticle.forwarder.onUserIdentified({
+        getAllUserAttributes: function () {
+          return { 'user-attr': 'user-value' };
+        },
+        getMPID: function () {
+          return 'test-mpid';
+        },
+        getUserIdentities: function () {
+          return { userIdentities: { email: 'test@example.com' } };
+        },
+      });
+
+      receivedEvents.length = 0; // clear the identify event
+
+      (window as any).mParticle.forwarder.setUserAttribute('new-attr', 'new-value');
+
+      expect(receivedEvents.length).toBe(1);
+      expect(receivedEvents[0].EventName).toBe('set_user_attributes');
+      expect(receivedEvents[0].EventDataType).toBe(14);
+      expect(receivedEvents[0].MPID).toBe('test-mpid');
+      expect(receivedEvents[0].SessionId).toBe('test-mp-session-id');
+    });
+
+    it('should queue event when window.Rokt.__event_stream__ is not available', () => {
+      (window as any).mParticle.forwarder.setUserAttribute('queued-attr', 'queued-value');
+
+      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
+      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventName).toBe('set_user_attributes');
     });
   });
 

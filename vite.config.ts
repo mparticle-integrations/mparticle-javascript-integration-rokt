@@ -9,8 +9,12 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/Rokt-Kit.ts'),
       name: 'RoktKit',
-      formats: ['iife', 'cjs'],
-      fileName: (format) => `Rokt-Kit.${format === 'iife' ? 'iife' : 'common'}.js`,
+      formats: ['iife', 'cjs', 'es'],
+      fileName: (format) => {
+        if (format === 'iife') return 'Rokt-Kit.iife.js';
+        if (format === 'es') return 'Rokt-Kit.esm.js';
+        return 'Rokt-Kit.common.js';
+      },
     },
     outDir: 'dist',
     sourcemap: true,

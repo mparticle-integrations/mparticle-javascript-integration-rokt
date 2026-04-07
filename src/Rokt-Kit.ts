@@ -16,7 +16,7 @@
 // Types
 // ============================================================
 
-interface KitSettings {
+interface RoktKitSettings {
   accountId: string;
   roktExtensions?: string;
   placementEventMapping?: string;
@@ -145,8 +145,8 @@ interface ForwarderRegistration {
 }
 
 interface MParticleEvent {
-  EventDataType?: number;
-  EventCategory?: number;
+  EventDataType: number;
+  EventCategory: number;
   EventName?: string;
   EventAttributes?: Record<string, unknown>;
   [key: string]: unknown;
@@ -173,6 +173,7 @@ const moduleId = 181;
 const EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 const ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
 const INIT_LOG_SAMPLING_RATE = 0.1;
+const MESSAGE_TYPE_PROFILE = 14; // mParticle MessageType.Profile
 
 // ============================================================
 // Helper: typed accessor for window.mParticle
@@ -203,19 +204,6 @@ function generateLauncherScript(domain: string | undefined, extensions: string[]
 
 function isObject(val: unknown): val is Record<string, unknown> {
   return val != null && typeof val === 'object' && Array.isArray(val) === false;
-}
-
-function mergeObjects(...args: Record<string, unknown>[]): Record<string, unknown> {
-  const resObj: Record<string, unknown> = {};
-  for (const obj of args) {
-    if (obj && typeof obj === 'object') {
-      const keys = Object.keys(obj);
-      for (const key of keys) {
-        resObj[key] = obj[key];
-      }
-    }
-  }
-  return resObj;
 }
 
 function parseSettingsString<T>(settingsString?: string): T[] {
@@ -523,7 +511,7 @@ class RoktKit {
   }
 
   private replaceOtherIdentityWithEmailsha256(userIdentities: Record<string, string>): Record<string, string> {
-    const newUserIdentities = mergeObjects({}, userIdentities || {}) as Record<string, string>;
+    const newUserIdentities: Record<string, string> = { ...(userIdentities || {}) };
     const key = this._mappedEmailSha256Key;
     if (key && userIdentities[key]) {
       newUserIdentities[RoktKit.EMAIL_SHA256_KEY] = userIdentities[key];
@@ -557,9 +545,7 @@ class RoktKit {
   }
 
   private enrichEvent(event: MParticleEvent): Record<string, unknown> {
-    return mergeObjects({}, event as Record<string, unknown>, {
-      UserAttributes: this.userAttributes,
-    });
+    return { ...(event as Record<string, unknown>), UserAttributes: this.userAttributes };
   }
 
   private sendEventStream(event: MParticleEvent): void {
@@ -568,10 +554,10 @@ class RoktKit {
         const queuedEvents = this.eventStreamQueue;
         this.eventStreamQueue = [];
         for (let i = 0; i < queuedEvents.length; i++) {
-          window.Rokt.__event_stream__!(this.enrichEvent(queuedEvents[i]));
+          window.Rokt.__event_stream__(this.enrichEvent(queuedEvents[i]));
         }
       }
-      window.Rokt.__event_stream__!(this.enrichEvent(event));
+      window.Rokt.__event_stream__(this.enrichEvent(event));
     } else {
       this.eventStreamQueue.push(event);
     }
@@ -606,7 +592,8 @@ class RoktKit {
 
     return {
       EventName: eventName,
-      EventDataType: 14, // MessageType.Profile
+      EventDataType: MESSAGE_TYPE_PROFILE,
+      EventCategory: 0,
       Timestamp: Date.now(),
       MPID: mpid,
       SessionId: sessionId,
@@ -620,11 +607,11 @@ class RoktKit {
         ? mp().sessionManager!.getSession()
         : undefined;
 
-    const options = mergeObjects(
-      { accountId: accountId },
-      launcherOptions || {},
-      mpSessionId ? { mpSessionId: mpSessionId } : {},
-    );
+    const options: Record<string, unknown> = {
+      accountId,
+      ...(launcherOptions || {}),
+      ...(mpSessionId ? { mpSessionId } : {}),
+    };
 
     if (this.isPartnerInLocalLauncherTestGroup()) {
       const localLauncher = window.Rokt!.createLocalLauncher(options);
@@ -718,7 +705,7 @@ class RoktKit {
    * Initializes the Rokt forwarder with settings from the mParticle server.
    */
   public init(
-    settings: KitSettings,
+    settings: RoktKitSettings,
     _service: unknown,
     testMode: boolean,
     _trackerId: unknown,
@@ -743,7 +730,9 @@ class RoktKit {
     }
 
     const domain = mp().Rokt?.domain;
-    const launcherOptions = mergeObjects({}, (mp().Rokt?.launcherOptions as Record<string, unknown>) || {});
+    const launcherOptions: Record<string, unknown> = {
+      ...((mp().Rokt?.launcherOptions as Record<string, unknown>) || {}),
+    };
     this.integrationName = generateIntegrationName(launcherOptions.integrationName as string | undefined);
     launcherOptions.integrationName = this.integrationName;
 
@@ -817,7 +806,7 @@ class RoktKit {
       return;
     }
 
-    const hashedEvent = hashEventMessage(event.EventDataType ?? 0, event.EventCategory ?? 0, event.EventName ?? '');
+    const hashedEvent = hashEventMessage(event.EventDataType, event.EventCategory, event.EventName ?? '');
 
     if (this.placementEventMappingLookup[String(hashedEvent)]) {
       const mappedValue = this.placementEventMappingLookup[String(hashedEvent)];
@@ -836,6 +825,9 @@ class RoktKit {
 
   public setUserAttribute(key: string, value: unknown): void {
     this.userAttributes[key] = value;
+    this.sendEventStream(
+      this.buildIdentityEvent('set_user_attributes', this.filters.filteredUser ?? ({} as FilteredUser)),
+    );
   }
 
   public removeUserAttribute(key: string): void {
@@ -868,7 +860,7 @@ class RoktKit {
    */
   public selectPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
     const attributes = ((options && (options.attributes as Record<string, unknown>)) || {}) as Record<string, unknown>;
-    const placementAttributes = mergeObjects(this.userAttributes, attributes);
+    const placementAttributes: Record<string, unknown> = { ...this.userAttributes, ...attributes };
 
     const filters = this.filters || {};
     const userAttributeFilters = (filters.userAttributeFilters as string[]) || [];
@@ -897,17 +889,15 @@ class RoktKit {
 
     const localSessionAttributes = this.returnLocalSessionAttributes();
 
-    const selectPlacementsAttributes = mergeObjects(
-      filteredUserIdentities as Record<string, unknown>,
-      filteredAttributes,
-      optimizelyAttributes,
-      localSessionAttributes,
-      { mpid: mpid },
-    );
+    const selectPlacementsAttributes: Record<string, unknown> = {
+      ...(filteredUserIdentities as Record<string, unknown>),
+      ...filteredAttributes,
+      ...optimizelyAttributes,
+      ...localSessionAttributes,
+      mpid,
+    };
 
-    const selectPlacementsOptions = mergeObjects(options, {
-      attributes: selectPlacementsAttributes,
-    });
+    const selectPlacementsOptions: Record<string, unknown> = { ...options, attributes: selectPlacementsAttributes };
 
     const selection = this.launcher!.selectPlacements(selectPlacementsOptions);
 
