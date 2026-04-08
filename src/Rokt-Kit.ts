@@ -23,6 +23,9 @@ interface RoktKitSettings {
   placementEventAttributeMapping?: string;
   hashedEmailUserIdentityType?: string;
   onboardingExpProvider?: string;
+  loggingUrl?: string;
+  errorUrl?: string;
+  isLoggingEnabled?: string | boolean;
 }
 
 interface EventAttributeCondition {
@@ -123,6 +126,8 @@ interface MParticleExtended {
   captureTiming?(metricName: string): void;
   forwarder?: RoktKit;
   loggedEvents?: Array<Record<string, unknown>>;
+  _registerErrorReportingService?(service: ErrorReportingService): void;
+  _registerLoggingService?(service: LoggingService): void;
 }
 
 interface TestHelpers {
@@ -136,6 +141,12 @@ interface TestHelpers {
   createAutoRemovedIframe: (src: string) => void;
   djb2: (str: string) => number;
   setAllowedOriginHashes: (hashes: number[]) => void;
+  ReportingTransport: typeof ReportingTransport;
+  ErrorReportingService: typeof ErrorReportingService;
+  LoggingService: typeof LoggingService;
+  RateLimiter: typeof RateLimiter;
+  ErrorCodes: typeof ErrorCodes;
+  WSDKErrorSeverity: typeof WSDKErrorSeverity;
 }
 
 interface ForwarderRegistration {
@@ -152,11 +163,30 @@ interface MParticleEvent {
   [key: string]: unknown;
 }
 
+interface ReportingConfig {
+  loggingUrl?: string;
+  errorUrl?: string;
+  isLoggingEnabled?: boolean | string;
+}
+
+interface ErrorReport {
+  message: string;
+  code?: string;
+  severity?: string;
+  stackTrace?: string;
+}
+
+interface LogEntry {
+  message: string;
+  code?: string;
+}
+
 declare global {
   interface Window {
     Rokt?: RoktGlobal;
     __rokt_li_guid__?: string;
     optimizely?: OptimizelyGlobal;
+    ROKT_DOMAIN?: string;
     // mParticle is declared as any to avoid conflicts with @mparticle/web-sdk type declarations.
     // We use the typed mp() accessor for all internal accesses.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -174,6 +204,26 @@ const EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 const ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
 const INIT_LOG_SAMPLING_RATE = 0.1;
 const MESSAGE_TYPE_PROFILE = 14; // mParticle MessageType.Profile
+
+// ============================================================
+// Reporting service constants
+// ============================================================
+
+const ErrorCodes = {
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+  UNHANDLED_EXCEPTION: 'UNHANDLED_EXCEPTION',
+  IDENTITY_REQUEST: 'IDENTITY_REQUEST',
+} as const;
+
+const WSDKErrorSeverity = {
+  ERROR: 'ERROR',
+  INFO: 'INFO',
+  WARNING: 'WARNING',
+} as const;
+
+const DEFAULT_LOGGING_URL = 'apps.rokt-api.com/v1/log';
+const DEFAULT_ERROR_URL = 'apps.rokt-api.com/v1/errors';
+const RATE_LIMIT_PER_SEVERITY = 10;
 
 // ============================================================
 // Helper: typed accessor for window.mParticle
@@ -360,6 +410,177 @@ function sendAdBlockMeasurementSignals(domain: string | undefined, version: stri
 }
 
 // ============================================================
+// Reporting helpers
+// ============================================================
+
+function _isRoktDomainPresent(): boolean {
+  return typeof window !== 'undefined' && Boolean(window.ROKT_DOMAIN);
+}
+
+function _isDebugModeEnabled(): boolean {
+  return typeof window !== 'undefined' && !!window.location?.search?.toLowerCase().includes('mp_enable_logging=true');
+}
+
+function _getReportingUrl(): string | undefined {
+  return typeof window !== 'undefined' ? window.location?.href : undefined;
+}
+
+function _getUserAgent(): string | undefined {
+  return typeof window !== 'undefined' ? window.navigator?.userAgent : undefined;
+}
+
+class RateLimiter {
+  private _logCount: Record<string, number> = {};
+
+  incrementAndCheck(severity: string): boolean {
+    const count = this._logCount[severity] || 0;
+    const newCount = count + 1;
+    this._logCount[severity] = newCount;
+    return newCount > RATE_LIMIT_PER_SEVERITY;
+  }
+}
+
+class ReportingTransport {
+  private _isEnabled: boolean;
+  private _integrationName: string;
+  private _launcherInstanceGuid: string | undefined;
+  private _accountId: string | null;
+  private _rateLimiter: RateLimiter;
+  private readonly _reporter = 'mp-wsdk';
+
+  constructor(
+    config: ReportingConfig,
+    integrationName: string | null | undefined,
+    launcherInstanceGuid: string | undefined,
+    accountId: string | null | undefined,
+    rateLimiter?: RateLimiter,
+  ) {
+    const isLoggingEnabled = config?.isLoggingEnabled === true || config?.isLoggingEnabled === 'true';
+    this._integrationName = integrationName || '';
+    this._launcherInstanceGuid = launcherInstanceGuid;
+    this._accountId = accountId || null;
+    this._rateLimiter = rateLimiter || new RateLimiter();
+    this._isEnabled = _isDebugModeEnabled() || (_isRoktDomainPresent() && isLoggingEnabled);
+  }
+
+  send(
+    url: string,
+    severity: string,
+    msg: string,
+    code?: string,
+    stackTrace?: string,
+    onError?: (error: Error) => void,
+  ): void {
+    if (!this._isEnabled || this._rateLimiter.incrementAndCheck(severity)) {
+      return;
+    }
+
+    try {
+      const logRequest = {
+        additionalInformation: {
+          message: msg,
+          version: this._integrationName,
+        },
+        severity,
+        code: code || ErrorCodes.UNKNOWN_ERROR,
+        url: _getReportingUrl(),
+        deviceInfo: _getUserAgent(),
+        stackTrace,
+        reporter: this._reporter,
+        integration: this._integrationName,
+      };
+
+      const headers: Record<string, string> = {
+        Accept: 'text/plain;charset=UTF-8',
+        'Content-Type': 'application/json',
+        'rokt-launcher-version': this._integrationName,
+        'rokt-wsdk-version': 'joint',
+      };
+
+      if (this._launcherInstanceGuid) {
+        headers['rokt-launcher-instance-guid'] = this._launcherInstanceGuid;
+      }
+      if (this._accountId) {
+        headers['rokt-account-id'] = this._accountId;
+      }
+
+      fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(logRequest),
+      }).catch((error: Error) => {
+        console.error('ReportingTransport: Failed to send log', error);
+        if (onError) onError(error);
+      });
+    } catch (error) {
+      console.error('ReportingTransport: Failed to send log', error);
+      if (onError) onError(error as Error);
+    }
+  }
+}
+
+class ErrorReportingService {
+  private _transport: ReportingTransport;
+  private _errorUrl: string;
+
+  constructor(
+    config: ReportingConfig,
+    integrationName: string | null | undefined,
+    launcherInstanceGuid?: string,
+    accountId?: string | null,
+    rateLimiter?: RateLimiter,
+  ) {
+    this._transport = new ReportingTransport(config, integrationName, launcherInstanceGuid, accountId, rateLimiter);
+    this._errorUrl = 'https://' + (config?.errorUrl || DEFAULT_ERROR_URL);
+  }
+
+  report(error: ErrorReport | null | undefined): void {
+    if (!error) return;
+    const severity = error.severity || WSDKErrorSeverity.ERROR;
+    this._transport.send(this._errorUrl, severity, error.message, error.code, error.stackTrace);
+  }
+}
+
+class LoggingService {
+  private _transport: ReportingTransport;
+  private _loggingUrl: string;
+  private _errorReportingService: { report: (e: ErrorReport) => void };
+
+  constructor(
+    config: ReportingConfig,
+    errorReportingService: { report: (e: ErrorReport) => void },
+    integrationName: string | null | undefined,
+    launcherInstanceGuid?: string,
+    accountId?: string | null,
+    rateLimiter?: RateLimiter,
+  ) {
+    this._transport = new ReportingTransport(config, integrationName, launcherInstanceGuid, accountId, rateLimiter);
+    this._loggingUrl = 'https://' + (config?.loggingUrl || DEFAULT_LOGGING_URL);
+    this._errorReportingService = errorReportingService;
+  }
+
+  log(entry: LogEntry | null | undefined): void {
+    if (!entry) return;
+    this._transport.send(
+      this._loggingUrl,
+      WSDKErrorSeverity.INFO,
+      entry.message,
+      entry.code,
+      undefined,
+      (error: Error) => {
+        if (this._errorReportingService) {
+          this._errorReportingService.report({
+            message: 'LoggingService: Failed to send log: ' + error.message,
+            code: ErrorCodes.UNKNOWN_ERROR,
+            severity: WSDKErrorSeverity.ERROR,
+          });
+        }
+      },
+    );
+  }
+}
+
+// ============================================================
 // RoktKit class
 // ============================================================
 
@@ -387,6 +608,8 @@ class RoktKit {
   public eventStreamQueue: MParticleEvent[] = [];
   public integrationName: string | null = null;
   public domain?: string;
+  public errorReportingService: ErrorReportingService | null = null;
+  public loggingService: LoggingService | null = null;
 
   // Private fields
   private _mappedEmailSha256Key?: string;
@@ -738,6 +961,35 @@ class RoktKit {
 
     this.domain = domain;
 
+    const reportingConfig: ReportingConfig = {
+      loggingUrl: settings.loggingUrl,
+      errorUrl: settings.errorUrl,
+      isLoggingEnabled: settings.isLoggingEnabled === 'true' || settings.isLoggingEnabled === true,
+    };
+    const errorReportingService = new ErrorReportingService(
+      reportingConfig,
+      this.integrationName,
+      window.__rokt_li_guid__,
+      settings.accountId,
+    );
+    const loggingService = new LoggingService(
+      reportingConfig,
+      errorReportingService,
+      this.integrationName,
+      window.__rokt_li_guid__,
+      settings.accountId,
+    );
+
+    this.errorReportingService = errorReportingService;
+    this.loggingService = loggingService;
+
+    if (mp()._registerErrorReportingService) {
+      mp()._registerErrorReportingService!(errorReportingService);
+    }
+    if (mp()._registerLoggingService) {
+      mp()._registerLoggingService!(loggingService);
+    }
+
     if (testMode) {
       this.testHelpers = {
         generateLauncherScript: generateLauncherScript,
@@ -752,6 +1004,12 @@ class RoktKit {
         setAllowedOriginHashes: (hashes: number[]) => {
           RoktKit._allowedOriginHashes = hashes;
         },
+        ReportingTransport: ReportingTransport,
+        ErrorReportingService: ErrorReportingService,
+        LoggingService: LoggingService,
+        RateLimiter: RateLimiter,
+        ErrorCodes: ErrorCodes,
+        WSDKErrorSeverity: WSDKErrorSeverity,
       };
       this.attachLauncher(accountId, launcherOptions);
       return;
