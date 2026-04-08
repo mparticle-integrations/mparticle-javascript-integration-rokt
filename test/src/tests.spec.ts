@@ -2978,6 +2978,9 @@ describe('Rokt Forwarder', () => {
         getAllUserAttributes: function () {
           return { 'user-attr': 'user-value' };
         },
+        getMPID: function () {
+          return '123';
+        },
       });
 
       expect((window as any).mParticle.forwarder.userAttributes).toEqual({
@@ -2991,6 +2994,9 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.onLogoutComplete({
         getAllUserAttributes: function () {
           return { 'remaining-attr': 'some-value' };
+        },
+        getMPID: function () {
+          return '123';
         },
       });
 
@@ -4340,6 +4346,7 @@ describe('Rokt Forwarder', () => {
     beforeEach(() => {
       (window as any).mParticle.forwarder.batchQueue = [];
       (window as any).mParticle.forwarder.batchStreamQueue = [];
+      (window as any).mParticle.forwarder.pendingIdentityEvents = [];
       (window as any).Rokt = new (MockRoktForwarder as any)();
       (window as any).Rokt.createLauncher = async function () {
         return Promise.resolve({
@@ -4397,6 +4404,7 @@ describe('Rokt Forwarder', () => {
       delete (window as any).Rokt.__batch_stream__;
       (window as any).mParticle.forwarder.batchQueue = [];
       (window as any).mParticle.forwarder.batchStreamQueue = [];
+      (window as any).mParticle.forwarder.pendingIdentityEvents = [];
       (window as any).mParticle.forwarder.isInitialized = false;
       (window as any).mParticle.Rokt.attachKitCalled = false;
     });
@@ -4418,6 +4426,24 @@ describe('Rokt Forwarder', () => {
       expect(receivedBatches[0].user_attributes).toEqual({ 'user-attr': 'user-value' });
       expect(receivedBatches[0].user_identities).toEqual({ email: 'test@example.com' });
       expect(receivedBatches[0].events.length).toBe(1);
+    });
+
+    it('should not add extra events when pendingIdentityEvents is empty', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(0);
+
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events.length).toBe(1);
+      expect(receivedBatches[0].events[0].event_type).toBe('custom_event');
     });
 
     it('should queue batch in batchQueue when kit is not initialized', () => {
@@ -4511,6 +4537,115 @@ describe('Rokt Forwarder', () => {
       expect(receivedBatches[1].mpid).toBe('mpid-B');
       expect(receivedBatches[2].mpid).toBe('mpid-C');
       expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(0);
+    });
+
+    it('should add an identity event to pendingIdentityEvents on onLoginComplete', () => {
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onLoginComplete(mockUser, null);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(1);
+      expect(pending[0].EventName).toBe('login');
+      expect(pending[0].EventDataType).toBe(14);
+    });
+
+    it('should add an identity event to pendingIdentityEvents on onLogoutComplete', () => {
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onLogoutComplete(mockUser, null);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(1);
+      expect(pending[0].EventName).toBe('logout');
+      expect(pending[0].EventDataType).toBe(14);
+    });
+
+    it('should add identity events to pendingIdentityEvents on onModifyComplete and onUserIdentified', () => {
+      const mockUser = {
+        getMPID: () => '42',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onModifyComplete(mockUser, null);
+      (window as any).mParticle.forwarder.onUserIdentified(mockUser);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(2);
+      expect(pending[0].EventName).toBe('modify');
+      expect(pending[1].EventName).toBe('identify');
+    });
+
+    it('should merge pendingIdentityEvents into the outgoing batch and clear the queue', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onLoginComplete(mockUser, null);
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(1);
+
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      // Original 1 custom_event + 1 identity event from onLoginComplete
+      expect(receivedBatches[0].events.length).toBe(2);
+      expect(receivedBatches[0].events[1].EventName).toBe('login');
+      expect(receivedBatches[0].events[1].EventDataType).toBe(14);
+      // Queue should be cleared after flush
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(0);
+    });
+
+    it('should merge pendingIdentityEvents into the first queued batch when kit becomes ready', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      // Queue a batch before the kit initialises
+      (window as any).mParticle.forwarder.isInitialized = false;
+      (window as any).mParticle.forwarder.launcher = null;
+
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      // Identity callback fires before kit is ready
+      (window as any).mParticle.forwarder.onLoginComplete(mockUser, null);
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(1);
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(1);
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      // The queued batch should have the pending identity event merged in
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events.length).toBe(2);
+      expect(receivedBatches[0].events[1].EventDataType).toBe(14);
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(0);
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(0);
     });
   });
 

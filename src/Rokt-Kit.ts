@@ -17,6 +17,8 @@
 // ============================================================
 
 import { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sdk/internal';
+// BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
+import { BaseEvent } from '@mparticle/event-models';
 
 interface RoktKitSettings {
   accountId: string;
@@ -77,6 +79,8 @@ interface RoktGlobal {
   setExtensionData(data: Record<string, unknown>): void;
 }
 
+// TODO: getMPID and getUserIdentities exist on the User base type but are not re-exported from
+// @mparticle/web-sdk/internal, so we redeclare them here until the internal types expose them.
 interface FilteredUser extends IMParticleUser {
   getMPID(): string;
   getUserIdentities?: () => { userIdentities: Record<string, string> };
@@ -196,6 +200,7 @@ const moduleId = 181;
 const EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 const ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
 const INIT_LOG_SAMPLING_RATE = 0.1;
+const MESSAGE_TYPE_PROFILE = 14;
 
 // ============================================================
 // Reporting service constants
@@ -599,6 +604,7 @@ class RoktKit implements KitInterface {
   public placementEventAttributeMappingLookup: Record<string, PlacementEventRule[]> = {};
   public batchQueue: Batch[] = [];
   public batchStreamQueue: Batch[] = [];
+  public pendingIdentityEvents: BaseEvent[] = [];
   public integrationName: string | null = null;
   public domain?: string;
   public errorReportingService: ErrorReportingService | null = null;
@@ -753,6 +759,40 @@ class RoktKit implements KitInterface {
     mp().logEvent(EVENT_NAME_SELECT_PLACEMENTS, EVENT_TYPE_OTHER, attributes as Record<string, unknown>);
   }
 
+  private buildIdentityEvent(eventName: string, filteredUser: FilteredUser): BaseEvent {
+    const mpid = filteredUser.getMPID();
+    const sessionId =
+      mp() && mp().sessionManager && typeof mp().sessionManager!.getSession === 'function'
+        ? mp().sessionManager!.getSession()
+        : null;
+    const userIdentities =
+      filteredUser.getUserIdentities && typeof filteredUser.getUserIdentities === 'function'
+        ? filteredUser.getUserIdentities().userIdentities
+        : null;
+
+    return {
+      EventName: eventName,
+      EventDataType: MESSAGE_TYPE_PROFILE,
+      EventCategory: 0,
+      Timestamp: Date.now(),
+      MPID: mpid,
+      SessionId: sessionId,
+      UserIdentities: userIdentities,
+    } as unknown as BaseEvent;
+  }
+
+  private mergePendingIdentityEvents(batch: Batch): Batch {
+    if (this.pendingIdentityEvents.length === 0) {
+      return batch;
+    }
+    const merged: Batch = {
+      ...batch,
+      events: [...(batch.events ?? []), ...this.pendingIdentityEvents],
+    };
+    this.pendingIdentityEvents = [];
+    return merged;
+  }
+
   private drainBatchQueue(): void {
     this.batchQueue.forEach((batch) => {
       this.processBatch(batch);
@@ -765,7 +805,7 @@ class RoktKit implements KitInterface {
       this.batchQueue.push(batch);
       return 'Batch queued for forwarder: ' + name;
     }
-    this.sendBatchStream(batch);
+    this.sendBatchStream(this.mergePendingIdentityEvents(batch));
     return 'Successfully sent batch to forwarder: ' + name;
   }
 
@@ -1063,23 +1103,31 @@ class RoktKit implements KitInterface {
   }
 
   public onUserIdentified(user: IMParticleUser): string {
-    this.filters.filteredUser = user as FilteredUser;
+    const filteredUser = user as FilteredUser;
+    this.filters.filteredUser = filteredUser;
     this.userAttributes = user.getAllUserAttributes();
+    this.pendingIdentityEvents.push(this.buildIdentityEvent('identify', filteredUser));
     return 'Successfully called onUserIdentified for forwarder: ' + name;
   }
 
   public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    const filteredUser = user as FilteredUser;
     this.userAttributes = user.getAllUserAttributes();
+    this.pendingIdentityEvents.push(this.buildIdentityEvent('login', filteredUser));
     return 'Successfully called onLoginComplete for forwarder: ' + name;
   }
 
   public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    const filteredUser = user as FilteredUser;
     this.userAttributes = user.getAllUserAttributes();
+    this.pendingIdentityEvents.push(this.buildIdentityEvent('logout', filteredUser));
     return 'Successfully called onLogoutComplete for forwarder: ' + name;
   }
 
   public onModifyComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    const filteredUser = user as FilteredUser;
     this.userAttributes = user.getAllUserAttributes();
+    this.pendingIdentityEvents.push(this.buildIdentityEvent('modify', filteredUser));
     return 'Successfully called onModifyComplete for forwarder: ' + name;
   }
 
