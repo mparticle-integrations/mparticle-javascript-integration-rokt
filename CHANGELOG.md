@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.22.0...v1.23.0) (2026-04-08)
+
+
+### Features
+
+* migrate toolchain to TypeScript 5.5, Vite, Vitest, and ESLint v9 ([#84](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/84)) ([58f6b41](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/58f6b418c0ee898f4264de14abfd0a9c11b1ca37))
+
 # [1.22.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.21.0...v1.22.0) (2026-04-07)
 
 
