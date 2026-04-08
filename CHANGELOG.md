@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.21.0...v1.22.0) (2026-04-07)
+
+
+### Features
+
+* implement Rokt reporting service in kit ([#70](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/70)) ([efb8905](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/efb8905155db9a9fb580f15c4b196cdd51aecd2c))
+
 # [1.21.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.20.0...v1.21.0) (2026-04-03)
 
 
