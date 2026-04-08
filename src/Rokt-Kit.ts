@@ -69,7 +69,6 @@ interface RoktLauncher {
   use(extensionName: string): Promise<unknown>;
 }
 
-
 interface RoktGlobal {
   createLauncher(options: Record<string, unknown>): Promise<RoktLauncher>;
   createLocalLauncher(options: Record<string, unknown>): RoktLauncher;
