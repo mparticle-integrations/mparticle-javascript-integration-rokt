@@ -5322,6 +5322,24 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.batchStreamQueue[0]).toEqual(mockBatch);
     });
 
+    it('should queue batch in batchStreamQueue when window.Rokt is undefined', async () => {
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      const savedRokt = (window as any).Rokt;
+      delete (window as any).Rokt;
+
+      expect(() => {
+        (window as any).mParticle.forwarder.processBatch(mockBatch);
+      }).not.toThrow();
+
+      expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(1);
+      expect((window as any).mParticle.forwarder.batchStreamQueue[0]).toEqual(mockBatch);
+
+      (window as any).Rokt = savedRokt;
+    });
+
     it('should flush batchStreamQueue before sending the next batch', async () => {
       const receivedBatches: any[] = [];
 
