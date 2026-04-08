@@ -5149,6 +5149,221 @@ describe('Rokt Forwarder', () => {
     });
   });
 
+  describe('#processBatch', () => {
+    let mockBatch: any;
+
+    beforeEach(() => {
+      (window as any).mParticle.forwarder.batchQueue = [];
+      (window as any).mParticle.forwarder.batchStreamQueue = [];
+      (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).Rokt.createLauncher = async function () {
+        return Promise.resolve({
+          selectPlacements: function (options: any) {
+            (window as any).mParticle.Rokt.selectPlacementsOptions = options;
+            (window as any).mParticle.Rokt.selectPlacementsCalled = true;
+          },
+        });
+      };
+      (window as any).mParticle.Rokt = (window as any).Rokt;
+      (window as any).mParticle.Rokt.attachKitCalled = false;
+      (window as any).mParticle.Rokt.attachKit = async (kit: any) => {
+        (window as any).mParticle.Rokt.attachKitCalled = true;
+        (window as any).mParticle.Rokt.kit = kit;
+        Promise.resolve();
+      };
+      (window as any).mParticle.Rokt.setLocalSessionAttribute = function (key: any, value: any) {
+        (window as any).mParticle._Store.localSessionAttributes[key] = value;
+      };
+      (window as any).mParticle.Rokt.getLocalSessionAttributes = function () {
+        return (window as any).mParticle._Store.localSessionAttributes;
+      };
+      (window as any).mParticle.forwarder.launcher = {
+        selectPlacements: function (options: any) {
+          (window as any).mParticle.Rokt.selectPlacementsOptions = options;
+          (window as any).mParticle.Rokt.selectPlacementsCalled = true;
+        },
+      };
+      (window as any).mParticle.Rokt.filters = {
+        userAttributesFilters: [],
+        filterUserAttributes: function (attributes: any) {
+          return attributes;
+        },
+        filteredUser: {
+          getMPID: function () {
+            return '123';
+          },
+        },
+      };
+
+      mockBatch = {
+        mpid: 'test-mpid-123',
+        user_attributes: { 'user-attr': 'user-value' },
+        user_identities: { email: 'test@example.com' },
+        events: [
+          {
+            event_type: 'custom_event',
+            data: { event_name: 'Test Event', custom_event_type: 'other' },
+          },
+        ],
+      };
+    });
+
+    afterEach(() => {
+      delete (window as any).Rokt.__batch_stream__;
+      (window as any).mParticle.forwarder.batchQueue = [];
+      (window as any).mParticle.forwarder.batchStreamQueue = [];
+      (window as any).mParticle.forwarder.eventQueue = [];
+      (window as any).mParticle.forwarder.eventStreamQueue = [];
+      (window as any).mParticle.forwarder.isInitialized = false;
+      (window as any).mParticle.Rokt.attachKitCalled = false;
+    });
+
+    it('should send batch to window.Rokt.__batch_stream__ when kit is ready', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].mpid).toBe('test-mpid-123');
+      expect(receivedBatches[0].user_attributes).toEqual({ 'user-attr': 'user-value' });
+      expect(receivedBatches[0].user_identities).toEqual({ email: 'test@example.com' });
+      expect(receivedBatches[0].events.length).toBe(1);
+    });
+
+    it('should forward batch including non-event types (UserIdentityChange, UserAttributeChange)', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      const batchWithNonEvents = {
+        mpid: 'test-mpid-456',
+        user_attributes: { age: '30' },
+        user_identities: { email: 'user@example.com' },
+        events: [
+          { event_type: 'custom_event', data: { event_name: 'Page Viewed', custom_event_type: 'navigation' } },
+          {
+            event_type: 'user_identity_change',
+            data: {
+              new: { identity_type: 'email', identity: 'user@example.com', created_this_batch: true },
+              old: { identity_type: 'email', identity: null, created_this_batch: false },
+            },
+          },
+          {
+            event_type: 'user_attribute_change',
+            data: { user_attribute_name: 'age', new: '30', old: null, deleted: false, is_new_attribute: true },
+          },
+        ],
+      };
+
+      (window as any).mParticle.forwarder.processBatch(batchWithNonEvents);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events.length).toBe(3);
+      expect(receivedBatches[0].events[0].event_type).toBe('custom_event');
+      expect(receivedBatches[0].events[1].event_type).toBe('user_identity_change');
+      expect(receivedBatches[0].events[2].event_type).toBe('user_attribute_change');
+    });
+
+    it('should queue batch in batchQueue when kit is not initialized', () => {
+      (window as any).mParticle.forwarder.isInitialized = false;
+      (window as any).mParticle.forwarder.launcher = null;
+
+      expect(() => {
+        (window as any).mParticle.forwarder.processBatch(mockBatch);
+      }).not.toThrow();
+
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(1);
+      expect((window as any).mParticle.forwarder.batchQueue[0]).toEqual(mockBatch);
+    });
+
+    it('should flush batchQueue when kit becomes ready', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      (window as any).mParticle.forwarder.isInitialized = false;
+      (window as any).mParticle.forwarder.launcher = null;
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(1);
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].mpid).toBe('test-mpid-123');
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(0);
+    });
+
+    it('should queue batch in batchStreamQueue when window.Rokt.__batch_stream__ is not defined', async () => {
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      expect(() => {
+        (window as any).mParticle.forwarder.processBatch(mockBatch);
+      }).not.toThrow();
+
+      expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(1);
+      expect((window as any).mParticle.forwarder.batchStreamQueue[0]).toEqual(mockBatch);
+    });
+
+    it('should flush batchStreamQueue before sending the next batch', async () => {
+      const receivedBatches: any[] = [];
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      const batchA = { mpid: 'mpid-A', events: [], user_attributes: {} };
+      const batchB = { mpid: 'mpid-B', events: [], user_attributes: {} };
+      const batchC = { mpid: 'mpid-C', events: [], user_attributes: {} };
+
+      (window as any).mParticle.forwarder.processBatch(batchA);
+      (window as any).mParticle.forwarder.processBatch(batchB);
+
+      expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(2);
+
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      (window as any).mParticle.forwarder.processBatch(batchC);
+
+      expect(receivedBatches.length).toBe(3);
+      expect(receivedBatches[0].mpid).toBe('mpid-A');
+      expect(receivedBatches[1].mpid).toBe('mpid-B');
+      expect(receivedBatches[2].mpid).toBe('mpid-C');
+      expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(0);
+    });
+
+    it('should not contaminate eventStreamQueue when batches are queued', async () => {
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(2);
+      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(0);
+    });
+  });
+
   describe('#_setRoktSessionId', () => {
     let setIntegrationAttributeCalls: any[];
 

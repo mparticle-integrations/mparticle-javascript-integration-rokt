@@ -67,11 +67,36 @@ interface RoktLauncher {
   use(extensionName: string): Promise<unknown>;
 }
 
+interface MPBatchEvent {
+  event_type: string;
+  data?: Record<string, unknown>;
+}
+
+interface MPBatch {
+  source_request_id?: string | null;
+  events?: MPBatchEvent[] | null;
+  device_info?: Record<string, unknown>;
+  application_info?: Record<string, unknown>;
+  user_attributes?: Record<string, string | string[] | null> | null;
+  deleted_user_attributes?: string[] | null;
+  user_identities?: Record<string, string | null>;
+  environment?: 'development' | 'production';
+  mp_deviceid?: string | null;
+  timestamp_unixtime_ms?: number | null;
+  batch_id?: number | null;
+  mpid?: string | number | null;
+  sdk_version?: string | null;
+  consent_state?: Record<string, unknown>;
+  integration_attributes?: Record<string, Record<string, string | null>> | null;
+  [key: string]: unknown;
+}
+
 interface RoktGlobal {
   createLauncher(options: Record<string, unknown>): Promise<RoktLauncher>;
   createLocalLauncher(options: Record<string, unknown>): RoktLauncher;
   currentLauncher?: RoktLauncher;
   __event_stream__?(event: Record<string, unknown>): void;
+  __batch_stream__?(batch: MPBatch): void;
   setExtensionData(data: Record<string, unknown>): void;
 }
 
@@ -606,6 +631,8 @@ class RoktKit {
   public placementEventAttributeMappingLookup: Record<string, PlacementEventRule[]> = {};
   public eventQueue: MParticleEvent[] = [];
   public eventStreamQueue: MParticleEvent[] = [];
+  public batchQueue: MPBatch[] = [];
+  public batchStreamQueue: MPBatch[] = [];
   public integrationName: string | null = null;
   public domain?: string;
   public errorReportingService: ErrorReportingService | null = null;
@@ -765,6 +792,11 @@ class RoktKit {
       this.process(event);
     });
     this.eventQueue = [];
+
+    this.batchQueue.forEach((batch) => {
+      this.processBatch(batch);
+    });
+    this.batchQueue = [];
   }
 
   private enrichEvent(event: MParticleEvent): Record<string, unknown> {
@@ -783,6 +815,29 @@ class RoktKit {
       window.Rokt.__event_stream__(this.enrichEvent(event));
     } else {
       this.eventStreamQueue.push(event);
+    }
+  }
+
+  public processBatch(batch: MPBatch): void {
+    if (!this.isKitReady()) {
+      this.batchQueue.push(batch);
+      return;
+    }
+    this.sendBatchStream(batch);
+  }
+
+  private sendBatchStream(batch: MPBatch): void {
+    if (window.Rokt && typeof window.Rokt.__batch_stream__ === 'function') {
+      if (this.batchStreamQueue.length) {
+        const queuedBatches = this.batchStreamQueue;
+        this.batchStreamQueue = [];
+        for (let i = 0; i < queuedBatches.length; i++) {
+          window.Rokt.__batch_stream__(queuedBatches[i]);
+        }
+      }
+      window.Rokt.__batch_stream__(batch);
+    } else {
+      this.batchStreamQueue.push(batch);
     }
   }
 
