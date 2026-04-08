@@ -156,14 +156,6 @@ interface ForwarderRegistration {
   getId: () => number;
 }
 
-interface MParticleEvent {
-  EventDataType: number;
-  EventCategory: number;
-  EventName?: string;
-  EventAttributes?: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
 interface ReportingConfig {
   loggingUrl?: string;
   errorUrl?: string;
@@ -618,7 +610,7 @@ class RoktKit implements KitInterface {
 
   // ---- Private helpers ----
 
-  private getEventAttributeValue(event: MParticleEvent, eventAttributeKey: string): unknown {
+  private getEventAttributeValue(event: SDKEvent, eventAttributeKey: string): unknown {
     const attributes = event && event.EventAttributes;
     if (!attributes) {
       return null;
@@ -658,7 +650,7 @@ class RoktKit implements KitInterface {
     return false;
   }
 
-  private doesEventMatchRule(event: MParticleEvent, rule: PlacementEventRule): boolean {
+  private doesEventMatchRule(event: SDKEvent, rule: PlacementEventRule): boolean {
     if (!rule || !isString(rule.eventAttributeKey)) {
       return false;
     }
@@ -682,7 +674,7 @@ class RoktKit implements KitInterface {
     return true;
   }
 
-  private applyPlacementEventAttributeMapping(event: MParticleEvent): void {
+  private applyPlacementEventAttributeMapping(event: SDKEvent): void {
     const mappedAttributeKeys = Object.keys(this.placementEventAttributeMappingLookup);
     for (let i = 0; i < mappedAttributeKeys.length; i++) {
       const mappedAttributeKey = mappedAttributeKeys[i];
@@ -1035,15 +1027,13 @@ class RoktKit implements KitInterface {
     if (!this.isKitReady()) {
       return 'Kit not ready for forwarder: ' + name;
     }
-    const mpEvent = event as unknown as MParticleEvent;
-
     if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {
       if (!isEmpty(this.placementEventAttributeMappingLookup)) {
-        this.applyPlacementEventAttributeMapping(mpEvent);
+        this.applyPlacementEventAttributeMapping(event);
       }
 
       if (!isEmpty(this.placementEventMappingLookup)) {
-        const hashedEvent = hashEventMessage(mpEvent.EventDataType, mpEvent.EventCategory, mpEvent.EventName ?? '');
+        const hashedEvent = hashEventMessage(event.EventDataType, event.EventCategory, event.EventName ?? '');
         if (this.placementEventMappingLookup[String(hashedEvent)]) {
           mp().Rokt.setLocalSessionAttribute?.(this.placementEventMappingLookup[String(hashedEvent)], true);
         }

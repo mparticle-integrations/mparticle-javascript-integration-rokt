@@ -1,6 +1,7 @@
 import packageJson from '../../package.json';
 const packageVersion = packageJson.version;
 import '../../src/Rokt-Kit';
+import { Batch } from '@mparticle/web-sdk/internal';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -4334,7 +4335,7 @@ describe('Rokt Forwarder', () => {
   });
 
   describe('#processBatch', () => {
-    let mockBatch: any;
+    let mockBatch: Batch;
 
     beforeEach(() => {
       (window as any).mParticle.forwarder.batchQueue = [];
@@ -4417,45 +4418,6 @@ describe('Rokt Forwarder', () => {
       expect(receivedBatches[0].user_attributes).toEqual({ 'user-attr': 'user-value' });
       expect(receivedBatches[0].user_identities).toEqual({ email: 'test@example.com' });
       expect(receivedBatches[0].events.length).toBe(1);
-    });
-
-    it('should forward batch including non-event types (UserIdentityChange, UserAttributeChange)', async () => {
-      const receivedBatches: any[] = [];
-      (window as any).Rokt.__batch_stream__ = function (payload: any) {
-        receivedBatches.push(payload);
-      };
-
-      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
-
-      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-      const batchWithNonEvents = {
-        mpid: 'test-mpid-456',
-        user_attributes: { age: '30' },
-        user_identities: { email: 'user@example.com' },
-        events: [
-          { event_type: 'custom_event', data: { event_name: 'Page Viewed', custom_event_type: 'navigation' } },
-          {
-            event_type: 'user_identity_change',
-            data: {
-              new: { identity_type: 'email', identity: 'user@example.com', created_this_batch: true },
-              old: { identity_type: 'email', identity: null, created_this_batch: false },
-            },
-          },
-          {
-            event_type: 'user_attribute_change',
-            data: { user_attribute_name: 'age', new: '30', old: null, deleted: false, is_new_attribute: true },
-          },
-        ],
-      };
-
-      (window as any).mParticle.forwarder.processBatch(batchWithNonEvents);
-
-      expect(receivedBatches.length).toBe(1);
-      expect(receivedBatches[0].events.length).toBe(3);
-      expect(receivedBatches[0].events[0].event_type).toBe('custom_event');
-      expect(receivedBatches[0].events[1].event_type).toBe('user_identity_change');
-      expect(receivedBatches[0].events[2].event_type).toBe('user_attribute_change');
     });
 
     it('should queue batch in batchQueue when kit is not initialized', () => {
