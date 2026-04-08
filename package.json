@@ -21,6 +21,7 @@
   "repository": "https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt",
   "scripts": {
     "build": "vite build",
+    "build:watch": "vite build --watch",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" \"test/**/*.ts\" --fix",
     "test": "vitest run",
