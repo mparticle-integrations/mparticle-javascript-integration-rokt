@@ -16,6 +16,8 @@
 // Types
 // ============================================================
 
+import { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sdk/internal';
+
 interface RoktKitSettings {
   accountId: string;
   roktExtensions?: string;
@@ -67,42 +69,18 @@ interface RoktLauncher {
   use(extensionName: string): Promise<unknown>;
 }
 
-interface MPBatchEvent {
-  event_type: string;
-  data?: Record<string, unknown>;
-}
-
-interface MPBatch {
-  source_request_id?: string | null;
-  events?: MPBatchEvent[] | null;
-  device_info?: Record<string, unknown>;
-  application_info?: Record<string, unknown>;
-  user_attributes?: Record<string, string | string[] | null> | null;
-  deleted_user_attributes?: string[] | null;
-  user_identities?: Record<string, string | null>;
-  environment?: 'development' | 'production';
-  mp_deviceid?: string | null;
-  timestamp_unixtime_ms?: number | null;
-  batch_id?: number | null;
-  mpid?: string | number | null;
-  sdk_version?: string | null;
-  consent_state?: Record<string, unknown>;
-  integration_attributes?: Record<string, Record<string, string | null>> | null;
-  [key: string]: unknown;
-}
 
 interface RoktGlobal {
   createLauncher(options: Record<string, unknown>): Promise<RoktLauncher>;
   createLocalLauncher(options: Record<string, unknown>): RoktLauncher;
   currentLauncher?: RoktLauncher;
   __event_stream__?(event: Record<string, unknown>): void;
-  __batch_stream__?(batch: MPBatch): void;
+  __batch_stream__?(batch: Batch): void;
   setExtensionData(data: Record<string, unknown>): void;
 }
 
-interface FilteredUser {
-  getMPID(): string;
-  getAllUserAttributes(): Record<string, unknown>;
+interface FilteredUser extends IMParticleUser {
+  getMPID?(): string;
   getUserIdentities?: () => { userIdentities: Record<string, string> };
 }
 
@@ -609,7 +587,7 @@ class LoggingService {
 // RoktKit class
 // ============================================================
 
-class RoktKit {
+class RoktKit implements KitInterface {
   // Static field for allowed origin hashes (mutable by testHelpers)
   public static _allowedOriginHashes: number[] = [-553112570, 549508659];
 
@@ -621,6 +599,7 @@ class RoktKit {
 
   // Public fields (accessed by tests and the mParticle framework)
   public name = name;
+  public id = moduleId;
   public moduleId = moduleId;
   public isInitialized = false;
   public launcher: RoktLauncher | null = null;
@@ -629,10 +608,10 @@ class RoktKit {
   public testHelpers: TestHelpers | null = null;
   public placementEventMappingLookup: Record<string, string> = {};
   public placementEventAttributeMappingLookup: Record<string, PlacementEventRule[]> = {};
-  public eventQueue: MParticleEvent[] = [];
+  public eventQueue: SDKEvent[] = [];
   public eventStreamQueue: MParticleEvent[] = [];
-  public batchQueue: MPBatch[] = [];
-  public batchStreamQueue: MPBatch[] = [];
+  public batchQueue: Batch[] = [];
+  public batchStreamQueue: Batch[] = [];
   public integrationName: string | null = null;
   public domain?: string;
   public errorReportingService: ErrorReportingService | null = null;
@@ -787,7 +766,7 @@ class RoktKit {
     mp().logEvent(EVENT_NAME_SELECT_PLACEMENTS, EVENT_TYPE_OTHER, attributes as Record<string, unknown>);
   }
 
-  private processEventQueue(): void {
+  private drainQueues(): void {
     this.eventQueue.forEach((event) => {
       this.process(event);
     });
@@ -818,15 +797,20 @@ class RoktKit {
     }
   }
 
-  public processBatch(batch: MPBatch): void {
-    if (!this.isKitReady()) {
-      this.batchQueue.push(batch);
-      return;
+  public processBatch(batch: Batch): string {
+    try {
+      if (!this.isKitReady()) {
+        this.batchQueue.push(batch);
+        return 'Batch queued for forwarder: ' + name;
+      }
+      this.sendBatchStream(batch);
+      return 'Successfully sent batch to forwarder: ' + name;
+    } catch (error) {
+      return "Can't send batch to forwarder: " + name + ' ' + error;
     }
-    this.sendBatchStream(batch);
   }
 
-  private sendBatchStream(batch: MPBatch): void {
+  private sendBatchStream(batch: Batch): void {
     if (window.Rokt && typeof window.Rokt.__batch_stream__ === 'function') {
       if (this.batchStreamQueue.length) {
         const queuedBatches = this.batchStreamQueue;
@@ -930,7 +914,7 @@ class RoktKit {
 
     // Attaches the kit to the Rokt manager
     mp().Rokt.attachKit(this);
-    this.processEventQueue();
+    this.drainQueues();
   }
 
   private fetchOptimizely(): Record<string, unknown> {
@@ -983,147 +967,161 @@ class RoktKit {
    * Initializes the Rokt forwarder with settings from the mParticle server.
    */
   public init(
-    settings: RoktKitSettings,
+    settings: Record<string, unknown>,
     _service: unknown,
     testMode: boolean,
     _trackerId: unknown,
     filteredUserAttributes: Record<string, unknown>,
-  ): void {
-    const accountId = settings.accountId;
-    const roktExtensions = extractRoktExtensions(settings.roktExtensions);
-    this.userAttributes = filteredUserAttributes || {};
-    this._onboardingExpProvider = settings.onboardingExpProvider;
+  ): string {
+    try {
+      const kitSettings = settings as unknown as RoktKitSettings;
+      const accountId = kitSettings.accountId;
+      const roktExtensions = extractRoktExtensions(kitSettings.roktExtensions);
+      this.userAttributes = filteredUserAttributes || {};
+      this._onboardingExpProvider = kitSettings.onboardingExpProvider;
 
-    const placementEventMapping = parseSettingsString<PlacementEventMappingEntry>(settings.placementEventMapping);
-    this.placementEventMappingLookup = generateMappedEventLookup(placementEventMapping);
+      const placementEventMapping = parseSettingsString<PlacementEventMappingEntry>(kitSettings.placementEventMapping);
+      this.placementEventMappingLookup = generateMappedEventLookup(placementEventMapping);
 
-    const placementEventAttributeMapping = parseSettingsString<EventAttributeMapping>(
-      settings.placementEventAttributeMapping,
-    );
-    this.placementEventAttributeMappingLookup = generateMappedEventAttributeLookup(placementEventAttributeMapping);
+      const placementEventAttributeMapping = parseSettingsString<EventAttributeMapping>(
+        kitSettings.placementEventAttributeMapping,
+      );
+      this.placementEventAttributeMappingLookup = generateMappedEventAttributeLookup(placementEventAttributeMapping);
 
-    // Set dynamic OTHER_IDENTITY based on server settings
-    if (settings.hashedEmailUserIdentityType) {
-      this._mappedEmailSha256Key = settings.hashedEmailUserIdentityType.toLowerCase();
-    }
+      // Set dynamic OTHER_IDENTITY based on server settings
+      if (kitSettings.hashedEmailUserIdentityType) {
+        this._mappedEmailSha256Key = kitSettings.hashedEmailUserIdentityType.toLowerCase();
+      }
 
-    const domain = mp().Rokt?.domain;
-    const launcherOptions: Record<string, unknown> = {
-      ...((mp().Rokt?.launcherOptions as Record<string, unknown>) || {}),
-    };
-    this.integrationName = generateIntegrationName(launcherOptions.integrationName as string | undefined);
-    launcherOptions.integrationName = this.integrationName;
-
-    this.domain = domain;
-
-    const reportingConfig: ReportingConfig = {
-      loggingUrl: settings.loggingUrl,
-      errorUrl: settings.errorUrl,
-      isLoggingEnabled: settings.isLoggingEnabled === 'true' || settings.isLoggingEnabled === true,
-    };
-    const errorReportingService = new ErrorReportingService(
-      reportingConfig,
-      this.integrationName,
-      window.__rokt_li_guid__,
-      settings.accountId,
-    );
-    const loggingService = new LoggingService(
-      reportingConfig,
-      errorReportingService,
-      this.integrationName,
-      window.__rokt_li_guid__,
-      settings.accountId,
-    );
-
-    this.errorReportingService = errorReportingService;
-    this.loggingService = loggingService;
-
-    if (mp()._registerErrorReportingService) {
-      mp()._registerErrorReportingService!(errorReportingService);
-    }
-    if (mp()._registerLoggingService) {
-      mp()._registerLoggingService!(loggingService);
-    }
-
-    if (testMode) {
-      this.testHelpers = {
-        generateLauncherScript: generateLauncherScript,
-        extractRoktExtensions: extractRoktExtensions,
-        hashEventMessage: hashEventMessage,
-        parseSettingsString: parseSettingsString,
-        generateMappedEventLookup: generateMappedEventLookup,
-        generateMappedEventAttributeLookup: generateMappedEventAttributeLookup,
-        sendAdBlockMeasurementSignals: sendAdBlockMeasurementSignals,
-        createAutoRemovedIframe: createAutoRemovedIframe,
-        djb2: djb2,
-        setAllowedOriginHashes: (hashes: number[]) => {
-          RoktKit._allowedOriginHashes = hashes;
-        },
-        ReportingTransport: ReportingTransport,
-        ErrorReportingService: ErrorReportingService,
-        LoggingService: LoggingService,
-        RateLimiter: RateLimiter,
-        ErrorCodes: ErrorCodes,
-        WSDKErrorSeverity: WSDKErrorSeverity,
+      const domain = mp().Rokt?.domain;
+      const launcherOptions: Record<string, unknown> = {
+        ...((mp().Rokt?.launcherOptions as Record<string, unknown>) || {}),
       };
-      this.attachLauncher(accountId, launcherOptions);
-      return;
-    }
+      this.integrationName = generateIntegrationName(launcherOptions.integrationName as string | undefined);
+      launcherOptions.integrationName = this.integrationName;
 
-    if (this.isLauncherReadyToAttach()) {
-      this.attachLauncher(accountId, launcherOptions);
-    } else {
-      const target = document.head || document.body;
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = generateLauncherScript(domain, roktExtensions);
-      script.async = true;
-      script.crossOrigin = 'anonymous';
-      (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
-      script.id = 'rokt-launcher';
+      this.domain = domain;
 
-      script.onload = () => {
-        if (this.isLauncherReadyToAttach()) {
-          this.attachLauncher(accountId, launcherOptions);
-        } else {
-          console.error('Rokt object is not available after script load.');
-        }
+      const reportingConfig: ReportingConfig = {
+        loggingUrl: kitSettings.loggingUrl,
+        errorUrl: kitSettings.errorUrl,
+        isLoggingEnabled: kitSettings.isLoggingEnabled === 'true' || kitSettings.isLoggingEnabled === true,
       };
+      const errorReportingService = new ErrorReportingService(
+        reportingConfig,
+        this.integrationName,
+        window.__rokt_li_guid__,
+        kitSettings.accountId,
+      );
+      const loggingService = new LoggingService(
+        reportingConfig,
+        errorReportingService,
+        this.integrationName,
+        window.__rokt_li_guid__,
+        kitSettings.accountId,
+      );
 
-      script.onerror = (error) => {
-        console.error('Error loading Rokt launcher script:', error);
-      };
+      this.errorReportingService = errorReportingService;
+      this.loggingService = loggingService;
 
-      target.appendChild(script);
-      this.captureTiming(RoktKit.PERFORMANCE_MARKS.RoktScriptAppended);
+      if (mp()._registerErrorReportingService) {
+        mp()._registerErrorReportingService!(errorReportingService);
+      }
+      if (mp()._registerLoggingService) {
+        mp()._registerLoggingService!(loggingService);
+      }
+
+      if (testMode) {
+        this.testHelpers = {
+          generateLauncherScript: generateLauncherScript,
+          extractRoktExtensions: extractRoktExtensions,
+          hashEventMessage: hashEventMessage,
+          parseSettingsString: parseSettingsString,
+          generateMappedEventLookup: generateMappedEventLookup,
+          generateMappedEventAttributeLookup: generateMappedEventAttributeLookup,
+          sendAdBlockMeasurementSignals: sendAdBlockMeasurementSignals,
+          createAutoRemovedIframe: createAutoRemovedIframe,
+          djb2: djb2,
+          setAllowedOriginHashes: (hashes: number[]) => {
+            RoktKit._allowedOriginHashes = hashes;
+          },
+          ReportingTransport: ReportingTransport,
+          ErrorReportingService: ErrorReportingService,
+          LoggingService: LoggingService,
+          RateLimiter: RateLimiter,
+          ErrorCodes: ErrorCodes,
+          WSDKErrorSeverity: WSDKErrorSeverity,
+        };
+        this.attachLauncher(accountId, launcherOptions);
+        return 'Successfully initialized: ' + name;
+      }
+
+      if (this.isLauncherReadyToAttach()) {
+        this.attachLauncher(accountId, launcherOptions);
+      } else {
+        const target = document.head || document.body;
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = generateLauncherScript(domain, roktExtensions);
+        script.async = true;
+        script.crossOrigin = 'anonymous';
+        (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
+        script.id = 'rokt-launcher';
+
+        script.onload = () => {
+          if (this.isLauncherReadyToAttach()) {
+            this.attachLauncher(accountId, launcherOptions);
+          } else {
+            console.error('Rokt object is not available after script load.');
+          }
+        };
+
+        script.onerror = (error) => {
+          console.error('Error loading Rokt launcher script:', error);
+        };
+
+        target.appendChild(script);
+        this.captureTiming(RoktKit.PERFORMANCE_MARKS.RoktScriptAppended);
+      }
+
+      return 'Successfully initialized: ' + name;
+    } catch (e) {
+      return "Can't initialize forwarder: " + name + ': ' + e;
     }
   }
 
-  public process(event: MParticleEvent): void {
-    if (!this.isKitReady()) {
-      this.eventQueue.push(event);
-      return;
-    }
+  public process(event: SDKEvent): string {
+    try {
+      if (!this.isKitReady()) {
+        this.eventQueue.push(event);
+        return 'Event queued for forwarder: ' + name;
+      }
+      const mpEvent = event as unknown as MParticleEvent;
 
-    this.sendEventStream(event);
+      this.sendEventStream(mpEvent);
 
-    if (typeof mp().Rokt?.setLocalSessionAttribute !== 'function') {
-      return;
-    }
+      if (typeof mp().Rokt?.setLocalSessionAttribute !== 'function') {
+        return 'Successfully sent to forwarder: ' + name;
+      }
 
-    if (!isEmpty(this.placementEventAttributeMappingLookup)) {
-      this.applyPlacementEventAttributeMapping(event);
-    }
+      if (!isEmpty(this.placementEventAttributeMappingLookup)) {
+        this.applyPlacementEventAttributeMapping(mpEvent);
+      }
 
-    if (isEmpty(this.placementEventMappingLookup)) {
-      return;
-    }
+      if (isEmpty(this.placementEventMappingLookup)) {
+        return 'Successfully sent to forwarder: ' + name;
+      }
 
-    const hashedEvent = hashEventMessage(event.EventDataType, event.EventCategory, event.EventName ?? '');
+      const hashedEvent = hashEventMessage(mpEvent.EventDataType, mpEvent.EventCategory, mpEvent.EventName ?? '');
 
-    if (this.placementEventMappingLookup[String(hashedEvent)]) {
-      const mappedValue = this.placementEventMappingLookup[String(hashedEvent)];
-      mp().Rokt.setLocalSessionAttribute?.(mappedValue, true);
+      if (this.placementEventMappingLookup[String(hashedEvent)]) {
+        const mappedValue = this.placementEventMappingLookup[String(hashedEvent)];
+        mp().Rokt.setLocalSessionAttribute?.(mappedValue, true);
+      }
+
+      return 'Successfully sent to forwarder: ' + name;
+    } catch (error) {
+      return "Can't send to forwarder: " + name + ' ' + error;
     }
   }
 
@@ -1136,36 +1134,66 @@ class RoktKit {
     window.Rokt!.setExtensionData(partnerExtensionData);
   }
 
-  public setUserAttribute(key: string, value: unknown): void {
-    this.userAttributes[key] = value;
-    this.sendEventStream(
-      this.buildIdentityEvent('set_user_attributes', this.filters.filteredUser ?? ({} as FilteredUser)),
-    );
+  public setUserAttribute(key: string, value: unknown): string {
+    try {
+      this.userAttributes[key] = value;
+      this.sendEventStream(
+        this.buildIdentityEvent('set_user_attributes', this.filters.filteredUser ?? ({} as FilteredUser)),
+      );
+      return 'Successfully set user attribute for forwarder: ' + name;
+    } catch (error) {
+      return "Can't set user attribute for forwarder: " + name + ' ' + error;
+    }
   }
 
-  public removeUserAttribute(key: string): void {
-    delete this.userAttributes[key];
+  public removeUserAttribute(key: string): string {
+    try {
+      delete this.userAttributes[key];
+      return 'Successfully removed user attribute for forwarder: ' + name;
+    } catch (error) {
+      return "Can't remove user attribute for forwarder: " + name + ' ' + error;
+    }
   }
 
-  public onUserIdentified(filteredUser: FilteredUser): void {
-    this.filters.filteredUser = filteredUser;
-    this.userAttributes = filteredUser.getAllUserAttributes();
-    this.sendEventStream(this.buildIdentityEvent('identify', filteredUser));
+  public onUserIdentified(user: IMParticleUser): string {
+    try {
+      this.filters.filteredUser = user as FilteredUser;
+      this.userAttributes = user.getAllUserAttributes();
+      this.sendEventStream(this.buildIdentityEvent('identify', user as FilteredUser));
+      return 'Successfully called onUserIdentified for forwarder: ' + name;
+    } catch (error) {
+      return "Can't call onUserIdentified for forwarder: " + name + ' ' + error;
+    }
   }
 
-  public onLoginComplete(filteredUser: FilteredUser): void {
-    this.userAttributes = filteredUser.getAllUserAttributes();
-    this.sendEventStream(this.buildIdentityEvent('login', filteredUser));
+  public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    try {
+      this.userAttributes = user.getAllUserAttributes();
+      this.sendEventStream(this.buildIdentityEvent('login', user as FilteredUser));
+      return 'Successfully called onLoginComplete for forwarder: ' + name;
+    } catch (error) {
+      return "Can't call onLoginComplete for forwarder: " + name + ' ' + error;
+    }
   }
 
-  public onLogoutComplete(filteredUser: FilteredUser): void {
-    this.userAttributes = filteredUser.getAllUserAttributes();
-    this.sendEventStream(this.buildIdentityEvent('logout', filteredUser));
+  public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    try {
+      this.userAttributes = user.getAllUserAttributes();
+      this.sendEventStream(this.buildIdentityEvent('logout', user as FilteredUser));
+      return 'Successfully called onLogoutComplete for forwarder: ' + name;
+    } catch (error) {
+      return "Can't call onLogoutComplete for forwarder: " + name + ' ' + error;
+    }
   }
 
-  public onModifyComplete(filteredUser: FilteredUser): void {
-    this.userAttributes = filteredUser.getAllUserAttributes();
-    this.sendEventStream(this.buildIdentityEvent('modify_user', filteredUser));
+  public onModifyComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    try {
+      this.userAttributes = user.getAllUserAttributes();
+      this.sendEventStream(this.buildIdentityEvent('modify_user', user as FilteredUser));
+      return 'Successfully called onModifyComplete for forwarder: ' + name;
+    } catch (error) {
+      return "Can't call onModifyComplete for forwarder: " + name + ' ' + error;
+    }
   }
 
   /**
