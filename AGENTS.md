@@ -44,6 +44,7 @@ The Rokt web kit (`@mparticle/web-rokt-kit`) is an mParticle integration kit (fo
 
 ```bash
 npm run build          # Vite build (IIFE + CJS + type defs)
+npm run build:watch    # Vite build in watch mode (rebuilds on change)
 npm run lint           # ESLint check
 npm run lint:fix       # ESLint autofix
 npm run test           # Vitest run
