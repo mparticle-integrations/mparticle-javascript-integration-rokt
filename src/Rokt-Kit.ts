@@ -16,6 +16,10 @@
 // Types
 // ============================================================
 
+import { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sdk/internal';
+// BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
+import { BaseEvent } from '@mparticle/event-models';
+
 interface RoktKitSettings {
   accountId: string;
   roktExtensions?: string;
@@ -71,13 +75,14 @@ interface RoktGlobal {
   createLauncher(options: Record<string, unknown>): Promise<RoktLauncher>;
   createLocalLauncher(options: Record<string, unknown>): RoktLauncher;
   currentLauncher?: RoktLauncher;
-  __event_stream__?(event: Record<string, unknown>): void;
+  __batch_stream__?(batch: Batch): void;
   setExtensionData(data: Record<string, unknown>): void;
 }
 
-interface FilteredUser {
+// TODO: getMPID and getUserIdentities exist on the User base type but are not re-exported from
+// @mparticle/web-sdk/internal, so we redeclare them here until the internal types expose them.
+interface FilteredUser extends IMParticleUser {
   getMPID(): string;
-  getAllUserAttributes(): Record<string, unknown>;
   getUserIdentities?: () => { userIdentities: Record<string, string> };
 }
 
@@ -153,14 +158,6 @@ interface ForwarderRegistration {
   name: string;
   constructor: new () => RoktKit;
   getId: () => number;
-}
-
-interface MParticleEvent {
-  EventDataType: number;
-  EventCategory: number;
-  EventName?: string;
-  EventAttributes?: Record<string, unknown>;
-  [key: string]: unknown;
 }
 
 interface ReportingConfig {
@@ -584,7 +581,7 @@ class LoggingService {
 // RoktKit class
 // ============================================================
 
-class RoktKit {
+class RoktKit implements KitInterface {
   // Static field for allowed origin hashes (mutable by testHelpers)
   public static _allowedOriginHashes: number[] = [-553112570, 549508659];
 
@@ -596,6 +593,7 @@ class RoktKit {
 
   // Public fields (accessed by tests and the mParticle framework)
   public name = name;
+  public id = moduleId;
   public moduleId = moduleId;
   public isInitialized = false;
   public launcher: RoktLauncher | null = null;
@@ -604,8 +602,9 @@ class RoktKit {
   public testHelpers: TestHelpers | null = null;
   public placementEventMappingLookup: Record<string, string> = {};
   public placementEventAttributeMappingLookup: Record<string, PlacementEventRule[]> = {};
-  public eventQueue: MParticleEvent[] = [];
-  public eventStreamQueue: MParticleEvent[] = [];
+  public batchQueue: Batch[] = [];
+  public batchStreamQueue: Batch[] = [];
+  public pendingIdentityEvents: BaseEvent[] = [];
   public integrationName: string | null = null;
   public domain?: string;
   public errorReportingService: ErrorReportingService | null = null;
@@ -617,7 +616,7 @@ class RoktKit {
 
   // ---- Private helpers ----
 
-  private getEventAttributeValue(event: MParticleEvent, eventAttributeKey: string): unknown {
+  private getEventAttributeValue(event: SDKEvent, eventAttributeKey: string): unknown {
     const attributes = event && event.EventAttributes;
     if (!attributes) {
       return null;
@@ -657,7 +656,7 @@ class RoktKit {
     return false;
   }
 
-  private doesEventMatchRule(event: MParticleEvent, rule: PlacementEventRule): boolean {
+  private doesEventMatchRule(event: SDKEvent, rule: PlacementEventRule): boolean {
     if (!rule || !isString(rule.eventAttributeKey)) {
       return false;
     }
@@ -681,7 +680,7 @@ class RoktKit {
     return true;
   }
 
-  private applyPlacementEventAttributeMapping(event: MParticleEvent): void {
+  private applyPlacementEventAttributeMapping(event: SDKEvent): void {
     const mappedAttributeKeys = Object.keys(this.placementEventAttributeMappingLookup);
     for (let i = 0; i < mappedAttributeKeys.length; i++) {
       const mappedAttributeKey = mappedAttributeKeys[i];
@@ -760,50 +759,8 @@ class RoktKit {
     mp().logEvent(EVENT_NAME_SELECT_PLACEMENTS, EVENT_TYPE_OTHER, attributes as Record<string, unknown>);
   }
 
-  private processEventQueue(): void {
-    this.eventQueue.forEach((event) => {
-      this.process(event);
-    });
-    this.eventQueue = [];
-  }
-
-  private enrichEvent(event: MParticleEvent): Record<string, unknown> {
-    return { ...(event as Record<string, unknown>), UserAttributes: this.userAttributes };
-  }
-
-  private sendEventStream(event: MParticleEvent): void {
-    if (window.Rokt && typeof window.Rokt.__event_stream__ === 'function') {
-      if (this.eventStreamQueue.length) {
-        const queuedEvents = this.eventStreamQueue;
-        this.eventStreamQueue = [];
-        for (let i = 0; i < queuedEvents.length; i++) {
-          window.Rokt.__event_stream__(this.enrichEvent(queuedEvents[i]));
-        }
-      }
-      window.Rokt.__event_stream__(this.enrichEvent(event));
-    } else {
-      this.eventStreamQueue.push(event);
-    }
-  }
-
-  private setRoktSessionId(sessionId: string): void {
-    if (!sessionId || typeof sessionId !== 'string') {
-      return;
-    }
-    try {
-      const mpInstance = mp().getInstance();
-      if (mpInstance && typeof mpInstance.setIntegrationAttribute === 'function') {
-        mpInstance.setIntegrationAttribute(moduleId, {
-          roktSessionId: sessionId,
-        });
-      }
-    } catch (_e) {
-      // Best effort — never let this break the partner page
-    }
-  }
-
-  private buildIdentityEvent(eventName: string, filteredUser: FilteredUser): MParticleEvent {
-    const mpid = filteredUser.getMPID && typeof filteredUser.getMPID === 'function' ? filteredUser.getMPID() : null;
+  private buildIdentityEvent(eventName: string, filteredUser: FilteredUser): BaseEvent {
+    const mpid = filteredUser.getMPID();
     const sessionId =
       mp() && mp().sessionManager && typeof mp().sessionManager!.getSession === 'function'
         ? mp().sessionManager!.getSession()
@@ -821,7 +778,66 @@ class RoktKit {
       MPID: mpid,
       SessionId: sessionId,
       UserIdentities: userIdentities,
+    } as unknown as BaseEvent;
+  }
+
+  private mergePendingIdentityEvents(batch: Batch): Batch {
+    if (this.pendingIdentityEvents.length === 0) {
+      return batch;
+    }
+    const merged: Batch = {
+      ...batch,
+      events: [...(batch.events ?? []), ...this.pendingIdentityEvents],
     };
+    this.pendingIdentityEvents = [];
+    return merged;
+  }
+
+  private drainBatchQueue(): void {
+    this.batchQueue.forEach((batch) => {
+      this.processBatch(batch);
+    });
+    this.batchQueue = [];
+  }
+
+  public processBatch(batch: Batch): string {
+    if (!this.isKitReady()) {
+      this.batchQueue.push(batch);
+      return 'Batch queued for forwarder: ' + name;
+    }
+    this.sendBatchStream(this.mergePendingIdentityEvents(batch));
+    return 'Successfully sent batch to forwarder: ' + name;
+  }
+
+  private sendBatchStream(batch: Batch): void {
+    if (window.Rokt && typeof window.Rokt.__batch_stream__ === 'function') {
+      if (this.batchStreamQueue.length) {
+        const queuedBatches = this.batchStreamQueue;
+        this.batchStreamQueue = [];
+        for (let i = 0; i < queuedBatches.length; i++) {
+          window.Rokt.__batch_stream__(queuedBatches[i]);
+        }
+      }
+      window.Rokt.__batch_stream__(batch);
+    } else {
+      this.batchStreamQueue.push(batch);
+    }
+  }
+
+  private setRoktSessionId(sessionId: string): void {
+    if (!sessionId || typeof sessionId !== 'string') {
+      return;
+    }
+    try {
+      const mpInstance = mp().getInstance();
+      if (mpInstance && typeof mpInstance.setIntegrationAttribute === 'function') {
+        mpInstance.setIntegrationAttribute(moduleId, {
+          roktSessionId: sessionId,
+        });
+      }
+    } catch (_e) {
+      // Best effort — never let this break the partner page
+    }
   }
 
   private attachLauncher(accountId: string, launcherOptions: Record<string, unknown>): void {
@@ -875,7 +891,7 @@ class RoktKit {
 
     // Attaches the kit to the Rokt manager
     mp().Rokt.attachKit(this);
-    this.processEventQueue();
+    this.drainBatchQueue();
   }
 
   private fetchOptimizely(): Record<string, unknown> {
@@ -928,28 +944,29 @@ class RoktKit {
    * Initializes the Rokt forwarder with settings from the mParticle server.
    */
   public init(
-    settings: RoktKitSettings,
+    settings: Record<string, unknown>,
     _service: unknown,
     testMode: boolean,
     _trackerId: unknown,
     filteredUserAttributes: Record<string, unknown>,
-  ): void {
-    const accountId = settings.accountId;
-    const roktExtensions = extractRoktExtensions(settings.roktExtensions);
+  ): string {
+    const kitSettings = settings as unknown as RoktKitSettings;
+    const accountId = kitSettings.accountId;
+    const roktExtensions = extractRoktExtensions(kitSettings.roktExtensions);
     this.userAttributes = filteredUserAttributes || {};
-    this._onboardingExpProvider = settings.onboardingExpProvider;
+    this._onboardingExpProvider = kitSettings.onboardingExpProvider;
 
-    const placementEventMapping = parseSettingsString<PlacementEventMappingEntry>(settings.placementEventMapping);
+    const placementEventMapping = parseSettingsString<PlacementEventMappingEntry>(kitSettings.placementEventMapping);
     this.placementEventMappingLookup = generateMappedEventLookup(placementEventMapping);
 
     const placementEventAttributeMapping = parseSettingsString<EventAttributeMapping>(
-      settings.placementEventAttributeMapping,
+      kitSettings.placementEventAttributeMapping,
     );
     this.placementEventAttributeMappingLookup = generateMappedEventAttributeLookup(placementEventAttributeMapping);
 
     // Set dynamic OTHER_IDENTITY based on server settings
-    if (settings.hashedEmailUserIdentityType) {
-      this._mappedEmailSha256Key = settings.hashedEmailUserIdentityType.toLowerCase();
+    if (kitSettings.hashedEmailUserIdentityType) {
+      this._mappedEmailSha256Key = kitSettings.hashedEmailUserIdentityType.toLowerCase();
     }
 
     const domain = mp().Rokt?.domain;
@@ -962,22 +979,22 @@ class RoktKit {
     this.domain = domain;
 
     const reportingConfig: ReportingConfig = {
-      loggingUrl: settings.loggingUrl,
-      errorUrl: settings.errorUrl,
-      isLoggingEnabled: settings.isLoggingEnabled === 'true' || settings.isLoggingEnabled === true,
+      loggingUrl: kitSettings.loggingUrl,
+      errorUrl: kitSettings.errorUrl,
+      isLoggingEnabled: kitSettings.isLoggingEnabled === 'true' || kitSettings.isLoggingEnabled === true,
     };
     const errorReportingService = new ErrorReportingService(
       reportingConfig,
       this.integrationName,
       window.__rokt_li_guid__,
-      settings.accountId,
+      kitSettings.accountId,
     );
     const loggingService = new LoggingService(
       reportingConfig,
       errorReportingService,
       this.integrationName,
       window.__rokt_li_guid__,
-      settings.accountId,
+      kitSettings.accountId,
     );
 
     this.errorReportingService = errorReportingService;
@@ -1012,7 +1029,7 @@ class RoktKit {
         WSDKErrorSeverity: WSDKErrorSeverity,
       };
       this.attachLauncher(accountId, launcherOptions);
-      return;
+      return 'Successfully initialized: ' + name;
     }
 
     if (this.isLauncherReadyToAttach()) {
@@ -1042,34 +1059,28 @@ class RoktKit {
       target.appendChild(script);
       this.captureTiming(RoktKit.PERFORMANCE_MARKS.RoktScriptAppended);
     }
+
+    return 'Successfully initialized: ' + name;
   }
 
-  public process(event: MParticleEvent): void {
+  public process(event: SDKEvent): string {
     if (!this.isKitReady()) {
-      this.eventQueue.push(event);
-      return;
+      return 'Kit not ready for forwarder: ' + name;
+    }
+    if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {
+      if (!isEmpty(this.placementEventAttributeMappingLookup)) {
+        this.applyPlacementEventAttributeMapping(event);
+      }
+
+      if (!isEmpty(this.placementEventMappingLookup)) {
+        const hashedEvent = hashEventMessage(event.EventDataType, event.EventCategory, event.EventName ?? '');
+        if (this.placementEventMappingLookup[String(hashedEvent)]) {
+          mp().Rokt.setLocalSessionAttribute?.(this.placementEventMappingLookup[String(hashedEvent)], true);
+        }
+      }
     }
 
-    this.sendEventStream(event);
-
-    if (typeof mp().Rokt?.setLocalSessionAttribute !== 'function') {
-      return;
-    }
-
-    if (!isEmpty(this.placementEventAttributeMappingLookup)) {
-      this.applyPlacementEventAttributeMapping(event);
-    }
-
-    if (isEmpty(this.placementEventMappingLookup)) {
-      return;
-    }
-
-    const hashedEvent = hashEventMessage(event.EventDataType, event.EventCategory, event.EventName ?? '');
-
-    if (this.placementEventMappingLookup[String(hashedEvent)]) {
-      const mappedValue = this.placementEventMappingLookup[String(hashedEvent)];
-      mp().Rokt.setLocalSessionAttribute?.(mappedValue, true);
-    }
+    return 'Successfully sent to forwarder: ' + name;
   }
 
   public setExtensionData(partnerExtensionData: Record<string, unknown>): void {
@@ -1081,36 +1092,43 @@ class RoktKit {
     window.Rokt!.setExtensionData(partnerExtensionData);
   }
 
-  public setUserAttribute(key: string, value: unknown): void {
+  public setUserAttribute(key: string, value: unknown): string {
     this.userAttributes[key] = value;
-    this.sendEventStream(
-      this.buildIdentityEvent('set_user_attributes', this.filters.filteredUser ?? ({} as FilteredUser)),
-    );
+    return 'Successfully set user attribute for forwarder: ' + name;
   }
 
-  public removeUserAttribute(key: string): void {
+  public removeUserAttribute(key: string): string {
     delete this.userAttributes[key];
+    return 'Successfully removed user attribute for forwarder: ' + name;
   }
 
-  public onUserIdentified(filteredUser: FilteredUser): void {
+  public onUserIdentified(user: IMParticleUser): string {
+    const filteredUser = user as FilteredUser;
     this.filters.filteredUser = filteredUser;
-    this.userAttributes = filteredUser.getAllUserAttributes();
-    this.sendEventStream(this.buildIdentityEvent('identify', filteredUser));
+    this.userAttributes = user.getAllUserAttributes();
+    this.pendingIdentityEvents.push(this.buildIdentityEvent('identify', filteredUser));
+    return 'Successfully called onUserIdentified for forwarder: ' + name;
   }
 
-  public onLoginComplete(filteredUser: FilteredUser): void {
-    this.userAttributes = filteredUser.getAllUserAttributes();
-    this.sendEventStream(this.buildIdentityEvent('login', filteredUser));
+  public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    const filteredUser = user as FilteredUser;
+    this.userAttributes = user.getAllUserAttributes();
+    this.pendingIdentityEvents.push(this.buildIdentityEvent('login', filteredUser));
+    return 'Successfully called onLoginComplete for forwarder: ' + name;
   }
 
-  public onLogoutComplete(filteredUser: FilteredUser): void {
-    this.userAttributes = filteredUser.getAllUserAttributes();
-    this.sendEventStream(this.buildIdentityEvent('logout', filteredUser));
+  public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    const filteredUser = user as FilteredUser;
+    this.userAttributes = user.getAllUserAttributes();
+    this.pendingIdentityEvents.push(this.buildIdentityEvent('logout', filteredUser));
+    return 'Successfully called onLogoutComplete for forwarder: ' + name;
   }
 
-  public onModifyComplete(filteredUser: FilteredUser): void {
-    this.userAttributes = filteredUser.getAllUserAttributes();
-    this.sendEventStream(this.buildIdentityEvent('modify_user', filteredUser));
+  public onModifyComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    const filteredUser = user as FilteredUser;
+    this.userAttributes = user.getAllUserAttributes();
+    this.pendingIdentityEvents.push(this.buildIdentityEvent('modify', filteredUser));
+    return 'Successfully called onModifyComplete for forwarder: ' + name;
   }
 
   /**
@@ -1123,10 +1141,7 @@ class RoktKit {
     const filters = this.filters || {};
     const userAttributeFilters = (filters.userAttributeFilters as string[]) || [];
     const filteredUser = filters.filteredUser || null;
-    const mpid =
-      filteredUser && filteredUser.getMPID && typeof filteredUser.getMPID === 'function'
-        ? filteredUser.getMPID()
-        : null;
+    const mpid = filteredUser ? filteredUser.getMPID() : null;
 
     let filteredAttributes: Record<string, unknown>;
 

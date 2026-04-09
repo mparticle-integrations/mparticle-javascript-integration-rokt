@@ -1,6 +1,7 @@
 import packageJson from '../../package.json';
 const packageVersion = packageJson.version;
 import '../../src/Rokt-Kit';
+import { Batch } from '@mparticle/web-sdk/internal';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -2931,53 +2932,12 @@ describe('Rokt Forwarder', () => {
         },
       };
     });
-    afterEach(() => {
-      delete (window as any).Rokt.__event_stream__;
-      (window as any).mParticle.forwarder.eventStreamQueue = [];
-    });
-
     it('should set the user attribute', async () => {
       (window as any).mParticle.forwarder.setUserAttribute('test-attribute', 'test-value');
 
       expect((window as any).mParticle.forwarder.userAttributes).toEqual({
         'test-attribute': 'test-value',
       });
-    });
-
-    it('should send a set_user_attributes event to window.Rokt.__event_stream__', () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      (window as any).mParticle.forwarder.onUserIdentified({
-        getAllUserAttributes: function () {
-          return { 'user-attr': 'user-value' };
-        },
-        getMPID: function () {
-          return 'test-mpid';
-        },
-        getUserIdentities: function () {
-          return { userIdentities: { email: 'test@example.com' } };
-        },
-      });
-
-      receivedEvents.length = 0; // clear the identify event
-
-      (window as any).mParticle.forwarder.setUserAttribute('new-attr', 'new-value');
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].EventName).toBe('set_user_attributes');
-      expect(receivedEvents[0].EventDataType).toBe(14);
-      expect(receivedEvents[0].MPID).toBe('test-mpid');
-      expect(receivedEvents[0].SessionId).toBe('test-mp-session-id');
-    });
-
-    it('should queue event when window.Rokt.__event_stream__ is not available', () => {
-      (window as any).mParticle.forwarder.setUserAttribute('queued-attr', 'queued-value');
-
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventName).toBe('set_user_attributes');
     });
   });
 
@@ -2992,18 +2952,6 @@ describe('Rokt Forwarder', () => {
   });
 
   describe('#onUserIdentified', () => {
-    beforeEach(() => {
-      (window as any).mParticle.sessionManager = {
-        getSession: function () {
-          return 'test-mp-session-id';
-        },
-      };
-    });
-    afterEach(() => {
-      delete (window as any).Rokt.__event_stream__;
-      (window as any).mParticle.forwarder.eventStreamQueue = [];
-    });
-
     it('should set the filtered user and userAttributes', () => {
       (window as any).mParticle.forwarder.onUserIdentified({
         getAllUserAttributes: function () {
@@ -3022,73 +2970,16 @@ describe('Rokt Forwarder', () => {
       });
       expect((window as any).mParticle.forwarder.filters.filteredUser.getMPID()).toBe('123');
     });
-
-    it('should send a User Identified event to window.Rokt.__event_stream__', () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      (window as any).mParticle.forwarder.onUserIdentified({
-        getAllUserAttributes: function () {
-          return { 'user-attr': 'user-value' };
-        },
-        getMPID: function () {
-          return 'identified-mpid-123';
-        },
-        getUserIdentities: function () {
-          return { userIdentities: { email: 'jenny@example.com' } };
-        },
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].EventName).toBe('identify');
-      expect(receivedEvents[0].EventDataType).toBe(14);
-      expect(receivedEvents[0].MPID).toBe('identified-mpid-123');
-      expect(receivedEvents[0].SessionId).toBe('test-mp-session-id');
-      expect(receivedEvents[0].UserAttributes).toEqual({
-        'user-attr': 'user-value',
-      });
-      expect(receivedEvents[0].UserIdentities).toEqual({
-        email: 'jenny@example.com',
-      });
-    });
-
-    it('should queue event when window.Rokt.__event_stream__ is not available', () => {
-      (window as any).mParticle.forwarder.onUserIdentified({
-        getAllUserAttributes: function () {
-          return {};
-        },
-        getMPID: function () {
-          return '123';
-        },
-        getUserIdentities: function () {
-          return { userIdentities: {} };
-        },
-      });
-
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventName).toBe('identify');
-    });
   });
 
   describe('#onLoginComplete', () => {
-    beforeEach(() => {
-      (window as any).mParticle.sessionManager = {
-        getSession: function () {
-          return 'test-mp-session-id';
-        },
-      };
-    });
-    afterEach(() => {
-      delete (window as any).Rokt.__event_stream__;
-      (window as any).mParticle.forwarder.eventStreamQueue = [];
-    });
-
     it('should update userAttributes from the filtered user', () => {
       (window as any).mParticle.forwarder.onLoginComplete({
         getAllUserAttributes: function () {
           return { 'user-attr': 'user-value' };
+        },
+        getMPID: function () {
+          return '123';
         },
       });
 
@@ -3096,126 +2987,16 @@ describe('Rokt Forwarder', () => {
         'user-attr': 'user-value',
       });
     });
-
-    it('should send a User Login event to window.Rokt.__event_stream__', () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      (window as any).mParticle.forwarder.onLoginComplete({
-        getAllUserAttributes: function () {
-          return { 'user-attr': 'user-value' };
-        },
-        getMPID: function () {
-          return 'login-mpid-123';
-        },
-        getUserIdentities: function () {
-          return {
-            userIdentities: { email: 'jenny@example.com' },
-          };
-        },
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].EventName).toBe('login');
-      expect(receivedEvents[0].EventDataType).toBe(14);
-      expect(receivedEvents[0].UserAttributes).toEqual({
-        'user-attr': 'user-value',
-      });
-      expect(receivedEvents[0].MPID).toBe('login-mpid-123');
-      expect(receivedEvents[0].SessionId).toBe('test-mp-session-id');
-      expect(receivedEvents[0].UserIdentities).toEqual({
-        email: 'jenny@example.com',
-      });
-    });
-
-    it('should include null MPID and null UserIdentities when filteredUser has no getMPID or getUserIdentities', () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      (window as any).mParticle.forwarder.onLoginComplete({
-        getAllUserAttributes: function () {
-          return {};
-        },
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].MPID).toBeNull();
-      expect(receivedEvents[0].UserIdentities).toBeNull();
-    });
-
-    it('should include null SessionId when sessionManager is unavailable', () => {
-      delete (window as any).mParticle.sessionManager;
-
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      (window as any).mParticle.forwarder.onLoginComplete({
-        getAllUserAttributes: function () {
-          return {};
-        },
-        getMPID: function () {
-          return 'some-mpid';
-        },
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].SessionId).toBeNull();
-    });
-
-    it('should queue event when window.Rokt.__event_stream__ is not available', () => {
-      (window as any).mParticle.forwarder.onLoginComplete({
-        getAllUserAttributes: function () {
-          return {};
-        },
-      });
-
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventName).toBe('login');
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventDataType).toBe(14);
-    });
-
-    it('should queue event when window.Rokt is undefined', () => {
-      const savedRokt = (window as any).Rokt;
-      (window as any).Rokt = undefined;
-
-      expect(() => {
-        (window as any).mParticle.forwarder.onLoginComplete({
-          getAllUserAttributes: function () {
-            return {};
-          },
-        });
-      }).not.toThrow();
-
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventName).toBe('login');
-
-      (window as any).Rokt = savedRokt;
-    });
   });
 
   describe('#onLogoutComplete', () => {
-    beforeEach(() => {
-      (window as any).mParticle.sessionManager = {
-        getSession: function () {
-          return 'test-mp-session-id';
-        },
-      };
-    });
-    afterEach(() => {
-      delete (window as any).Rokt.__event_stream__;
-      (window as any).mParticle.forwarder.eventStreamQueue = [];
-    });
-
     it('should update userAttributes from the filtered user', () => {
       (window as any).mParticle.forwarder.onLogoutComplete({
         getAllUserAttributes: function () {
           return { 'remaining-attr': 'some-value' };
+        },
+        getMPID: function () {
+          return '123';
         },
       });
 
@@ -3223,82 +3004,9 @@ describe('Rokt Forwarder', () => {
         'remaining-attr': 'some-value',
       });
     });
-
-    it('should send a User Logout event to window.Rokt.__event_stream__', () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      (window as any).mParticle.forwarder.onLogoutComplete({
-        getAllUserAttributes: function () {
-          return {};
-        },
-        getMPID: function () {
-          return 'logout-mpid-456';
-        },
-        getUserIdentities: function () {
-          return {
-            userIdentities: { customerid: 'cust-789' },
-          };
-        },
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].EventName).toBe('logout');
-      expect(receivedEvents[0].EventDataType).toBe(14);
-      expect(receivedEvents[0].UserAttributes).toEqual({});
-      expect(receivedEvents[0].MPID).toBe('logout-mpid-456');
-      expect(receivedEvents[0].SessionId).toBe('test-mp-session-id');
-      expect(receivedEvents[0].UserIdentities).toEqual({
-        customerid: 'cust-789',
-      });
-    });
-
-    it('should queue event when window.Rokt.__event_stream__ is not available', () => {
-      (window as any).mParticle.forwarder.onLogoutComplete({
-        getAllUserAttributes: function () {
-          return {};
-        },
-      });
-
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventName).toBe('logout');
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventDataType).toBe(14);
-    });
-
-    it('should queue event when window.Rokt is undefined', () => {
-      const savedRokt = (window as any).Rokt;
-      (window as any).Rokt = undefined;
-
-      expect(() => {
-        (window as any).mParticle.forwarder.onLogoutComplete({
-          getAllUserAttributes: function () {
-            return {};
-          },
-        });
-      }).not.toThrow();
-
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventName).toBe('logout');
-
-      (window as any).Rokt = savedRokt;
-    });
   });
 
   describe('#onModifyComplete', () => {
-    beforeEach(() => {
-      (window as any).mParticle.sessionManager = {
-        getSession: function () {
-          return 'test-mp-session-id';
-        },
-      };
-    });
-    afterEach(() => {
-      delete (window as any).Rokt.__event_stream__;
-      (window as any).mParticle.forwarder.eventStreamQueue = [];
-    });
-
     it('should update userAttributes from the filtered user', () => {
       (window as any).mParticle.forwarder.onModifyComplete({
         getAllUserAttributes: function () {
@@ -3315,81 +3023,6 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userAttributes).toEqual({
         'modified-attr': 'modified-value',
       });
-    });
-
-    it('should send a User Modified event to window.Rokt.__event_stream__', () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      (window as any).mParticle.forwarder.onModifyComplete({
-        getAllUserAttributes: function () {
-          return { 'modified-attr': 'modified-value' };
-        },
-        getMPID: function () {
-          return 'modify-mpid-789';
-        },
-        getUserIdentities: function () {
-          return {
-            userIdentities: { email: 'modified@example.com' },
-          };
-        },
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].EventName).toBe('modify_user');
-      expect(receivedEvents[0].EventDataType).toBe(14);
-      expect(receivedEvents[0].MPID).toBe('modify-mpid-789');
-      expect(receivedEvents[0].SessionId).toBe('test-mp-session-id');
-      expect(receivedEvents[0].UserAttributes).toEqual({
-        'modified-attr': 'modified-value',
-      });
-      expect(receivedEvents[0].UserIdentities).toEqual({
-        email: 'modified@example.com',
-      });
-    });
-
-    it('should queue event when window.Rokt.__event_stream__ is not available', () => {
-      (window as any).mParticle.forwarder.onModifyComplete({
-        getAllUserAttributes: function () {
-          return {};
-        },
-        getMPID: function () {
-          return '123';
-        },
-        getUserIdentities: function () {
-          return { userIdentities: {} };
-        },
-      });
-
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventName).toBe('modify_user');
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventDataType).toBe(14);
-    });
-
-    it('should queue event when window.Rokt is undefined', () => {
-      const savedRokt = (window as any).Rokt;
-      (window as any).Rokt = undefined;
-
-      expect(() => {
-        (window as any).mParticle.forwarder.onModifyComplete({
-          getAllUserAttributes: function () {
-            return {};
-          },
-          getMPID: function () {
-            return '123';
-          },
-          getUserIdentities: function () {
-            return { userIdentities: {} };
-          },
-        });
-      }).not.toThrow();
-
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0].EventName).toBe('modify_user');
-
-      (window as any).Rokt = savedRokt;
     });
   });
 
@@ -4705,67 +4338,15 @@ describe('Rokt Forwarder', () => {
         'foo-mapped-flag': true,
       });
     });
-
-    it('should add the event to the event queue if the kit is not initialized', async () => {
-      await (window as any).mParticle.forwarder.init(
-        {
-          accountId: '123456',
-        },
-        reportService.cb,
-        true,
-        null,
-        {},
-      );
-
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Video Watched A',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
-
-      expect((window as any).mParticle.forwarder.eventQueue).toEqual([
-        {
-          EventName: 'Video Watched A',
-          EventCategory: EventType.Other,
-          EventDataType: MessageType.PageEvent,
-        },
-      ]);
-    });
-
-    it('should process queued events once the kit is ready', async () => {
-      await (window as any).mParticle.forwarder.init(
-        {
-          accountId: '123456',
-        },
-        reportService.cb,
-        true,
-        null,
-        {},
-      );
-
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Video Watched B',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
-
-      expect((window as any).mParticle.forwarder.eventQueue).toEqual([
-        {
-          EventName: 'Video Watched B',
-          EventCategory: EventType.Other,
-          EventDataType: MessageType.PageEvent,
-        },
-      ]);
-
-      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-      expect((window as any).mParticle.forwarder.eventQueue).toEqual([]);
-    });
   });
 
-  describe('#_sendEventStream', () => {
+  describe('#processBatch', () => {
+    let mockBatch: Batch;
+
     beforeEach(() => {
-      (window as any).mParticle.forwarder.eventStreamQueue = [];
+      (window as any).mParticle.forwarder.batchQueue = [];
+      (window as any).mParticle.forwarder.batchStreamQueue = [];
+      (window as any).mParticle.forwarder.pendingIdentityEvents = [];
       (window as any).Rokt = new (MockRoktForwarder as any)();
       (window as any).Rokt.createLauncher = async function () {
         return Promise.resolve({
@@ -4805,347 +4386,266 @@ describe('Rokt Forwarder', () => {
           },
         },
       };
+
+      mockBatch = {
+        mpid: 'test-mpid-123',
+        user_attributes: { 'user-attr': 'user-value' },
+        user_identities: { email: 'test@example.com' },
+        events: [
+          {
+            event_type: 'custom_event',
+            data: { event_name: 'Test Event', custom_event_type: 'other' },
+          },
+        ],
+      };
     });
 
     afterEach(() => {
-      delete (window as any).Rokt.__event_stream__;
-      (window as any).mParticle.forwarder.eventQueue = [];
-      (window as any).mParticle.forwarder.eventStreamQueue = [];
+      delete (window as any).Rokt.__batch_stream__;
+      (window as any).mParticle.forwarder.batchQueue = [];
+      (window as any).mParticle.forwarder.batchStreamQueue = [];
+      (window as any).mParticle.forwarder.pendingIdentityEvents = [];
       (window as any).mParticle.forwarder.isInitialized = false;
       (window as any).mParticle.Rokt.attachKitCalled = false;
     });
 
-    it('should forward event to window.Rokt.__event_stream__ when available', async () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
+    it('should send batch to window.Rokt.__batch_stream__ when kit is ready', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
       };
 
       await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
 
       await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
-      const testEvent = {
-        EventName: 'Test Event',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      };
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
 
-      (window as any).mParticle.forwarder.process(testEvent);
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].EventName).toBe('Test Event');
-      expect(receivedEvents[0].EventCategory).toBe(EventType.Other);
-      expect(receivedEvents[0].EventDataType).toBe(MessageType.PageEvent);
-      expect(receivedEvents[0].UserAttributes).toEqual({});
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].mpid).toBe('test-mpid-123');
+      expect(receivedBatches[0].user_attributes).toEqual({ 'user-attr': 'user-value' });
+      expect(receivedBatches[0].user_identities).toEqual({ email: 'test@example.com' });
+      expect(receivedBatches[0].events.length).toBe(1);
     });
 
-    it('should queue event when window.Rokt.__event_stream__ is not defined', async () => {
-      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+    it('should not add extra events when pendingIdentityEvents is empty', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
 
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
       await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
-      const testEvent = {
-        EventName: 'Test Event',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      };
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(0);
+
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events.length).toBe(1);
+      expect(receivedBatches[0].events[0].event_type).toBe('custom_event');
+    });
+
+    it('should queue batch in batchQueue when kit is not initialized', () => {
+      (window as any).mParticle.forwarder.isInitialized = false;
+      (window as any).mParticle.forwarder.launcher = null;
 
       expect(() => {
-        (window as any).mParticle.forwarder.process(testEvent);
+        (window as any).mParticle.forwarder.processBatch(mockBatch);
       }).not.toThrow();
 
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0]).toEqual(testEvent);
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(1);
+      expect((window as any).mParticle.forwarder.batchQueue[0]).toEqual(mockBatch);
     });
 
-    it('should queue event when window.Rokt is undefined', async () => {
+    it('should flush batchQueue when kit becomes ready', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      (window as any).mParticle.forwarder.isInitialized = false;
+      (window as any).mParticle.forwarder.launcher = null;
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(1);
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].mpid).toBe('test-mpid-123');
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(0);
+    });
+
+    it('should queue batch in batchStreamQueue when window.Rokt.__batch_stream__ is not defined', async () => {
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      expect(() => {
+        (window as any).mParticle.forwarder.processBatch(mockBatch);
+      }).not.toThrow();
+
+      expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(1);
+      expect((window as any).mParticle.forwarder.batchStreamQueue[0]).toEqual(mockBatch);
+    });
+
+    it('should queue batch in batchStreamQueue when window.Rokt is undefined', async () => {
       await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
 
       await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
       const savedRokt = (window as any).Rokt;
-      (window as any).Rokt = undefined;
-
-      const testEvent = {
-        EventName: 'Test Event',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      };
+      delete (window as any).Rokt;
 
       expect(() => {
-        (window as any).mParticle.forwarder.process(testEvent);
+        (window as any).mParticle.forwarder.processBatch(mockBatch);
       }).not.toThrow();
 
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(1);
-      expect((window as any).mParticle.forwarder.eventStreamQueue[0]).toEqual(testEvent);
+      expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(1);
+      expect((window as any).mParticle.forwarder.batchStreamQueue[0]).toEqual(mockBatch);
 
       (window as any).Rokt = savedRokt;
     });
 
-    it('should forward event with attributes to the event stream', async () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
+    it('should flush batchStreamQueue before sending the next batch', async () => {
+      const receivedBatches: any[] = [];
 
       await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
 
       await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
-      const testEvent = {
-        EventName: 'Purchase',
-        EventCategory: EventType.Transaction,
-        EventDataType: MessageType.PageEvent,
-        EventAttributes: {
-          product: 'shoes',
-          price: '49.99',
-        },
+      const batchA = { mpid: 'mpid-A', events: [], user_attributes: {} };
+      const batchB = { mpid: 'mpid-B', events: [], user_attributes: {} };
+      const batchC = { mpid: 'mpid-C', events: [], user_attributes: {} };
+
+      (window as any).mParticle.forwarder.processBatch(batchA);
+      (window as any).mParticle.forwarder.processBatch(batchB);
+
+      expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(2);
+
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
       };
 
-      (window as any).mParticle.forwarder.process(testEvent);
+      (window as any).mParticle.forwarder.processBatch(batchC);
 
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].EventAttributes).toEqual({
-        product: 'shoes',
-        price: '49.99',
-      });
+      expect(receivedBatches.length).toBe(3);
+      expect(receivedBatches[0].mpid).toBe('mpid-A');
+      expect(receivedBatches[1].mpid).toBe('mpid-B');
+      expect(receivedBatches[2].mpid).toBe('mpid-C');
+      expect((window as any).mParticle.forwarder.batchStreamQueue.length).toBe(0);
     });
 
-    it('should forward multiple events to the event stream', async () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
+    it('should add an identity event to pendingIdentityEvents on onLoginComplete', () => {
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onLoginComplete(mockUser, null);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(1);
+      expect(pending[0].EventName).toBe('login');
+      expect(pending[0].EventDataType).toBe(14);
+    });
+
+    it('should add an identity event to pendingIdentityEvents on onLogoutComplete', () => {
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onLogoutComplete(mockUser, null);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(1);
+      expect(pending[0].EventName).toBe('logout');
+      expect(pending[0].EventDataType).toBe(14);
+    });
+
+    it('should add identity events to pendingIdentityEvents on onModifyComplete and onUserIdentified', () => {
+      const mockUser = {
+        getMPID: () => '42',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onModifyComplete(mockUser, null);
+      (window as any).mParticle.forwarder.onUserIdentified(mockUser);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(2);
+      expect(pending[0].EventName).toBe('modify');
+      expect(pending[1].EventName).toBe('identify');
+    });
+
+    it('should merge pendingIdentityEvents into the outgoing batch and clear the queue', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
       };
 
       await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
-
       await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Event A',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
-
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Event B',
-        EventCategory: EventType.Navigation,
-        EventDataType: MessageType.PageView,
-      });
-
-      expect(receivedEvents.length).toBe(2);
-      expect(receivedEvents[0].EventName).toBe('Event A');
-      expect(receivedEvents[1].EventName).toBe('Event B');
-    });
-
-    it('should forward queued events to the event stream after init', async () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
       };
 
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Queued Event',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
+      (window as any).mParticle.forwarder.onLoginComplete(mockUser, null);
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(1);
 
-      expect(receivedEvents.length).toBe(0);
-      expect((window as any).mParticle.forwarder.eventQueue.length).toBe(1);
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      // Original 1 custom_event + 1 identity event from onLoginComplete
+      expect(receivedBatches[0].events.length).toBe(2);
+      expect(receivedBatches[0].events[1].EventName).toBe('login');
+      expect(receivedBatches[0].events[1].EventDataType).toBe(14);
+      // Queue should be cleared after flush
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(0);
+    });
+
+    it('should merge pendingIdentityEvents into the first queued batch when kit becomes ready', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      // Queue a batch before the kit initialises
+      (window as any).mParticle.forwarder.isInitialized = false;
+      (window as any).mParticle.forwarder.launcher = null;
+
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      // Identity callback fires before kit is ready
+      (window as any).mParticle.forwarder.onLoginComplete(mockUser, null);
+      (window as any).mParticle.forwarder.processBatch(mockBatch);
+
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(1);
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(1);
 
       await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
-
       await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].EventName).toBe('Queued Event');
-    });
-
-    it('should still process placement event mapping alongside event stream', async () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      const placementEventMapping = JSON.stringify([
-        {
-          jsmap: 'hashed-<48Video Watched>-value',
-          map: '123466',
-          maptype: 'EventClass.Id',
-          value: 'foo-mapped-flag',
-        },
-      ]);
-
-      await (window as any).mParticle.forwarder.init(
-        {
-          accountId: '123456',
-          placementEventMapping: placementEventMapping,
-        },
-        reportService.cb,
-        true,
-        null,
-        {},
-      );
-
-      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Video Watched',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].EventName).toBe('Video Watched');
-
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
-        'foo-mapped-flag': true,
-      });
-    });
-
-    it('should enrich event with Kit userAttributes before sending to event stream', async () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
-
-      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-      (window as any).mParticle.forwarder.userAttributes = {
-        firstName: 'John',
-        lastName: 'Doe',
-      };
-
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Test Event',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].UserAttributes).toEqual({
-        firstName: 'John',
-        lastName: 'Doe',
-      });
-    });
-
-    it('should override event UserAttributes with Kit userAttributes', async () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
-
-      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-      (window as any).mParticle.forwarder.userAttributes = {
-        firstName: 'Jane',
-      };
-
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Test Event',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-        UserAttributes: {
-          firstName: 'Stale',
-          obsoleteAttr: 'should-not-appear',
-        },
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].UserAttributes).toEqual({
-        firstName: 'Jane',
-      });
-    });
-
-    it('should not mutate the original event when enriching with userAttributes', async () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
-
-      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-      (window as any).mParticle.forwarder.userAttributes = {
-        firstName: 'John',
-      };
-
-      const originalEvent = {
-        EventName: 'Test Event',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      };
-
-      (window as any).mParticle.forwarder.process(originalEvent);
-
-      expect(originalEvent).not.toHaveProperty('UserAttributes');
-      expect(receivedEvents[0].UserAttributes).toEqual({
-        firstName: 'John',
-      });
-    });
-
-    it('should send empty UserAttributes when Kit has no userAttributes', async () => {
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
-
-      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-      (window as any).mParticle.forwarder.userAttributes = {};
-
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Test Event',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
-
-      expect(receivedEvents.length).toBe(1);
-      expect(receivedEvents[0].UserAttributes).toEqual({});
-    });
-
-    it('should flush queued events in FIFO order when __event_stream__ becomes available', async () => {
-      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
-
-      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Event A',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Event B',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
-
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(2);
-
-      const receivedEvents: any[] = [];
-      (window as any).Rokt.__event_stream__ = function (event: any) {
-        receivedEvents.push(event);
-      };
-
-      (window as any).mParticle.forwarder.process({
-        EventName: 'Event C',
-        EventCategory: EventType.Other,
-        EventDataType: MessageType.PageEvent,
-      });
-
-      expect(receivedEvents.length).toBe(3);
-      expect(receivedEvents[0].EventName).toBe('Event A');
-      expect(receivedEvents[1].EventName).toBe('Event B');
-      expect(receivedEvents[2].EventName).toBe('Event C');
-      expect((window as any).mParticle.forwarder.eventStreamQueue.length).toBe(0);
+      // The queued batch should have the pending identity event merged in
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events.length).toBe(2);
+      expect(receivedBatches[0].events[1].EventDataType).toBe(14);
+      expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(0);
+      expect((window as any).mParticle.forwarder.batchQueue.length).toBe(0);
     });
   });
 
