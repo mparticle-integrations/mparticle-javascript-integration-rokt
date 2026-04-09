@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.23.0...v1.24.0) (2026-04-09)
+
+
+### Features
+
+* add batch stream wrapper function ([#86](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/86)) ([c361fa2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/c361fa2aba7d13b55d3cc0918ee0e4f0e4db5106))
+
 # [1.23.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.22.0...v1.23.0) (2026-04-08)
 
 
