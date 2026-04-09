@@ -200,7 +200,7 @@ const moduleId = 181;
 const EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 const ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
 const INIT_LOG_SAMPLING_RATE = 0.1;
-const MESSAGE_TYPE_PROFILE = 14;
+const MESSAGE_TYPE_PROFILE = 14; // mParticle MessageType.Profile
 
 // ============================================================
 // Reporting service constants
