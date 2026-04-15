@@ -1102,33 +1102,28 @@ class RoktKit implements KitInterface {
     return 'Successfully removed user attribute for forwarder: ' + name;
   }
 
-  public onUserIdentified(user: IMParticleUser): string {
+  private handleIdentityComplete(user: IMParticleUser, eventName: string, callbackName: string): string {
     const filteredUser = user as FilteredUser;
-    this.filters.filteredUser = filteredUser;
     this.userAttributes = user.getAllUserAttributes();
-    this.pendingIdentityEvents.push(this.buildIdentityEvent('identify', filteredUser));
-    return 'Successfully called onUserIdentified for forwarder: ' + name;
+    this.pendingIdentityEvents.push(this.buildIdentityEvent(eventName, filteredUser));
+    return 'Successfully called ' + callbackName + ' for forwarder: ' + name;
+  }
+
+  public onUserIdentified(user: IMParticleUser): string {
+    this.filters.filteredUser = user as FilteredUser;
+    return this.handleIdentityComplete(user, 'identify', 'onUserIdentified');
   }
 
   public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    const filteredUser = user as FilteredUser;
-    this.userAttributes = user.getAllUserAttributes();
-    this.pendingIdentityEvents.push(this.buildIdentityEvent('login', filteredUser));
-    return 'Successfully called onLoginComplete for forwarder: ' + name;
+    return this.handleIdentityComplete(user, 'login', 'onLoginComplete');
   }
 
   public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    const filteredUser = user as FilteredUser;
-    this.userAttributes = user.getAllUserAttributes();
-    this.pendingIdentityEvents.push(this.buildIdentityEvent('logout', filteredUser));
-    return 'Successfully called onLogoutComplete for forwarder: ' + name;
+    return this.handleIdentityComplete(user, 'logout', 'onLogoutComplete');
   }
 
   public onModifyComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    const filteredUser = user as FilteredUser;
-    this.userAttributes = user.getAllUserAttributes();
-    this.pendingIdentityEvents.push(this.buildIdentityEvent('modify', filteredUser));
-    return 'Successfully called onModifyComplete for forwarder: ' + name;
+    return this.handleIdentityComplete(user, 'modify', 'onModifyComplete');
   }
 
   /**
