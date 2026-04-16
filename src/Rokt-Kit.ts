@@ -200,7 +200,14 @@ const moduleId = 181;
 const EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 const ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
 const INIT_LOG_SAMPLING_RATE = 0.1;
-const MESSAGE_TYPE_PROFILE = 14; // mParticle MessageType.Profile
+const ROKT_IDENTITY_EVENT_TYPE = {
+  LOGIN: 'login',
+  LOGOUT: 'logout',
+  MODIFY_USER: 'modify_user',
+  IDENTIFY: 'identify',
+} as const;
+
+type RoktIdentityEventType = (typeof ROKT_IDENTITY_EVENT_TYPE)[keyof typeof ROKT_IDENTITY_EVENT_TYPE];
 
 // ============================================================
 // Reporting service constants
@@ -759,25 +766,20 @@ class RoktKit implements KitInterface {
     mp().logEvent(EVENT_NAME_SELECT_PLACEMENTS, EVENT_TYPE_OTHER, attributes as Record<string, unknown>);
   }
 
-  private buildIdentityEvent(eventName: string, filteredUser: FilteredUser): BaseEvent {
+  private buildIdentityEvent(eventType: RoktIdentityEventType, filteredUser: FilteredUser): BaseEvent {
     const mpid = filteredUser.getMPID();
-    const sessionId =
+    const sessionUuid =
       mp() && mp().sessionManager && typeof mp().sessionManager!.getSession === 'function'
         ? mp().sessionManager!.getSession()
-        : null;
-    const userIdentities =
-      filteredUser.getUserIdentities && typeof filteredUser.getUserIdentities === 'function'
-        ? filteredUser.getUserIdentities().userIdentities
-        : null;
+        : undefined;
 
     return {
-      EventName: eventName,
-      EventDataType: MESSAGE_TYPE_PROFILE,
-      EventCategory: 0,
-      Timestamp: Date.now(),
-      MPID: mpid,
-      SessionId: sessionId,
-      UserIdentities: userIdentities,
+      event_type: eventType,
+      data: {
+        timestamp_unixtime_ms: Date.now(),
+        session_uuid: sessionUuid ?? undefined,
+        mpid,
+      },
     } as unknown as BaseEvent;
   }
 
@@ -1102,28 +1104,28 @@ class RoktKit implements KitInterface {
     return 'Successfully removed user attribute for forwarder: ' + name;
   }
 
-  private handleIdentityComplete(user: IMParticleUser, eventName: string, callbackName: string): string {
+  private handleIdentityComplete(user: IMParticleUser, eventType: RoktIdentityEventType, callbackName: string): string {
     const filteredUser = user as FilteredUser;
     this.userAttributes = user.getAllUserAttributes();
-    this.pendingIdentityEvents.push(this.buildIdentityEvent(eventName, filteredUser));
+    this.pendingIdentityEvents.push(this.buildIdentityEvent(eventType, filteredUser));
     return 'Successfully called ' + callbackName + ' for forwarder: ' + name;
   }
 
   public onUserIdentified(user: IMParticleUser): string {
     this.filters.filteredUser = user as FilteredUser;
-    return this.handleIdentityComplete(user, 'identify', 'onUserIdentified');
+    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, 'onUserIdentified');
   }
 
   public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    return this.handleIdentityComplete(user, 'login', 'onLoginComplete');
+    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGIN, 'onLoginComplete');
   }
 
   public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    return this.handleIdentityComplete(user, 'logout', 'onLogoutComplete');
+    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGOUT, 'onLogoutComplete');
   }
 
   public onModifyComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    return this.handleIdentityComplete(user, 'modify', 'onModifyComplete');
+    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.MODIFY_USER, 'onModifyComplete');
   }
 
   /**
