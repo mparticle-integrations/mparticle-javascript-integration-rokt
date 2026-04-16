@@ -4550,8 +4550,8 @@ describe('Rokt Forwarder', () => {
 
       const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
       expect(pending.length).toBe(1);
-      expect(pending[0].EventName).toBe('login');
-      expect(pending[0].EventDataType).toBe(14);
+      expect(pending[0].event_type).toBe('login');
+      expect(pending[0].data.timestamp_unixtime_ms).toBeTypeOf('number');
     });
 
     it('should add an identity event to pendingIdentityEvents on onLogoutComplete', () => {
@@ -4565,8 +4565,8 @@ describe('Rokt Forwarder', () => {
 
       const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
       expect(pending.length).toBe(1);
-      expect(pending[0].EventName).toBe('logout');
-      expect(pending[0].EventDataType).toBe(14);
+      expect(pending[0].event_type).toBe('logout');
+      expect(pending[0].data.timestamp_unixtime_ms).toBeTypeOf('number');
     });
 
     it('should add identity events to pendingIdentityEvents on onModifyComplete and onUserIdentified', () => {
@@ -4581,8 +4581,8 @@ describe('Rokt Forwarder', () => {
 
       const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
       expect(pending.length).toBe(2);
-      expect(pending[0].EventName).toBe('modify');
-      expect(pending[1].EventName).toBe('identify');
+      expect(pending[0].event_type).toBe('modify_user');
+      expect(pending[1].event_type).toBe('identify');
     });
 
     it('should merge pendingIdentityEvents into the outgoing batch and clear the queue', async () => {
@@ -4608,8 +4608,8 @@ describe('Rokt Forwarder', () => {
       expect(receivedBatches.length).toBe(1);
       // Original 1 custom_event + 1 identity event from onLoginComplete
       expect(receivedBatches[0].events.length).toBe(2);
-      expect(receivedBatches[0].events[1].EventName).toBe('login');
-      expect(receivedBatches[0].events[1].EventDataType).toBe(14);
+      expect(receivedBatches[0].events[1].event_type).toBe('login');
+      expect(receivedBatches[0].events[1].data.timestamp_unixtime_ms).toBeTypeOf('number');
       // Queue should be cleared after flush
       expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(0);
     });
@@ -4643,7 +4643,7 @@ describe('Rokt Forwarder', () => {
       // The queued batch should have the pending identity event merged in
       expect(receivedBatches.length).toBe(1);
       expect(receivedBatches[0].events.length).toBe(2);
-      expect(receivedBatches[0].events[1].EventDataType).toBe(14);
+      expect(receivedBatches[0].events[1].event_type).toBe('login');
       expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(0);
       expect((window as any).mParticle.forwarder.batchQueue.length).toBe(0);
     });
