@@ -1104,33 +1104,28 @@ class RoktKit implements KitInterface {
     return 'Successfully removed user attribute for forwarder: ' + name;
   }
 
-  public onUserIdentified(user: IMParticleUser): string {
+  private handleIdentityComplete(user: IMParticleUser, eventType: RoktIdentityEventType, callbackName: string): string {
     const filteredUser = user as FilteredUser;
-    this.filters.filteredUser = filteredUser;
     this.userAttributes = user.getAllUserAttributes();
-    this.pendingIdentityEvents.push(this.buildIdentityEvent(ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, filteredUser));
-    return 'Successfully called onUserIdentified for forwarder: ' + name;
+    this.pendingIdentityEvents.push(this.buildIdentityEvent(eventType, filteredUser));
+    return 'Successfully called ' + callbackName + ' for forwarder: ' + name;
+  }
+
+  public onUserIdentified(user: IMParticleUser): string {
+    this.filters.filteredUser = user as FilteredUser;
+    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, 'onUserIdentified');
   }
 
   public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    const filteredUser = user as FilteredUser;
-    this.userAttributes = user.getAllUserAttributes();
-    this.pendingIdentityEvents.push(this.buildIdentityEvent(ROKT_IDENTITY_EVENT_TYPE.LOGIN, filteredUser));
-    return 'Successfully called onLoginComplete for forwarder: ' + name;
+    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGIN, 'onLoginComplete');
   }
 
   public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    const filteredUser = user as FilteredUser;
-    this.userAttributes = user.getAllUserAttributes();
-    this.pendingIdentityEvents.push(this.buildIdentityEvent(ROKT_IDENTITY_EVENT_TYPE.LOGOUT, filteredUser));
-    return 'Successfully called onLogoutComplete for forwarder: ' + name;
+    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGOUT, 'onLogoutComplete');
   }
 
   public onModifyComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    const filteredUser = user as FilteredUser;
-    this.userAttributes = user.getAllUserAttributes();
-    this.pendingIdentityEvents.push(this.buildIdentityEvent(ROKT_IDENTITY_EVENT_TYPE.MODIFY_USER, filteredUser));
-    return 'Successfully called onModifyComplete for forwarder: ' + name;
+    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.MODIFY_USER, 'onModifyComplete');
   }
 
   /**
