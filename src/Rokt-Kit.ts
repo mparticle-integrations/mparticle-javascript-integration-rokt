@@ -766,7 +766,8 @@ class RoktKit implements KitInterface {
     mp().logEvent(EVENT_NAME_SELECT_PLACEMENTS, EVENT_TYPE_OTHER, attributes as Record<string, unknown>);
   }
 
-  private buildIdentityEvent(eventType: RoktIdentityEventType, _filteredUser: FilteredUser): BaseEvent {
+  private buildIdentityEvent(eventType: RoktIdentityEventType, filteredUser: FilteredUser): BaseEvent {
+    const mpid = filteredUser.getMPID();
     const sessionUuid =
       mp() && mp().sessionManager && typeof mp().sessionManager!.getSession === 'function'
         ? mp().sessionManager!.getSession()
@@ -777,6 +778,7 @@ class RoktKit implements KitInterface {
       data: {
         timestamp_unixtime_ms: Date.now(),
         session_uuid: sessionUuid ?? undefined,
+        mpid,
       },
     } as unknown as BaseEvent;
   }
