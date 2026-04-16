@@ -1,3 +1,10 @@
+## [1.24.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.24.0...v1.24.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* align identity events with mParticle batch schema ([#88](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/88)) ([ddcfa61](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/ddcfa61084ea6f392071cb85feecb42703bc3093))
+
 # [1.24.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.23.0...v1.24.0) (2026-04-09)
 
 
