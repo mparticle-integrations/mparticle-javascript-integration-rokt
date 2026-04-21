@@ -336,23 +336,6 @@ function extractRoktExtensionConfig(settingsString?: string): RoktExtensionConfi
    };
 }
 
-function loadRoktThankYouElement(domain?: string) {
-  const scriptId = 'rokt-thank-you-element';
-  if (document.getElementById(scriptId)) {
-    return;
-  }
-
-  const target = document.head || document.body;
-  const script = document.createElement('script');
-  script.type = 'text/javascript';
-  (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
-  script.src = generateThankYouElementScript(domain);
-  script.crossOrigin = 'anonymous';
-  script.async = true;
-  script.id = scriptId;
-  target.appendChild(script);
-}
-
 function registerLegacyExtensions(legacyExtensions: string[]) {
   for (const extension of legacyExtensions) {
     window.mParticle.Rokt.use(extension);
