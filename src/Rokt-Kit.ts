@@ -178,6 +178,11 @@ interface LogEntry {
   code?: string;
 }
 
+interface RoktExtensionConfig {
+  roktExtensionsQueryParams: string[];
+  legacyRoktExtensions: string[];
+}
+
 declare global {
   interface Window {
     Rokt?: RoktGlobal;
@@ -206,6 +211,7 @@ const ROKT_IDENTITY_EVENT_TYPE = {
   MODIFY_USER: 'modify_user',
   IDENTIFY: 'identify',
 } as const;
+const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouJourney';
 
 type RoktIdentityEventType = (typeof ROKT_IDENTITY_EVENT_TYPE)[keyof typeof ROKT_IDENTITY_EVENT_TYPE];
 
@@ -245,15 +251,25 @@ function mp(): MParticleExtended {
 // ============================================================
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
-  const resolvedDomain = typeof domain !== 'undefined' ? domain : 'apps.rokt.com';
-  const protocol = 'https://';
   const launcherPath = '/wsdk/integrations/launcher.js';
-  const baseUrl = [protocol, resolvedDomain, launcherPath].join('');
+  const baseUrl = [generateBaseUrl(domain), launcherPath].join('');
 
   if (!extensions || extensions.length === 0) {
     return baseUrl;
   }
   return baseUrl + '?extensions=' + extensions.join(',');
+}
+
+function generateThankYouElementScript(domain: string | undefined) {
+  const thankYouElementPath = '/rokt-elements/rokt-element-thank-you.js';
+  return [generateBaseUrl(domain), thankYouElementPath].join('');
+}
+
+function generateBaseUrl(domain: string |undefined) {
+  const resolvedDomain = typeof domain !== 'undefined' ? domain : 'apps.rokt.com';
+  const protocol = 'https://';
+
+  return [protocol, resolvedDomain].join('');
 }
 
 function isObject(val: unknown): val is Record<string, unknown> {
@@ -272,6 +288,7 @@ function parseSettingsString<T>(settingsString?: string): T[] {
   return [];
 }
 
+// TODO Remove and fix test
 function extractRoktExtensions(settingsString?: string): string[] {
   const settings = settingsString ? parseSettingsString<RoktExtensionEntry>(settingsString) : [];
   const roktExtensions: string[] = [];
@@ -281,6 +298,47 @@ function extractRoktExtensions(settingsString?: string): string[] {
   }
 
   return roktExtensions;
+}
+
+function extractRoktExtensionConfig(domain?: string, settingsString?: string): RoktExtensionConfig {
+  const settings = settingsString ? parseSettingsString<RoktExtensionEntry>(settingsString) : [];
+  const roktExtensionsQueryParams: string[] = [];
+  const legacyRoktExtensions: string[] = [];
+
+  for (let i = 0; i < settings.length; i++) {
+    const extensionName = settings[i].value;
+    if (extensionName === 'thank-you-journey') {
+      loadRoktThankYouElement(domain);
+      legacyRoktExtensions.push(ROKT_THANK_YOU_JOURNEY_EXTENSION)
+    } else {
+      roktExtensionsQueryParams.push(settings[i].value);
+    }
+  }
+
+  return { roktExtensionsQueryParams, legacyRoktExtensions };
+}
+
+function loadRoktThankYouElement(domain?: string) {
+  const scriptId = 'rokt-thank-you-element';
+  if (document.getElementById(scriptId)) {
+    return;
+  }
+
+  const target = document.head || document.body
+  const script = document.createElement('script');
+  script.type = 'text/javascript';
+  (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
+  script.src = generateThankYouElementScript(domain);
+  script.crossOrigin = 'anonymous';
+  script.async = true;
+  script.id = scriptId;
+  target.appendChild(script)
+}
+
+function registerLegacyExtensions(legacyExtensions: string[]) {
+  for (const extension of legacyExtensions) {
+    window.mParticle.Rokt.use(extension);
+  }
 }
 
 function generateMappedEventLookup(placementEventMapping: PlacementEventMappingEntry[]): Record<string, string> {
@@ -954,7 +1012,6 @@ class RoktKit implements KitInterface {
   ): string {
     const kitSettings = settings as unknown as RoktKitSettings;
     const accountId = kitSettings.accountId;
-    const roktExtensions = extractRoktExtensions(kitSettings.roktExtensions);
     this.userAttributes = filteredUserAttributes || {};
     this._onboardingExpProvider = kitSettings.onboardingExpProvider;
 
@@ -972,6 +1029,7 @@ class RoktKit implements KitInterface {
     }
 
     const domain = mp().Rokt?.domain;
+    const { roktExtensionsQueryParams, legacyRoktExtensions } = extractRoktExtensionConfig(domain, kitSettings.roktExtensions);
     const launcherOptions: Record<string, unknown> = {
       ...((mp().Rokt?.launcherOptions as Record<string, unknown>) || {}),
     };
@@ -1040,7 +1098,7 @@ class RoktKit implements KitInterface {
       const target = document.head || document.body;
       const script = document.createElement('script');
       script.type = 'text/javascript';
-      script.src = generateLauncherScript(domain, roktExtensions);
+      script.src = generateLauncherScript(domain, roktExtensionsQueryParams);
       script.async = true;
       script.crossOrigin = 'anonymous';
       (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
@@ -1049,6 +1107,7 @@ class RoktKit implements KitInterface {
       script.onload = () => {
         if (this.isLauncherReadyToAttach()) {
           this.attachLauncher(accountId, launcherOptions);
+          registerLegacyExtensions(legacyRoktExtensions);
         } else {
           console.error('Rokt object is not available after script load.');
         }
