@@ -137,7 +137,8 @@ interface MParticleExtended {
 
 interface TestHelpers {
   generateLauncherScript: (domain: string | undefined, extensions: string[]) => string;
-  extractRoktExtensions: (settingsString?: string) => string[];
+  generateThankYouElementScript: (domain: string | undefined) => string;
+  extractRoktExtensionConfig: (settingsString?: string) => RoktExtensionConfig;
   hashEventMessage: (messageType: number, eventType: number, eventName: string) => string | number;
   parseSettingsString: <T>(settingsString?: string) => T[];
   generateMappedEventLookup: (placementEventMapping: PlacementEventMappingEntry[]) => Record<string, string>;
@@ -181,6 +182,7 @@ interface LogEntry {
 interface RoktExtensionConfig {
   roktExtensionsQueryParams: string[];
   legacyRoktExtensions: string[];
+  loadThankYouElement: boolean;
 }
 
 declare global {
@@ -212,6 +214,8 @@ const ROKT_IDENTITY_EVENT_TYPE = {
   IDENTIFY: 'identify',
 } as const;
 const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouJourney';
+const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
+const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 
 type RoktIdentityEventType = (typeof ROKT_IDENTITY_EVENT_TYPE)[keyof typeof ROKT_IDENTITY_EVENT_TYPE];
 
@@ -265,11 +269,32 @@ function generateThankYouElementScript(domain: string | undefined) {
   return [generateBaseUrl(domain), thankYouElementPath].join('');
 }
 
-function generateBaseUrl(domain: string |undefined) {
+function generateBaseUrl(domain: string | undefined) {
   const resolvedDomain = typeof domain !== 'undefined' ? domain : 'apps.rokt.com';
   const protocol = 'https://';
 
   return [protocol, resolvedDomain].join('');
+}
+
+function loadRoktScript(scriptId: string, source: string, appendToTarget: boolean = true) {
+  const preexistingScript = document.getElementById(scriptId);
+  if (preexistingScript) {
+    return preexistingScript;
+  }
+
+  const target = document.head || document.body;
+  const script = document.createElement('script');
+  script.type = 'text/javascript';
+  (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
+  script.src = source;
+  script.crossOrigin = 'anonymous';
+  script.async = true;
+  script.id = scriptId;
+  if (appendToTarget) {
+    target.appendChild(script);
+  }
+  
+  return script;
 }
 
 function isObject(val: unknown): val is Record<string, unknown> {
@@ -288,34 +313,27 @@ function parseSettingsString<T>(settingsString?: string): T[] {
   return [];
 }
 
-// TODO Remove and fix test
-function extractRoktExtensions(settingsString?: string): string[] {
-  const settings = settingsString ? parseSettingsString<RoktExtensionEntry>(settingsString) : [];
-  const roktExtensions: string[] = [];
-
-  for (let i = 0; i < settings.length; i++) {
-    roktExtensions.push(settings[i].value);
-  }
-
-  return roktExtensions;
-}
-
-function extractRoktExtensionConfig(domain?: string, settingsString?: string): RoktExtensionConfig {
+function extractRoktExtensionConfig(settingsString?: string): RoktExtensionConfig {
   const settings = settingsString ? parseSettingsString<RoktExtensionEntry>(settingsString) : [];
   const roktExtensionsQueryParams: string[] = [];
   const legacyRoktExtensions: string[] = [];
+  let loadThankYouElement = false;
 
   for (let i = 0; i < settings.length; i++) {
     const extensionName = settings[i].value;
     if (extensionName === 'thank-you-journey') {
-      loadRoktThankYouElement(domain);
+      loadThankYouElement = true;
       legacyRoktExtensions.push(ROKT_THANK_YOU_JOURNEY_EXTENSION)
     } else {
-      roktExtensionsQueryParams.push(settings[i].value);
+      roktExtensionsQueryParams.push(extensionName);
     }
   }
 
-  return { roktExtensionsQueryParams, legacyRoktExtensions };
+  return {
+    roktExtensionsQueryParams,
+    legacyRoktExtensions,
+    loadThankYouElement,
+   };
 }
 
 function loadRoktThankYouElement(domain?: string) {
@@ -324,7 +342,7 @@ function loadRoktThankYouElement(domain?: string) {
     return;
   }
 
-  const target = document.head || document.body
+  const target = document.head || document.body;
   const script = document.createElement('script');
   script.type = 'text/javascript';
   (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
@@ -332,7 +350,7 @@ function loadRoktThankYouElement(domain?: string) {
   script.crossOrigin = 'anonymous';
   script.async = true;
   script.id = scriptId;
-  target.appendChild(script)
+  target.appendChild(script);
 }
 
 function registerLegacyExtensions(legacyExtensions: string[]) {
@@ -1029,7 +1047,11 @@ class RoktKit implements KitInterface {
     }
 
     const domain = mp().Rokt?.domain;
-    const { roktExtensionsQueryParams, legacyRoktExtensions } = extractRoktExtensionConfig(domain, kitSettings.roktExtensions);
+    const {
+      roktExtensionsQueryParams,
+      legacyRoktExtensions,
+      loadThankYouElement,
+    } = extractRoktExtensionConfig(kitSettings.roktExtensions);
     const launcherOptions: Record<string, unknown> = {
       ...((mp().Rokt?.launcherOptions as Record<string, unknown>) || {}),
     };
@@ -1070,7 +1092,8 @@ class RoktKit implements KitInterface {
     if (testMode) {
       this.testHelpers = {
         generateLauncherScript: generateLauncherScript,
-        extractRoktExtensions: extractRoktExtensions,
+        generateThankYouElementScript: generateThankYouElementScript,
+        extractRoktExtensionConfig: extractRoktExtensionConfig,
         hashEventMessage: hashEventMessage,
         parseSettingsString: parseSettingsString,
         generateMappedEventLookup: generateMappedEventLookup,
@@ -1092,17 +1115,20 @@ class RoktKit implements KitInterface {
       return 'Successfully initialized: ' + name;
     }
 
+    if (loadThankYouElement) {
+      loadRoktScript(
+        ROKT_THANK_YOU_ELEMENT_SCRIPT_ID, generateThankYouElementScript(domain));
+    }
+
     if (this.isLauncherReadyToAttach()) {
       this.attachLauncher(accountId, launcherOptions);
     } else {
       const target = document.head || document.body;
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = generateLauncherScript(domain, roktExtensionsQueryParams);
-      script.async = true;
-      script.crossOrigin = 'anonymous';
-      (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
-      script.id = 'rokt-launcher';
+      const script = loadRoktScript(
+        ROKT_INTEGRATION_SCRIPT_ID,
+        generateLauncherScript(domain, roktExtensionsQueryParams),
+        false,
+      )
 
       script.onload = () => {
         if (this.isLauncherReadyToAttach()) {
@@ -1259,6 +1285,8 @@ class RoktKit implements KitInterface {
 
   /**
    * Enables optional Integration Launcher extensions before selecting placements.
+   * 
+   * @deprecated This functionality has been internalized and will be removed in a future release.
    */
   public use(extensionName: string): Promise<unknown> {
     if (!this.isKitReady()) {
