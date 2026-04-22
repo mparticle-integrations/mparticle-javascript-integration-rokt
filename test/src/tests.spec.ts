@@ -3217,7 +3217,7 @@ describe('Rokt Forwarder', () => {
   });
 
   describe('#generateLauncherScript', () => {
-    const baseUrl = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
+    const baseUrl = 'https://apps.rokt-api.com/wsdk/integrations/launcher.js';
 
     beforeEach(() => {
       (window as any).mParticle.forwarder.init(
@@ -3273,14 +3273,10 @@ describe('Rokt Forwarder', () => {
   });
 
   describe('#generateThankYouElementScript', () => {
-    const baseUrl = 'https://apps.rokt.com/rokt-elements/rokt-element-thank-you.js';
+    const baseUrl = 'https://apps.rokt-api.com/rokt-elements/rokt-element-thank-you.js';
 
     beforeEach(() => {
-      (window as any).mParticle.forwarder.init(
-        { accountId: '123456' },
-        reportService.cb,
-        true,
-      );
+      (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true);
     });
 
     it('should return base URL when no domain is passed', () => {
@@ -3296,11 +3292,7 @@ describe('Rokt Forwarder', () => {
 
   describe('#roktExtensions', () => {
     beforeEach(() => {
-      (window as any).mParticle.forwarder.init(
-        { accountId: '123456' },
-        reportService.cb,
-        true,
-      );
+      (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true);
     });
 
     describe('extractRoktExtensionConfig', () => {
@@ -3331,7 +3323,9 @@ describe('Rokt Forwarder', () => {
 
       (window as any).Rokt = undefined;
       (window as any).mParticle.Rokt = {
-        attachKit: async (kit: any) => { (window as any).mParticle.Rokt.kit = kit; },
+        attachKit: async (kit: any) => {
+          (window as any).mParticle.Rokt.kit = kit;
+        },
         filters: {
           userAttributesFilters: [],
           filterUserAttributes: (attrs: any) => attrs,
@@ -3354,7 +3348,7 @@ describe('Rokt Forwarder', () => {
       expect(tyeScript.src).toContain('/rokt-elements/rokt-element-thank-you.js');
     });
 
-    it('should call mParticle.Rokt.use with ThankYouJourney when thank-you-journey extension is provided', async () => {
+    it('should call window.Rokt.use with ThankYouJourney when thank-you-journey extension is provided', async () => {
       document.getElementById('rokt-thank-you-element')?.remove();
       document.getElementById('rokt-launcher')?.remove();
 
@@ -3362,15 +3356,13 @@ describe('Rokt Forwarder', () => {
 
       (window as any).Rokt = undefined;
       (window as any).mParticle.Rokt = {
-        attachKit: async (kit: any) => { (window as any).mParticle.Rokt.kit = kit; },
+        attachKit: async (kit: any) => {
+          (window as any).mParticle.Rokt.kit = kit;
+        },
         filters: {
           userAttributesFilters: [],
           filterUserAttributes: (attrs: any) => attrs,
           filteredUser: { getMPID: () => '123' },
-        },
-        use: (name: string) => {
-          useCalls.push(name);
-          return Promise.resolve();
         },
       };
 
@@ -3384,6 +3376,9 @@ describe('Rokt Forwarder', () => {
       );
 
       (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).Rokt.use = (name: string) => {
+        useCalls.push(name);
+      };
       (window as any).Rokt.createLauncher = async () =>
         Promise.resolve({ selectPlacements: () => {}, hashAttributes: () => {}, use: () => Promise.resolve() });
 
@@ -3396,15 +3391,21 @@ describe('Rokt Forwarder', () => {
     });
 
     it('should handle invalid setting strings', () => {
-      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig('NONE')).toEqual(
-        { roktExtensionsQueryParams: [], legacyRoktExtensions: [], loadThankYouElement: false },
-      );
-      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(undefined)).toEqual(
-        { roktExtensionsQueryParams: [], legacyRoktExtensions: [], loadThankYouElement: false },
-      );
-      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(null)).toEqual(
-        { roktExtensionsQueryParams: [], legacyRoktExtensions: [], loadThankYouElement: false },
-      );
+      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig('NONE')).toEqual({
+        roktExtensionsQueryParams: [],
+        legacyRoktExtensions: [],
+        loadThankYouElement: false,
+      });
+      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(undefined)).toEqual({
+        roktExtensionsQueryParams: [],
+        legacyRoktExtensions: [],
+        loadThankYouElement: false,
+      });
+      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(null)).toEqual({
+        roktExtensionsQueryParams: [],
+        legacyRoktExtensions: [],
+        loadThankYouElement: false,
+      });
     });
   });
 

@@ -77,6 +77,7 @@ interface RoktGlobal {
   currentLauncher?: RoktLauncher;
   __batch_stream__?(batch: Batch): void;
   setExtensionData(data: Record<string, unknown>): void;
+  use(value: string): void;
 }
 
 // TODO: getMPID and getUserIdentities exist on the User base type but are not re-exported from
@@ -270,7 +271,7 @@ function generateThankYouElementScript(domain: string | undefined) {
 }
 
 function generateBaseUrl(domain: string | undefined) {
-  const resolvedDomain = typeof domain !== 'undefined' ? domain : 'apps.rokt.com';
+  const resolvedDomain = typeof domain !== 'undefined' ? domain : 'apps.rokt-api.com';
   const protocol = 'https://';
 
   return [protocol, resolvedDomain].join('');
@@ -293,7 +294,7 @@ function loadRoktScript(scriptId: string, source: string, appendToTarget: boolea
   if (appendToTarget) {
     target.appendChild(script);
   }
-  
+
   return script;
 }
 
@@ -323,7 +324,7 @@ function extractRoktExtensionConfig(settingsString?: string): RoktExtensionConfi
     const extensionName = settings[i].value;
     if (extensionName === 'thank-you-journey') {
       loadThankYouElement = true;
-      legacyRoktExtensions.push(ROKT_THANK_YOU_JOURNEY_EXTENSION)
+      legacyRoktExtensions.push(ROKT_THANK_YOU_JOURNEY_EXTENSION);
     } else {
       roktExtensionsQueryParams.push(extensionName);
     }
@@ -333,12 +334,12 @@ function extractRoktExtensionConfig(settingsString?: string): RoktExtensionConfi
     roktExtensionsQueryParams,
     legacyRoktExtensions,
     loadThankYouElement,
-   };
+  };
 }
 
 function registerLegacyExtensions(legacyExtensions: string[]) {
   for (const extension of legacyExtensions) {
-    window.mParticle.Rokt.use(extension);
+    window.Rokt?.use(extension);
   }
 }
 
@@ -1030,11 +1031,9 @@ class RoktKit implements KitInterface {
     }
 
     const domain = mp().Rokt?.domain;
-    const {
-      roktExtensionsQueryParams,
-      legacyRoktExtensions,
-      loadThankYouElement,
-    } = extractRoktExtensionConfig(kitSettings.roktExtensions);
+    const { roktExtensionsQueryParams, legacyRoktExtensions, loadThankYouElement } = extractRoktExtensionConfig(
+      kitSettings.roktExtensions,
+    );
     const launcherOptions: Record<string, unknown> = {
       ...((mp().Rokt?.launcherOptions as Record<string, unknown>) || {}),
     };
@@ -1099,8 +1098,7 @@ class RoktKit implements KitInterface {
     }
 
     if (loadThankYouElement) {
-      loadRoktScript(
-        ROKT_THANK_YOU_ELEMENT_SCRIPT_ID, generateThankYouElementScript(domain));
+      loadRoktScript(ROKT_THANK_YOU_ELEMENT_SCRIPT_ID, generateThankYouElementScript(domain));
     }
 
     if (this.isLauncherReadyToAttach()) {
@@ -1111,7 +1109,7 @@ class RoktKit implements KitInterface {
         ROKT_INTEGRATION_SCRIPT_ID,
         generateLauncherScript(domain, roktExtensionsQueryParams),
         false,
-      )
+      );
 
       script.onload = () => {
         if (this.isLauncherReadyToAttach()) {
@@ -1268,7 +1266,7 @@ class RoktKit implements KitInterface {
 
   /**
    * Enables optional Integration Launcher extensions before selecting placements.
-   * 
+   *
    * @deprecated This functionality has been internalized and will be removed in a future release.
    */
   public use(extensionName: string): Promise<unknown> {
