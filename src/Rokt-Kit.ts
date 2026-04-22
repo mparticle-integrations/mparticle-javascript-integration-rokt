@@ -277,25 +277,45 @@ function generateBaseUrl(domain: string | undefined) {
   return [protocol, resolvedDomain].join('');
 }
 
-function loadRoktScript(scriptId: string, source: string, appendToTarget: boolean = true) {
-  const preexistingScript = document.getElementById(scriptId);
-  if (preexistingScript) {
-    return preexistingScript;
-  }
+//function loadRoktScript(scriptId: string, source: string, appendToTarget: boolean = true) {
+//  const preexistingScript = document.getElementById(scriptId);
+//  if (preexistingScript) {
+//    return preexistingScript;
+//  }
+
+//  const target = document.head || document.body;
+//  const script = document.createElement('script');
+//  script.type = 'text/javascript';
+//  (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
+//  script.src = source;
+//  script.crossOrigin = 'anonymous';
+//  script.async = true;
+//  script.id = scriptId;
+//  if (appendToTarget) {
+//    target.appendChild(script);
+//  }
+
+//  return script;
+//}
+
+function loadRoktScript(
+  scriptId: string,
+  source: string,
+  handlers?: { onLoad?: () => void; onError?: (e: Event | string) => void },
+): void {
+  if (document.getElementById(scriptId)) return; // resolves the preexisting script issue
 
   const target = document.head || document.body;
   const script = document.createElement('script');
-  script.type = 'text/javascript';
-  (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
-  script.src = source;
-  script.crossOrigin = 'anonymous';
-  script.async = true;
   script.id = scriptId;
-  if (appendToTarget) {
-    target.appendChild(script);
-  }
-
-  return script;
+  script.type = 'text/javascript';
+  script.src = source;
+  script.async = true;
+  script.crossOrigin = 'anonymous';
+  (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
+  if (handlers?.onLoad) script.onload = handlers.onLoad;
+  if (handlers?.onError) script.onerror = handlers.onError;
+  target.appendChild(script);
 }
 
 function isObject(val: unknown): val is Record<string, unknown> {
@@ -1104,27 +1124,20 @@ class RoktKit implements KitInterface {
     if (this.isLauncherReadyToAttach()) {
       this.attachLauncher(accountId, launcherOptions);
     } else {
-      const target = document.head || document.body;
-      const script = loadRoktScript(
-        ROKT_INTEGRATION_SCRIPT_ID,
-        generateLauncherScript(domain, roktExtensionsQueryParams),
-        false,
-      );
+      loadRoktScript(ROKT_INTEGRATION_SCRIPT_ID, generateLauncherScript(domain, roktExtensionsQueryParams), {
+        onLoad: () => {
+          if (this.isLauncherReadyToAttach()) {
+            this.attachLauncher(accountId, launcherOptions);
+            registerLegacyExtensions(legacyRoktExtensions);
+          } else {
+            console.error('Rokt object is not available after script load.');
+          }
+        },
+        onError: (error) => {
+          console.error('Error loading Rokt launcher script:', error);
+        },
+      });
 
-      script.onload = () => {
-        if (this.isLauncherReadyToAttach()) {
-          this.attachLauncher(accountId, launcherOptions);
-          registerLegacyExtensions(legacyRoktExtensions);
-        } else {
-          console.error('Rokt object is not available after script load.');
-        }
-      };
-
-      script.onerror = (error) => {
-        console.error('Error loading Rokt launcher script:', error);
-      };
-
-      target.appendChild(script);
       this.captureTiming(RoktKit.PERFORMANCE_MARKS.RoktScriptAppended);
     }
 
