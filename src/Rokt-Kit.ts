@@ -277,27 +277,6 @@ function generateBaseUrl(domain: string | undefined) {
   return [protocol, resolvedDomain].join('');
 }
 
-//function loadRoktScript(scriptId: string, source: string, appendToTarget: boolean = true) {
-//  const preexistingScript = document.getElementById(scriptId);
-//  if (preexistingScript) {
-//    return preexistingScript;
-//  }
-
-//  const target = document.head || document.body;
-//  const script = document.createElement('script');
-//  script.type = 'text/javascript';
-//  (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
-//  script.src = source;
-//  script.crossOrigin = 'anonymous';
-//  script.async = true;
-//  script.id = scriptId;
-//  if (appendToTarget) {
-//    target.appendChild(script);
-//  }
-
-//  return script;
-//}
-
 function loadRoktScript(
   scriptId: string,
   source: string,
