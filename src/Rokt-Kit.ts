@@ -77,6 +77,7 @@ interface RoktGlobal {
   currentLauncher?: RoktLauncher;
   __batch_stream__?(batch: Batch): void;
   setExtensionData(data: Record<string, unknown>): void;
+  use(value: string): void;
 }
 
 // TODO: getMPID and getUserIdentities exist on the User base type but are not re-exported from
@@ -137,7 +138,8 @@ interface MParticleExtended {
 
 interface TestHelpers {
   generateLauncherScript: (domain: string | undefined, extensions: string[]) => string;
-  extractRoktExtensions: (settingsString?: string) => string[];
+  generateThankYouElementScript: (domain: string | undefined) => string;
+  extractRoktExtensionConfig: (settingsString?: string) => RoktExtensionConfig;
   hashEventMessage: (messageType: number, eventType: number, eventName: string) => string | number;
   parseSettingsString: <T>(settingsString?: string) => T[];
   generateMappedEventLookup: (placementEventMapping: PlacementEventMappingEntry[]) => Record<string, string>;
@@ -178,6 +180,12 @@ interface LogEntry {
   code?: string;
 }
 
+interface RoktExtensionConfig {
+  roktExtensionsQueryParams: string[];
+  legacyRoktExtensions: string[];
+  loadThankYouElement: boolean;
+}
+
 declare global {
   interface Window {
     Rokt?: RoktGlobal;
@@ -206,6 +214,9 @@ const ROKT_IDENTITY_EVENT_TYPE = {
   MODIFY_USER: 'modify_user',
   IDENTIFY: 'identify',
 } as const;
+const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouJourney';
+const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
+const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 
 type RoktIdentityEventType = (typeof ROKT_IDENTITY_EVENT_TYPE)[keyof typeof ROKT_IDENTITY_EVENT_TYPE];
 
@@ -245,15 +256,45 @@ function mp(): MParticleExtended {
 // ============================================================
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
-  const resolvedDomain = typeof domain !== 'undefined' ? domain : 'apps.rokt.com';
-  const protocol = 'https://';
   const launcherPath = '/wsdk/integrations/launcher.js';
-  const baseUrl = [protocol, resolvedDomain, launcherPath].join('');
+  const baseUrl = [generateBaseUrl(domain), launcherPath].join('');
 
   if (!extensions || extensions.length === 0) {
     return baseUrl;
   }
   return baseUrl + '?extensions=' + extensions.join(',');
+}
+
+function generateThankYouElementScript(domain: string | undefined) {
+  const thankYouElementPath = '/rokt-elements/rokt-element-thank-you.js';
+  return [generateBaseUrl(domain), thankYouElementPath].join('');
+}
+
+function generateBaseUrl(domain: string | undefined) {
+  const resolvedDomain = typeof domain !== 'undefined' ? domain : 'apps.rokt-api.com';
+  const protocol = 'https://';
+
+  return [protocol, resolvedDomain].join('');
+}
+
+function loadRoktScript(
+  scriptId: string,
+  source: string,
+  handlers?: { onLoad?: () => void; onError?: (e: Event | string) => void },
+): void {
+  if (document.getElementById(scriptId)) return; // resolves the preexisting script issue
+
+  const target = document.head || document.body;
+  const script = document.createElement('script');
+  script.id = scriptId;
+  script.type = 'text/javascript';
+  script.src = source;
+  script.async = true;
+  script.crossOrigin = 'anonymous';
+  (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
+  if (handlers?.onLoad) script.onload = handlers.onLoad;
+  if (handlers?.onError) script.onerror = handlers.onError;
+  target.appendChild(script);
 }
 
 function isObject(val: unknown): val is Record<string, unknown> {
@@ -272,15 +313,33 @@ function parseSettingsString<T>(settingsString?: string): T[] {
   return [];
 }
 
-function extractRoktExtensions(settingsString?: string): string[] {
+function extractRoktExtensionConfig(settingsString?: string): RoktExtensionConfig {
   const settings = settingsString ? parseSettingsString<RoktExtensionEntry>(settingsString) : [];
-  const roktExtensions: string[] = [];
+  const roktExtensionsQueryParams: string[] = [];
+  const legacyRoktExtensions: string[] = [];
+  let loadThankYouElement = false;
 
   for (let i = 0; i < settings.length; i++) {
-    roktExtensions.push(settings[i].value);
+    const extensionName = settings[i].value;
+    if (extensionName === 'thank-you-journey') {
+      loadThankYouElement = true;
+      legacyRoktExtensions.push(ROKT_THANK_YOU_JOURNEY_EXTENSION);
+    } else {
+      roktExtensionsQueryParams.push(extensionName);
+    }
   }
 
-  return roktExtensions;
+  return {
+    roktExtensionsQueryParams,
+    legacyRoktExtensions,
+    loadThankYouElement,
+  };
+}
+
+function registerLegacyExtensions(legacyExtensions: string[]) {
+  for (const extension of legacyExtensions) {
+    window.Rokt?.use(extension);
+  }
 }
 
 function generateMappedEventLookup(placementEventMapping: PlacementEventMappingEntry[]): Record<string, string> {
@@ -954,7 +1013,6 @@ class RoktKit implements KitInterface {
   ): string {
     const kitSettings = settings as unknown as RoktKitSettings;
     const accountId = kitSettings.accountId;
-    const roktExtensions = extractRoktExtensions(kitSettings.roktExtensions);
     this.userAttributes = filteredUserAttributes || {};
     this._onboardingExpProvider = kitSettings.onboardingExpProvider;
 
@@ -972,6 +1030,9 @@ class RoktKit implements KitInterface {
     }
 
     const domain = mp().Rokt?.domain;
+    const { roktExtensionsQueryParams, legacyRoktExtensions, loadThankYouElement } = extractRoktExtensionConfig(
+      kitSettings.roktExtensions,
+    );
     const launcherOptions: Record<string, unknown> = {
       ...((mp().Rokt?.launcherOptions as Record<string, unknown>) || {}),
     };
@@ -1012,7 +1073,8 @@ class RoktKit implements KitInterface {
     if (testMode) {
       this.testHelpers = {
         generateLauncherScript: generateLauncherScript,
-        extractRoktExtensions: extractRoktExtensions,
+        generateThankYouElementScript: generateThankYouElementScript,
+        extractRoktExtensionConfig: extractRoktExtensionConfig,
         hashEventMessage: hashEventMessage,
         parseSettingsString: parseSettingsString,
         generateMappedEventLookup: generateMappedEventLookup,
@@ -1034,31 +1096,27 @@ class RoktKit implements KitInterface {
       return 'Successfully initialized: ' + name;
     }
 
+    if (loadThankYouElement) {
+      loadRoktScript(ROKT_THANK_YOU_ELEMENT_SCRIPT_ID, generateThankYouElementScript(domain));
+    }
+
     if (this.isLauncherReadyToAttach()) {
       this.attachLauncher(accountId, launcherOptions);
     } else {
-      const target = document.head || document.body;
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = generateLauncherScript(domain, roktExtensions);
-      script.async = true;
-      script.crossOrigin = 'anonymous';
-      (script as HTMLScriptElement & { fetchPriority: string }).fetchPriority = 'high';
-      script.id = 'rokt-launcher';
+      loadRoktScript(ROKT_INTEGRATION_SCRIPT_ID, generateLauncherScript(domain, roktExtensionsQueryParams), {
+        onLoad: () => {
+          if (this.isLauncherReadyToAttach()) {
+            this.attachLauncher(accountId, launcherOptions);
+            registerLegacyExtensions(legacyRoktExtensions);
+          } else {
+            console.error('Rokt object is not available after script load.');
+          }
+        },
+        onError: (error) => {
+          console.error('Error loading Rokt launcher script:', error);
+        },
+      });
 
-      script.onload = () => {
-        if (this.isLauncherReadyToAttach()) {
-          this.attachLauncher(accountId, launcherOptions);
-        } else {
-          console.error('Rokt object is not available after script load.');
-        }
-      };
-
-      script.onerror = (error) => {
-        console.error('Error loading Rokt launcher script:', error);
-      };
-
-      target.appendChild(script);
       this.captureTiming(RoktKit.PERFORMANCE_MARKS.RoktScriptAppended);
     }
 
@@ -1195,6 +1253,8 @@ class RoktKit implements KitInterface {
 
   /**
    * Enables optional Integration Launcher extensions before selecting placements.
+   *
+   * @deprecated This functionality has been internalized and will be removed in a future release.
    */
   public use(extensionName: string): Promise<unknown> {
     if (!this.isKitReady()) {

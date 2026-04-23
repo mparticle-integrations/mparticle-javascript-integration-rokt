@@ -3217,7 +3217,7 @@ describe('Rokt Forwarder', () => {
   });
 
   describe('#generateLauncherScript', () => {
-    const baseUrl = 'https://apps.rokt.com/wsdk/integrations/launcher.js';
+    const baseUrl = 'https://apps.rokt-api.com/wsdk/integrations/launcher.js';
 
     beforeEach(() => {
       (window as any).mParticle.forwarder.init(
@@ -3272,38 +3272,140 @@ describe('Rokt Forwarder', () => {
     });
   });
 
+  describe('#generateThankYouElementScript', () => {
+    const baseUrl = 'https://apps.rokt-api.com/rokt-elements/rokt-element-thank-you.js';
+
+    beforeEach(() => {
+      (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true);
+    });
+
+    it('should return base URL when no domain is passed', () => {
+      const url = (window as any).mParticle.forwarder.testHelpers.generateThankYouElementScript(undefined);
+      expect(url).toBe(baseUrl);
+    });
+
+    it('should return an updated base URL with CNAME when domain is passed', () => {
+      const url = (window as any).mParticle.forwarder.testHelpers.generateThankYouElementScript('cname.rokt.com');
+      expect(url).toBe('https://cname.rokt.com/rokt-elements/rokt-element-thank-you.js');
+    });
+  });
+
   describe('#roktExtensions', () => {
-    beforeEach(async () => {
-      (window as any).Rokt = new (MockRoktForwarder as any)();
-      (window as any).mParticle.Rokt = (window as any).Rokt;
+    beforeEach(() => {
+      (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true);
+    });
+
+    describe('extractRoktExtensionConfig', () => {
+      it('should correctly map known extension names to their query parameters', () => {
+        const settingsString =
+          '[{&quot;jsmap&quot;:null,&quot;map&quot;:null,&quot;maptype&quot;:&quot;StaticList&quot;,&quot;value&quot;:&quot;cos-extension-detection&quot;},{&quot;jsmap&quot;:null,&quot;map&quot;:null,&quot;maptype&quot;:&quot;StaticList&quot;,&quot;value&quot;:&quot;experiment-monitoring&quot;}]';
+
+        const result = (window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(settingsString);
+        expect(result.roktExtensionsQueryParams).toEqual(['cos-extension-detection', 'experiment-monitoring']);
+        expect(result.legacyRoktExtensions).toEqual([]);
+        expect(result.loadThankYouElement).toBe(false);
+      });
+
+      it('should separate thank-you-journey into legacyRoktExtensions and set loadThankYouElement', () => {
+        const settingsString =
+          '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"},{"jsmap":null,"map":null,"maptype":"StaticList","value":"instant-purchase"}]';
+
+        const result = (window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(settingsString);
+        expect(result.roktExtensionsQueryParams).toEqual(['instant-purchase']);
+        expect(result.legacyRoktExtensions).toEqual(['ThankYouJourney']);
+        expect(result.loadThankYouElement).toBe(true);
+      });
+    });
+
+    it('should fetch thank you element resource when thank you element extension is provided', async () => {
+      document.getElementById('rokt-thank-you-element')?.remove();
+      document.getElementById('rokt-launcher')?.remove();
+
+      (window as any).Rokt = undefined;
+      (window as any).mParticle.Rokt = {
+        attachKit: async (kit: any) => {
+          (window as any).mParticle.Rokt.kit = kit;
+        },
+        filters: {
+          userAttributesFilters: [],
+          filterUserAttributes: (attrs: any) => attrs,
+          filteredUser: { getMPID: () => '123' },
+        },
+        use: () => Promise.resolve(),
+      };
 
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
         },
         reportService.cb,
-        true,
+        false,
       );
+
+      const tyeScript = document.getElementById('rokt-thank-you-element') as HTMLScriptElement;
+      expect(tyeScript).not.toBeNull();
+      expect(tyeScript.src).toContain('/rokt-elements/rokt-element-thank-you.js');
     });
 
-    describe('extractRoktExtensions', () => {
-      it('should correctly map known extension names to their query parameters', async () => {
-        const settingsString =
-          '[{&quot;jsmap&quot;:null,&quot;map&quot;:null,&quot;maptype&quot;:&quot;StaticList&quot;,&quot;value&quot;:&quot;cos-extension-detection&quot;},{&quot;jsmap&quot;:null,&quot;map&quot;:null,&quot;maptype&quot;:&quot;StaticList&quot;,&quot;value&quot;:&quot;experiment-monitoring&quot;}]';
-        const expectedExtensions = ['cos-extension-detection', 'experiment-monitoring'];
+    it('should call window.Rokt.use with ThankYouJourney when thank-you-journey extension is provided', async () => {
+      document.getElementById('rokt-thank-you-element')?.remove();
+      document.getElementById('rokt-launcher')?.remove();
 
-        expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensions(settingsString)).toEqual(
-          expectedExtensions,
-        );
-      });
+      const useCalls: string[] = [];
+
+      (window as any).Rokt = undefined;
+      (window as any).mParticle.Rokt = {
+        attachKit: async (kit: any) => {
+          (window as any).mParticle.Rokt.kit = kit;
+        },
+        filters: {
+          userAttributesFilters: [],
+          filterUserAttributes: (attrs: any) => attrs,
+          filteredUser: { getMPID: () => '123' },
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).Rokt.use = (name: string) => {
+        useCalls.push(name);
+      };
+      (window as any).Rokt.createLauncher = async () =>
+        Promise.resolve({ selectPlacements: () => {}, hashAttributes: () => {}, use: () => Promise.resolve() });
+
+      const launcherScript = document.getElementById('rokt-launcher') as HTMLScriptElement;
+      launcherScript.onload!(new Event('load'));
+
+      await waitForCondition(() => useCalls.length > 0);
+
+      expect(useCalls).toContain('ThankYouJourney');
     });
 
     it('should handle invalid setting strings', () => {
-      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensions('NONE')).toEqual([]);
-
-      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensions(undefined)).toEqual([]);
-
-      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensions(null)).toEqual([]);
+      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig('NONE')).toEqual({
+        roktExtensionsQueryParams: [],
+        legacyRoktExtensions: [],
+        loadThankYouElement: false,
+      });
+      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(undefined)).toEqual({
+        roktExtensionsQueryParams: [],
+        legacyRoktExtensions: [],
+        loadThankYouElement: false,
+      });
+      expect((window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(null)).toEqual({
+        roktExtensionsQueryParams: [],
+        legacyRoktExtensions: [],
+        loadThankYouElement: false,
+      });
     });
   });
 
