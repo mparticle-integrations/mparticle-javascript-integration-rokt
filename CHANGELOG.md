@@ -1,3 +1,10 @@
+# [1.25.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.24.1...v1.25.0) (2026-04-23)
+
+
+### Features
+
+* Embed Thank You Element in Joint SDK ([#90](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/90)) ([035f0f9](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/035f0f9d5b7aba345b636839e9ab982128658dbf))
+
 ## [1.24.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.24.0...v1.24.1) (2026-04-16)
 
 
