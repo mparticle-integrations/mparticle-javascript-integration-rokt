@@ -3356,7 +3356,9 @@ describe('Rokt Forwarder', () => {
       const mockLauncher = {
         selectPlacements: () => {},
         hashAttributes: () => {},
-        use: (name: string) => { useCalls.push(name); },
+        use: (name: string) => {
+          useCalls.push(name);
+        },
       };
 
       (window as any).Rokt = undefined;
@@ -3401,7 +3403,9 @@ describe('Rokt Forwarder', () => {
 
       (window as any).Rokt = undefined;
       (window as any).mParticle.Rokt = {
-        attachKit: async (kit: any) => { (window as any).mParticle.Rokt.kit = kit; },
+        attachKit: async (kit: any) => {
+          (window as any).mParticle.Rokt.kit = kit;
+        },
         filters: {
           userAttributesFilters: [],
           filterUserAttributes: (attrs: any) => attrs,
@@ -3454,7 +3458,9 @@ describe('Rokt Forwarder', () => {
       const mockLauncher = {
         selectPlacements: () => {},
         hashAttributes: () => {},
-        use: (name: string) => { useCalls.push(name); },
+        use: (name: string) => {
+          useCalls.push(name);
+        },
       };
 
       // Use a synchronous thenable so this.launcher is set before registerLegacyExtensions runs
