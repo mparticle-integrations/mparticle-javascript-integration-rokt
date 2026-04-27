@@ -94,7 +94,7 @@ interface KitFilters {
 
 interface RoktManager {
   attachKit(kit: RoktKit): void | Promise<void>;
-  flushOnShoppableAdsMessageQueue(kit: RoktKit): void;
+  flushOnShoppableAdsReadyMessageQueue(kit: RoktKit): void;
   filters?: KitFilters;
   domain?: string;
   launcherOptions?: Record<string, unknown>;
@@ -1111,7 +1111,7 @@ class RoktKit implements KitInterface {
     }
 
     if (loadThankYouElement) {
-      mp().Rokt.flushOnShoppableAdsMessageQueue(this);
+      mp().Rokt.flushOnShoppableAdsReadyMessageQueue(this);
       loadRoktScript(ROKT_THANK_YOU_ELEMENT_SCRIPT_ID, generateThankYouElementScript(domain), {
         onLoad: () => {
           if (this.thankYouElementOnLoadCallback) {

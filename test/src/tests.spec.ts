@@ -207,7 +207,7 @@ describe('Rokt Forwarder', () => {
   beforeEach(() => {
     (window as any).Rokt = new (MockRoktForwarder as any)();
     (window as any).mParticle.Rokt = (window as any).Rokt;
-    (window as any).mParticle.Rokt.flushOnShoppableAdsMessageQueue = () => {};
+    (window as any).mParticle.Rokt.flushOnShoppableAdsReadyMessageQueue = () => {};
   });
 
   afterEach(() => {
@@ -3293,7 +3293,7 @@ describe('Rokt Forwarder', () => {
           filteredUser: { getMPID: () => '123' },
         },
         use: () => Promise.resolve(),
-        flushOnShoppableAdsMessageQueue: () => {},
+        flushOnShoppableAdsReadyMessageQueue: () => {},
       };
 
       await (window as any).mParticle.forwarder.init(
@@ -3333,7 +3333,7 @@ describe('Rokt Forwarder', () => {
           filterUserAttributes: (attrs: any) => attrs,
           filteredUser: { getMPID: () => '123' },
         },
-        flushOnShoppableAdsMessageQueue: () => {},
+        flushOnShoppableAdsReadyMessageQueue: () => {},
       };
 
       await (window as any).mParticle.forwarder.init(
@@ -3375,7 +3375,7 @@ describe('Rokt Forwarder', () => {
           filteredUser: { getMPID: () => '123' },
         },
         use: () => Promise.resolve(),
-        flushOnShoppableAdsMessageQueue: () => {},
+        flushOnShoppableAdsReadyMessageQueue: () => {},
       };
 
       await (window as any).mParticle.forwarder.init(
@@ -3408,7 +3408,7 @@ describe('Rokt Forwarder', () => {
           filterUserAttributes: (attrs: any) => attrs,
           filteredUser: { getMPID: () => '123' },
         },
-        flushOnShoppableAdsMessageQueue: () => {},
+        flushOnShoppableAdsReadyMessageQueue: () => {},
       };
 
       await (window as any).mParticle.forwarder.init(
@@ -3463,14 +3463,14 @@ describe('Rokt Forwarder', () => {
   });
 
   describe('#onShoppableAdsReady', () => {
-    let flushOnShoppableAdsMessageQueueCalled: boolean;
+    let flushOnShoppableAdsReadyMessageQueueCalled: boolean;
     let flushedKit: any;
 
     beforeEach(() => {
       document.getElementById('rokt-thank-you-element')?.remove();
       document.getElementById('rokt-launcher')?.remove();
 
-      flushOnShoppableAdsMessageQueueCalled = false;
+      flushOnShoppableAdsReadyMessageQueueCalled = false;
       flushedKit = null;
 
       (window as any).Rokt = new (MockRoktForwarder as any)();
@@ -3478,8 +3478,8 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.Rokt.attachKit = async (kit: any) => {
         (window as any).mParticle.Rokt.kit = kit;
       };
-      (window as any).mParticle.Rokt.flushOnShoppableAdsMessageQueue = (kit: any) => {
-        flushOnShoppableAdsMessageQueueCalled = true;
+      (window as any).mParticle.Rokt.flushOnShoppableAdsReadyMessageQueue = (kit: any) => {
+        flushOnShoppableAdsReadyMessageQueueCalled = true;
         flushedKit = kit;
       };
       (window as any).mParticle.Rokt.filters = {
@@ -3489,10 +3489,10 @@ describe('Rokt Forwarder', () => {
       };
     });
 
-    it('should call flushOnShoppableAdsMessageQueue with the kit when thank-you-journey extension is configured', async () => {
+    it('should call flushOnShoppableAdsReadyMessageQueue with the kit when thank-you-journey extension is configured', async () => {
       (window as any).Rokt = undefined;
-      (window as any).mParticle.Rokt.flushOnShoppableAdsMessageQueue = (kit: any) => {
-        flushOnShoppableAdsMessageQueueCalled = true;
+      (window as any).mParticle.Rokt.flushOnShoppableAdsReadyMessageQueue = (kit: any) => {
+        flushOnShoppableAdsReadyMessageQueueCalled = true;
         flushedKit = kit;
       };
 
@@ -3505,14 +3505,14 @@ describe('Rokt Forwarder', () => {
         false,
       );
 
-      expect(flushOnShoppableAdsMessageQueueCalled).toBe(true);
+      expect(flushOnShoppableAdsReadyMessageQueueCalled).toBe(true);
       expect(flushedKit).toBe((window as any).mParticle.forwarder);
     });
 
-    it('should NOT call flushOnShoppableAdsMessageQueue when thank-you-journey is not configured', async () => {
+    it('should NOT call flushOnShoppableAdsReadyMessageQueue when thank-you-journey is not configured', async () => {
       await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true);
 
-      expect(flushOnShoppableAdsMessageQueueCalled).toBe(false);
+      expect(flushOnShoppableAdsReadyMessageQueueCalled).toBe(false);
     });
 
     it('should store the onShoppableAdsReady callback and invoke it when the TYE script loads', async () => {
@@ -3603,7 +3603,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.Rokt.attachKit = async (kit: any) => {
         (window as any).mParticle.Rokt.kit = kit;
       };
-      (window as any).mParticle.Rokt.flushOnShoppableAdsMessageQueue = () => {};
+      (window as any).mParticle.Rokt.flushOnShoppableAdsReadyMessageQueue = () => {};
       (window as any).mParticle.Rokt.filters = {
         userAttributesFilters: [],
         filterUserAttributes: (attrs: any) => attrs,
