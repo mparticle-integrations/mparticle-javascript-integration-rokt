@@ -3470,6 +3470,10 @@ describe('Rokt Forwarder', () => {
       document.getElementById('rokt-thank-you-element')?.remove();
       document.getElementById('rokt-launcher')?.remove();
 
+      // Reset TYE load state so tests are independent of execution order.
+      (window as any).mParticle.forwarder._isThankYouElementLoaded = false;
+      (window as any).mParticle.forwarder._thankYouElementOnLoadCallback = null;
+
       flushOnShoppableAdsReadyMessageQueueCalled = false;
       flushedKit = null;
 
@@ -3567,6 +3571,32 @@ describe('Rokt Forwarder', () => {
 
       expect(firstCallbackInvoked).toBe(false);
       expect(secondCallbackInvoked).toBe(true);
+    });
+
+    it('should invoke the callback immediately when registered after the TYE script has already loaded', async () => {
+      (window as any).Rokt = undefined;
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      // Simulate TYE script loading before the callback is registered
+      const tyeScript = document.getElementById('rokt-thank-you-element') as HTMLScriptElement;
+      expect(tyeScript).not.toBeNull();
+      tyeScript.onload!(new Event('load'));
+
+      // Register the callback late — after the TYE script has already loaded
+      let callbackInvoked = false;
+      (window as any).mParticle.forwarder.onShoppableAdsReady(() => {
+        callbackInvoked = true;
+      });
+
+      expect(callbackInvoked).toBe(true);
     });
 
     it('should not invoke the callback if the TYE script fails to load', async () => {

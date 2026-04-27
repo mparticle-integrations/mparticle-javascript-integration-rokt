@@ -684,7 +684,8 @@ class RoktKit implements KitInterface {
   // Private fields
   private _mappedEmailSha256Key?: string;
   private _onboardingExpProvider?: string;
-  private thankYouElementOnLoadCallback: (() => void) | null = null;
+  private _thankYouElementOnLoadCallback: (() => void) | null = null;
+  private _isThankYouElementLoaded = false;
 
   // ---- Private helpers ----
 
@@ -1111,11 +1112,12 @@ class RoktKit implements KitInterface {
     }
 
     if (loadThankYouElement) {
-      mp().Rokt.flushOnShoppableAdsReadyMessageQueue(this);
+      mp().Rokt.flushOnShoppableAdsReadyMessageQueue?.(this);
       loadRoktScript(ROKT_THANK_YOU_ELEMENT_SCRIPT_ID, generateThankYouElementScript(domain), {
         onLoad: () => {
-          if (this.thankYouElementOnLoadCallback) {
-            this.thankYouElementOnLoadCallback();
+          this._isThankYouElementLoaded = true;
+          if (this._thankYouElementOnLoadCallback) {
+            this._thankYouElementOnLoadCallback();
           }
         },
         onError: (error) => {
@@ -1294,7 +1296,11 @@ class RoktKit implements KitInterface {
    * Registers a callback to be invoked once rokt-thank-you-element.js becomes available.
    */
   public onShoppableAdsReady(callback: () => void) {
-    this.thankYouElementOnLoadCallback = callback;
+    if (this._isThankYouElementLoaded) {
+      callback();
+    } else {
+      this._thankYouElementOnLoadCallback = callback;
+    }
   }
 }
 
