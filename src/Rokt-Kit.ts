@@ -77,7 +77,6 @@ interface RoktGlobal {
   currentLauncher?: RoktLauncher;
   __batch_stream__?(batch: Batch): void;
   setExtensionData(data: Record<string, unknown>): void;
-  use(value: string): void;
 }
 
 // TODO: getMPID and getUserIdentities exist on the User base type but are not re-exported from
@@ -95,6 +94,7 @@ interface KitFilters {
 
 interface RoktManager {
   attachKit(kit: RoktKit): void | Promise<void>;
+  flushOnShoppableAdsMessageQueue(kit: RoktKit): void;
   filters?: KitFilters;
   domain?: string;
   launcherOptions?: Record<string, unknown>;
@@ -214,7 +214,7 @@ const ROKT_IDENTITY_EVENT_TYPE = {
   MODIFY_USER: 'modify_user',
   IDENTIFY: 'identify',
 } as const;
-const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouJourney';
+const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 
@@ -336,12 +336,15 @@ function extractRoktExtensionConfig(settingsString?: string): RoktExtensionConfi
   };
 }
 
-function registerLegacyExtensions(legacyExtensions: string[], launcher: RoktLauncher | null) {
+async function registerLegacyExtensions(legacyExtensions: string[], launcher: RoktLauncher | null) {
+  const extensions: Promise<unknown>[] = [];
   if (launcher) {
     for (const extension of legacyExtensions) {
-      launcher.use(extension);
+      extensions.push(launcher.use(extension));
     }
   }
+
+  return Promise.all(extensions);
 }
 
 function generateMappedEventLookup(placementEventMapping: PlacementEventMappingEntry[]): Record<string, string> {
@@ -681,6 +684,7 @@ class RoktKit implements KitInterface {
   // Private fields
   private _mappedEmailSha256Key?: string;
   private _onboardingExpProvider?: string;
+  private thankYouElementOnLoadCallback: (() => void) | null = null;
 
   // ---- Private helpers ----
 
@@ -903,7 +907,11 @@ class RoktKit implements KitInterface {
     }
   }
 
-  private attachLauncher(accountId: string, launcherOptions: Record<string, unknown>): void {
+  private attachLauncher(
+    accountId: string,
+    launcherOptions: Record<string, unknown>,
+    legacyRoktExtensions: string[] = [],
+  ): void {
     const mpSessionId =
       mp() && mp().sessionManager && typeof mp().sessionManager!.getSession === 'function'
         ? mp().sessionManager!.getSession()
@@ -915,17 +923,21 @@ class RoktKit implements KitInterface {
       ...(mpSessionId ? { mpSessionId } : {}),
     };
 
+    let launcherPromise: Promise<RoktLauncher>;
     if (this.isPartnerInLocalLauncherTestGroup()) {
-      const localLauncher = window.Rokt!.createLocalLauncher(options);
-      this.initRoktLauncher(localLauncher);
+      launcherPromise = Promise.resolve(window.Rokt!.createLocalLauncher(options));
     } else {
-      window
-        .Rokt!.createLauncher(options)
-        .then((launcher) => this.initRoktLauncher(launcher))
-        .catch((err: unknown) => {
-          console.error('Error creating Rokt launcher:', err);
-        });
+      launcherPromise = window.Rokt!.createLauncher(options);
     }
+
+    launcherPromise
+      .then(async (launcher) => {
+        await registerLegacyExtensions(legacyRoktExtensions, launcher);
+        this.initRoktLauncher(launcher);
+      })
+      .catch((err: unknown) => {
+        console.error('Error creating Rokt launcher:', err);
+      });
   }
 
   private initRoktLauncher(launcher: RoktLauncher): void {
@@ -1099,17 +1111,26 @@ class RoktKit implements KitInterface {
     }
 
     if (loadThankYouElement) {
-      loadRoktScript(ROKT_THANK_YOU_ELEMENT_SCRIPT_ID, generateThankYouElementScript(domain));
+      mp().Rokt.flushOnShoppableAdsMessageQueue(this);
+      loadRoktScript(ROKT_THANK_YOU_ELEMENT_SCRIPT_ID, generateThankYouElementScript(domain), {
+        onLoad: () => {
+          if (this.thankYouElementOnLoadCallback) {
+            this.thankYouElementOnLoadCallback();
+          }
+        },
+        onError: (error) => {
+          console.error('Error loading Rokt Thank You Element script:', error);
+        },
+      });
     }
 
     if (this.isLauncherReadyToAttach()) {
-      this.attachLauncher(accountId, launcherOptions);
+      this.attachLauncher(accountId, launcherOptions, legacyRoktExtensions);
     } else {
       loadRoktScript(ROKT_INTEGRATION_SCRIPT_ID, generateLauncherScript(domain, roktExtensionsQueryParams), {
         onLoad: () => {
           if (this.isLauncherReadyToAttach()) {
-            this.attachLauncher(accountId, launcherOptions);
-            registerLegacyExtensions(legacyRoktExtensions, this.launcher);
+            this.attachLauncher(accountId, launcherOptions, legacyRoktExtensions);
           } else {
             console.error('Rokt object is not available after script load.');
           }
@@ -1267,6 +1288,13 @@ class RoktKit implements KitInterface {
       return Promise.reject(new Error('Rokt Kit: Invalid extension name'));
     }
     return this.launcher!.use(extensionName);
+  }
+
+  /**
+   * Registers a callback to be invoked once rokt-thank-you-element.js becomes available.
+   */
+  public onShoppableAdsReady(callback: () => void) {
+    this.thankYouElementOnLoadCallback = callback;
   }
 }
 
