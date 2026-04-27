@@ -1,3 +1,10 @@
+## [1.25.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.25.0...v1.25.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* Enable Thank You Element Partner Event listening before RoktKit is ready ([#91](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/91)) ([bced30e](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/bced30e278c6f9a906a45a3734c0d2af67cfee69))
+
 # [1.25.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.24.1...v1.25.0) (2026-04-23)
 
 
