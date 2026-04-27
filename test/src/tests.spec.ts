@@ -3269,7 +3269,7 @@ describe('Rokt Forwarder', () => {
 
       it('should separate thank-you-journey into legacyRoktExtensions and set loadThankYouElement', () => {
         const settingsString =
-          '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"},{"jsmap":null,"map":null,"maptype":"StaticList","value":"instant-purchase"}]';
+          '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"},{"jsmap":null,"map":null,"maptype":"StaticList","value":"instant-purchase"}]';
 
         const result = (window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(settingsString);
         expect(result.roktExtensionsQueryParams).toEqual(['instant-purchase']);
@@ -3299,7 +3299,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3339,7 +3339,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3381,7 +3381,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3414,7 +3414,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3499,7 +3499,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3521,7 +3521,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3546,7 +3546,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3575,7 +3575,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3638,7 +3638,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3669,7 +3669,7 @@ describe('Rokt Forwarder', () => {
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
