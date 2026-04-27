@@ -138,9 +138,17 @@ describe('Rokt Forwarder', () => {
       self.sandbox = options.sandbox;
 
       return Promise.resolve({
-        then: function (callback: any) {
-          callback();
+        selectPlacements: function (opts: any) {
+          self.selectPlacementsOptions = opts;
+          self.selectPlacementsCalled = true;
         },
+        hashAttributes: function () {
+          throw new Error('hashAttributes not implemented');
+        },
+        use: function () {
+          return Promise.resolve();
+        },
+        onShoppableAdsReady: function () {},
       });
     };
 
@@ -199,6 +207,7 @@ describe('Rokt Forwarder', () => {
   beforeEach(() => {
     (window as any).Rokt = new (MockRoktForwarder as any)();
     (window as any).mParticle.Rokt = (window as any).Rokt;
+    (window as any).mParticle.Rokt.flushOnShoppableAdsReadyMessageQueue = () => {};
   });
 
   afterEach(() => {
@@ -1153,10 +1162,8 @@ describe('Rokt Forwarder', () => {
           },
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1208,10 +1215,8 @@ describe('Rokt Forwarder', () => {
           null,
           {},
         );
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1268,10 +1273,8 @@ describe('Rokt Forwarder', () => {
           },
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1317,10 +1320,8 @@ describe('Rokt Forwarder', () => {
           },
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1368,10 +1369,8 @@ describe('Rokt Forwarder', () => {
           },
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1424,10 +1423,8 @@ describe('Rokt Forwarder', () => {
           null,
           {},
         );
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1483,10 +1480,8 @@ describe('Rokt Forwarder', () => {
           },
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1546,10 +1541,8 @@ describe('Rokt Forwarder', () => {
           },
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1609,10 +1602,8 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1671,10 +1662,8 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1731,10 +1720,8 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1791,10 +1778,8 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1853,10 +1838,8 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1917,10 +1900,8 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -1976,10 +1957,8 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -2035,9 +2014,7 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -2092,9 +2069,7 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -2148,9 +2123,7 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -2206,9 +2179,7 @@ describe('Rokt Forwarder', () => {
           {},
         );
 
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -2267,10 +2238,8 @@ describe('Rokt Forwarder', () => {
           null,
           {},
         );
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -2324,10 +2293,8 @@ describe('Rokt Forwarder', () => {
           null,
           {},
         );
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -2381,10 +2348,8 @@ describe('Rokt Forwarder', () => {
           null,
           {},
         );
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -2438,10 +2403,8 @@ describe('Rokt Forwarder', () => {
           null,
           {},
         );
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -2495,10 +2458,8 @@ describe('Rokt Forwarder', () => {
           null,
           {},
         );
-        // Wait for initialization to complete (after launcher is created)
-        await waitForCondition(() => {
-          return (window as any).mParticle.forwarder.isInitialized;
-        });
+        // Wait for attachKit to complete (fires after the full async launcher chain)
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         await (window as any).mParticle.forwarder.selectPlacements({
           identifier: 'test-placement',
@@ -3308,11 +3269,11 @@ describe('Rokt Forwarder', () => {
 
       it('should separate thank-you-journey into legacyRoktExtensions and set loadThankYouElement', () => {
         const settingsString =
-          '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"},{"jsmap":null,"map":null,"maptype":"StaticList","value":"instant-purchase"}]';
+          '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"},{"jsmap":null,"map":null,"maptype":"StaticList","value":"instant-purchase"}]';
 
         const result = (window as any).mParticle.forwarder.testHelpers.extractRoktExtensionConfig(settingsString);
         expect(result.roktExtensionsQueryParams).toEqual(['instant-purchase']);
-        expect(result.legacyRoktExtensions).toEqual(['ThankYouJourney']);
+        expect(result.legacyRoktExtensions).toEqual(['ThankYouPageJourney']);
         expect(result.loadThankYouElement).toBe(true);
       });
     });
@@ -3332,12 +3293,13 @@ describe('Rokt Forwarder', () => {
           filteredUser: { getMPID: () => '123' },
         },
         use: () => Promise.resolve(),
+        flushOnShoppableAdsReadyMessageQueue: () => {},
       };
 
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
@@ -3348,7 +3310,89 @@ describe('Rokt Forwarder', () => {
       expect(tyeScript.src).toContain('/rokt-elements/rokt-element-thank-you.js');
     });
 
-    it('should call window.Rokt.use with ThankYouJourney when thank-you-journey extension is provided', async () => {
+    it('should call launcher.use with ThankYouPageJourney when thank-you-journey extension is provided', async () => {
+      document.getElementById('rokt-thank-you-element')?.remove();
+      document.getElementById('rokt-launcher')?.remove();
+
+      const useCalls: string[] = [];
+      const mockLauncher = {
+        selectPlacements: () => {},
+        hashAttributes: () => {},
+        use: (name: string) => {
+          useCalls.push(name);
+        },
+      };
+
+      (window as any).Rokt = undefined;
+      (window as any).mParticle.Rokt = {
+        attachKit: async (kit: any) => {
+          (window as any).mParticle.Rokt.kit = kit;
+        },
+        filters: {
+          userAttributesFilters: [],
+          filterUserAttributes: (attrs: any) => attrs,
+          filteredUser: { getMPID: () => '123' },
+        },
+        flushOnShoppableAdsReadyMessageQueue: () => {},
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      // Use a synchronous thenable so this.launcher is set before registerLegacyExtensions runs
+      (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).Rokt.createLauncher = () => ({
+        then: (onFulfilled: (launcher: typeof mockLauncher) => void) => {
+          onFulfilled(mockLauncher);
+          return { catch: () => {} };
+        },
+      });
+
+      const launcherScript = document.getElementById('rokt-launcher') as HTMLScriptElement;
+      launcherScript.onload!(new Event('load'));
+
+      expect(useCalls).toContain('ThankYouPageJourney');
+    });
+
+    it('should fetch thank you element resource when thank you element extension is provided', async () => {
+      document.getElementById('rokt-thank-you-element')?.remove();
+      document.getElementById('rokt-launcher')?.remove();
+
+      (window as any).Rokt = undefined;
+      (window as any).mParticle.Rokt = {
+        attachKit: async (kit: any) => {
+          (window as any).mParticle.Rokt.kit = kit;
+        },
+        filters: {
+          userAttributesFilters: [],
+          filterUserAttributes: (attrs: any) => attrs,
+          filteredUser: { getMPID: () => '123' },
+        },
+        use: () => Promise.resolve(),
+        flushOnShoppableAdsReadyMessageQueue: () => {},
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      const tyeScript = document.getElementById('rokt-thank-you-element') as HTMLScriptElement;
+      expect(tyeScript).not.toBeNull();
+      expect(tyeScript.src).toContain('/rokt-elements/rokt-element-thank-you.js');
+    });
+
+    it('should call launcher.use with ThankYouPageJourney when thank-you-journey extension is provided', async () => {
       document.getElementById('rokt-thank-you-element')?.remove();
       document.getElementById('rokt-launcher')?.remove();
 
@@ -3364,30 +3408,39 @@ describe('Rokt Forwarder', () => {
           filterUserAttributes: (attrs: any) => attrs,
           filteredUser: { getMPID: () => '123' },
         },
+        flushOnShoppableAdsReadyMessageQueue: () => {},
       };
 
       await (window as any).mParticle.forwarder.init(
         {
           accountId: '123456',
-          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"LegacyExtension","value":"thank-you-journey"}]',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
         },
         reportService.cb,
         false,
       );
 
-      (window as any).Rokt = new (MockRoktForwarder as any)();
-      (window as any).Rokt.use = (name: string) => {
-        useCalls.push(name);
+      const mockLauncher = {
+        selectPlacements: () => {},
+        hashAttributes: () => {},
+        use: (name: string) => {
+          useCalls.push(name);
+        },
       };
-      (window as any).Rokt.createLauncher = async () =>
-        Promise.resolve({ selectPlacements: () => {}, hashAttributes: () => {}, use: () => Promise.resolve() });
+
+      // Use a synchronous thenable so this.launcher is set before registerLegacyExtensions runs
+      (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).Rokt.createLauncher = () => ({
+        then: (onFulfilled: (launcher: typeof mockLauncher) => void) => {
+          onFulfilled(mockLauncher);
+          return { catch: () => {} };
+        },
+      });
 
       const launcherScript = document.getElementById('rokt-launcher') as HTMLScriptElement;
       launcherScript.onload!(new Event('load'));
 
-      await waitForCondition(() => useCalls.length > 0);
-
-      expect(useCalls).toContain('ThankYouJourney');
+      expect(useCalls).toContain('ThankYouPageJourney');
     });
 
     it('should handle invalid setting strings', () => {
@@ -3406,6 +3459,264 @@ describe('Rokt Forwarder', () => {
         legacyRoktExtensions: [],
         loadThankYouElement: false,
       });
+    });
+  });
+
+  describe('#onShoppableAdsReady', () => {
+    let flushOnShoppableAdsReadyMessageQueueCalled: boolean;
+    let flushedKit: any;
+
+    beforeEach(() => {
+      document.getElementById('rokt-thank-you-element')?.remove();
+      document.getElementById('rokt-launcher')?.remove();
+
+      // Reset TYE load state so tests are independent of execution order.
+      (window as any).mParticle.forwarder._isThankYouElementLoaded = false;
+      (window as any).mParticle.forwarder._thankYouElementOnLoadCallback = null;
+
+      flushOnShoppableAdsReadyMessageQueueCalled = false;
+      flushedKit = null;
+
+      (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).mParticle.Rokt = (window as any).Rokt;
+      (window as any).mParticle.Rokt.attachKit = async (kit: any) => {
+        (window as any).mParticle.Rokt.kit = kit;
+      };
+      (window as any).mParticle.Rokt.flushOnShoppableAdsReadyMessageQueue = (kit: any) => {
+        flushOnShoppableAdsReadyMessageQueueCalled = true;
+        flushedKit = kit;
+      };
+      (window as any).mParticle.Rokt.filters = {
+        userAttributesFilters: [],
+        filterUserAttributes: (attrs: any) => attrs,
+        filteredUser: { getMPID: () => '123' },
+      };
+    });
+
+    it('should call flushOnShoppableAdsReadyMessageQueue with the kit when thank-you-journey extension is configured', async () => {
+      (window as any).Rokt = undefined;
+      (window as any).mParticle.Rokt.flushOnShoppableAdsReadyMessageQueue = (kit: any) => {
+        flushOnShoppableAdsReadyMessageQueueCalled = true;
+        flushedKit = kit;
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      expect(flushOnShoppableAdsReadyMessageQueueCalled).toBe(true);
+      expect(flushedKit).toBe((window as any).mParticle.forwarder);
+    });
+
+    it('should NOT call flushOnShoppableAdsReadyMessageQueue when thank-you-journey is not configured', async () => {
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true);
+
+      expect(flushOnShoppableAdsReadyMessageQueueCalled).toBe(false);
+    });
+
+    it('should store the onShoppableAdsReady callback and invoke it when the TYE script loads', async () => {
+      (window as any).Rokt = undefined;
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      let callbackInvoked = false;
+      (window as any).mParticle.forwarder.onShoppableAdsReady(() => {
+        callbackInvoked = true;
+      });
+
+      // Simulate TYE script onload firing
+      const tyeScript = document.getElementById('rokt-thank-you-element') as HTMLScriptElement;
+      expect(tyeScript).not.toBeNull();
+      tyeScript.onload!(new Event('load'));
+
+      expect(callbackInvoked).toBe(true);
+    });
+
+    it('should overwrite a previously registered onShoppableAdsReady callback', async () => {
+      (window as any).Rokt = undefined;
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      let firstCallbackInvoked = false;
+      let secondCallbackInvoked = false;
+
+      (window as any).mParticle.forwarder.onShoppableAdsReady(() => {
+        firstCallbackInvoked = true;
+      });
+      (window as any).mParticle.forwarder.onShoppableAdsReady(() => {
+        secondCallbackInvoked = true;
+      });
+
+      const tyeScript = document.getElementById('rokt-thank-you-element') as HTMLScriptElement;
+      tyeScript.onload!(new Event('load'));
+
+      expect(firstCallbackInvoked).toBe(false);
+      expect(secondCallbackInvoked).toBe(true);
+    });
+
+    it('should invoke the callback immediately when registered after the TYE script has already loaded', async () => {
+      (window as any).Rokt = undefined;
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      // Simulate TYE script loading before the callback is registered
+      const tyeScript = document.getElementById('rokt-thank-you-element') as HTMLScriptElement;
+      expect(tyeScript).not.toBeNull();
+      tyeScript.onload!(new Event('load'));
+
+      // Register the callback late — after the TYE script has already loaded
+      let callbackInvoked = false;
+      (window as any).mParticle.forwarder.onShoppableAdsReady(() => {
+        callbackInvoked = true;
+      });
+
+      expect(callbackInvoked).toBe(true);
+    });
+
+    it('should not invoke the callback if the TYE script fails to load', async () => {
+      (window as any).Rokt = undefined;
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      let callbackInvoked = false;
+      (window as any).mParticle.forwarder.onShoppableAdsReady(() => {
+        callbackInvoked = true;
+      });
+
+      const tyeScript = document.getElementById('rokt-thank-you-element') as HTMLScriptElement;
+      tyeScript.onerror!(new Event('error'));
+
+      expect(callbackInvoked).toBe(false);
+    });
+  });
+
+  describe('#registerLegacyExtensions', () => {
+    beforeEach(() => {
+      document.getElementById('rokt-thank-you-element')?.remove();
+      document.getElementById('rokt-launcher')?.remove();
+
+      (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).mParticle.Rokt = (window as any).Rokt;
+      (window as any).mParticle.Rokt.attachKit = async (kit: any) => {
+        (window as any).mParticle.Rokt.kit = kit;
+      };
+      (window as any).mParticle.Rokt.flushOnShoppableAdsReadyMessageQueue = () => {};
+      (window as any).mParticle.Rokt.filters = {
+        userAttributesFilters: [],
+        filterUserAttributes: (attrs: any) => attrs,
+        filteredUser: { getMPID: () => '123' },
+      };
+    });
+
+    it('should await all launcher.use() promises before calling initRoktLauncher', async () => {
+      const useCallOrder: string[] = [];
+      let initCalledAfterUse = false;
+
+      const mockLauncher = {
+        selectPlacements: () => {},
+        hashAttributes: () => {},
+        onShoppableAdsReady: () => {},
+        use: (name: string) => {
+          return new Promise<void>((resolve) => {
+            setTimeout(() => {
+              useCallOrder.push(name);
+              resolve();
+            }, 0);
+          });
+        },
+      };
+
+      (window as any).Rokt = undefined;
+      (window as any).mParticle.Rokt.attachKit = async (kit: any) => {
+        initCalledAfterUse = useCallOrder.includes('ThankYouPageJourney');
+        (window as any).mParticle.Rokt.kit = kit;
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).Rokt.createLauncher = () => Promise.resolve(mockLauncher);
+
+      const launcherScript = document.getElementById('rokt-launcher') as HTMLScriptElement;
+      launcherScript.onload!(new Event('load'));
+
+      await waitForCondition(() => initCalledAfterUse);
+
+      expect(useCallOrder).toContain('ThankYouPageJourney');
+      expect(initCalledAfterUse).toBe(true);
+    });
+
+    it('should not throw if launcher.use() rejects', async () => {
+      const mockLauncher = {
+        selectPlacements: () => {},
+        hashAttributes: () => {},
+        onShoppableAdsReady: () => {},
+        use: () => Promise.reject(new Error('extension load failed')),
+      };
+
+      (window as any).Rokt = undefined;
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+          roktExtensions: '[{"jsmap":null,"map":null,"maptype":"StaticList","value":"thank-you-journey"}]',
+        },
+        reportService.cb,
+        false,
+      );
+
+      (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).Rokt.createLauncher = () => Promise.resolve(mockLauncher);
+
+      const launcherScript = document.getElementById('rokt-launcher') as HTMLScriptElement;
+
+      // Should not throw
+      await expect(
+        new Promise<void>((resolve) => {
+          launcherScript.onload!(new Event('load'));
+          setTimeout(resolve, 50);
+        }),
+      ).resolves.not.toThrow();
     });
   });
 
