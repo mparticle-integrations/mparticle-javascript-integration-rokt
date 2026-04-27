@@ -94,7 +94,7 @@ interface KitFilters {
 
 interface RoktManager {
   attachKit(kit: RoktKit): void | Promise<void>;
-  flushOnShoppableAdsReadyMessageQueue(kit: RoktKit): void;
+  flushOnShoppableAdsReadyMessageQueue?(kit: RoktKit): void;
   filters?: KitFilters;
   domain?: string;
   launcherOptions?: Record<string, unknown>;
