@@ -1088,6 +1088,12 @@ class RoktKit implements KitInterface {
     this._advertiserIdSyncApiKey = isString(kitSettings.advertiserIdSyncApiKey)
       ? kitSettings.advertiserIdSyncApiKey
       : undefined;
+    // init reconfigures the kit; any prior advertiser search state is no
+    // longer authoritative (different api key, different session, different
+    // partner page) and must not leak into the new lifecycle.
+    this.userIdentifiedInAdvertiser = false;
+    this._advertiserSearchInFlight = null;
+    this._advertiserLastSearchedEmail = undefined;
 
     const domain = mp().Rokt?.domain;
     const { roktExtensionsQueryParams, legacyRoktExtensions, loadThankYouElement } = extractRoktExtensionConfig(
@@ -1288,6 +1294,10 @@ class RoktKit implements KitInterface {
         });
       } catch (err) {
         console.error('Rokt Kit: Advertiser IDSync search failed', err);
+        // Dispatch failed — clear the cache so the same email can retry on
+        // the next identification rather than being stuck behind a poisoned
+        // entry that short-circuits future searches.
+        this._advertiserLastSearchedEmail = undefined;
         resolve();
       }
     });
