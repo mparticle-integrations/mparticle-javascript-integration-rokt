@@ -30,6 +30,7 @@ interface RoktKitSettings {
   loggingUrl?: string;
   errorUrl?: string;
   isLoggingEnabled?: string | boolean;
+  advertiserIdSyncApiKey?: string;
 }
 
 interface EventAttributeCondition {
@@ -86,6 +87,23 @@ interface FilteredUser extends IMParticleUser {
   getUserIdentities?: () => { userIdentities: Record<string, string> };
 }
 
+interface AdvertiserIdSyncResult {
+  httpCode: number;
+  body?: {
+    context?: string | null;
+    mpid?: string;
+    matched_identities?: Record<string, string>;
+    is_ephemeral?: boolean;
+    is_logged_in?: boolean;
+  };
+}
+
+type AdvertiserIdSyncSearcher = (
+  apiKey: string,
+  knownIdentities: { email: string },
+  callback: (result: AdvertiserIdSyncResult) => void,
+) => void;
+
 interface KitFilters {
   userAttributeFilters?: string[];
   filterUserAttributes?: (attributes: Record<string, unknown>, filters?: string[]) => Record<string, unknown>;
@@ -134,6 +152,7 @@ interface MParticleExtended {
   loggedEvents?: Array<Record<string, unknown>>;
   _registerErrorReportingService?(service: ErrorReportingService): void;
   _registerLoggingService?(service: LoggingService): void;
+  Identity?: { searchAdvertiser?: AdvertiserIdSyncSearcher };
 }
 
 interface TestHelpers {
@@ -217,6 +236,7 @@ const ROKT_IDENTITY_EVENT_TYPE = {
 const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
+const USER_IDENTIFIED_IN_ADVERTISER_KEY = 'userIdentifiedInAdvertiser';
 
 type RoktIdentityEventType = (typeof ROKT_IDENTITY_EVENT_TYPE)[keyof typeof ROKT_IDENTITY_EVENT_TYPE];
 
@@ -686,6 +706,7 @@ class RoktKit implements KitInterface {
   private _onboardingExpProvider?: string;
   private _thankYouElementOnLoadCallback: (() => void) | null = null;
   private _isThankYouElementLoaded = false;
+  private _advertiserIdSyncApiKey?: string;
 
   // ---- Private helpers ----
 
@@ -1044,6 +1065,10 @@ class RoktKit implements KitInterface {
       this._mappedEmailSha256Key = kitSettings.hashedEmailUserIdentityType.toLowerCase();
     }
 
+    this._advertiserIdSyncApiKey = isString(kitSettings.advertiserIdSyncApiKey)
+      ? kitSettings.advertiserIdSyncApiKey
+      : undefined;
+
     const domain = mp().Rokt?.domain;
     const { roktExtensionsQueryParams, legacyRoktExtensions, loadThankYouElement } = extractRoktExtensionConfig(
       kitSettings.roktExtensions,
@@ -1195,8 +1220,35 @@ class RoktKit implements KitInterface {
   }
 
   public onUserIdentified(user: IMParticleUser): string {
-    this.filters.filteredUser = user as FilteredUser;
+    const filteredUser = user as FilteredUser;
+    this.filters.filteredUser = filteredUser;
+    this.searchAdvertiser(filteredUser);
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, 'onUserIdentified');
+  }
+
+  private searchAdvertiser(filteredUser: FilteredUser): void {
+    const apiKey = this._advertiserIdSyncApiKey;
+    if (!apiKey) {
+      return;
+    }
+    const searchAdvertiser = mp().Identity?.searchAdvertiser;
+    if (typeof searchAdvertiser !== 'function') {
+      return;
+    }
+    const userIdentities = filteredUser.getUserIdentities ? filteredUser.getUserIdentities().userIdentities : null;
+    const email = userIdentities?.email;
+    if (!email || !isString(email)) {
+      return;
+    }
+    try {
+      searchAdvertiser(apiKey, { email }, (result: AdvertiserIdSyncResult) => {
+        if (result?.httpCode === 200) {
+          this.userAttributes[USER_IDENTIFIED_IN_ADVERTISER_KEY] = true;
+        }
+      });
+    } catch (err) {
+      console.error('Rokt Kit: Advertiser IDSync search failed', err);
+    }
   }
 
   public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {

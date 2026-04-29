@@ -2933,6 +2933,176 @@ describe('Rokt Forwarder', () => {
     });
   });
 
+  describe('#advertiserIdSync', () => {
+    const ADVERTISER_API_KEY = 'advertiser-key-abc123';
+
+    function makeUser(overrides: any = {}) {
+      return {
+        getAllUserAttributes: () => ({}),
+        getMPID: () => '123',
+        getUserIdentities: () => ({ userIdentities: { email: 'test@example.com' } }),
+        ...overrides,
+      };
+    }
+
+    let originalIdentity: any;
+
+    beforeEach(() => {
+      originalIdentity = (window as any).mParticle.Identity;
+    });
+
+    afterEach(() => {
+      (window as any).mParticle.Identity = originalIdentity;
+      (window as any).mParticle.forwarder.userAttributes = {};
+    });
+
+    it('should call Identity.searchAdvertiser with the configured api key and set userIdentifiedInAdvertiser when 200 returned', async () => {
+      let receivedApiKey: any = null;
+      let receivedKnownIdentities: any = null;
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: (apiKey: any, knownIdentities: any, cb: any) => {
+          receivedApiKey = apiKey;
+          receivedKnownIdentities = knownIdentities;
+          cb({ httpCode: 200, body: { mpid: '999' } });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(receivedApiKey).toBe(ADVERTISER_API_KEY);
+      expect(receivedKnownIdentities).toEqual({ email: 'test@example.com' });
+      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBe(true);
+    });
+
+    it('should not set userIdentifiedInAdvertiser when search returns 404', async () => {
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          cb({ httpCode: 404 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+    });
+
+    it('should not call searchAdvertiser when advertiserIdSyncApiKey is missing', async () => {
+      let searchCalled = false;
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: () => {
+          searchCalled = true;
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(searchCalled).toBe(false);
+      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+    });
+
+    it('should not call searchAdvertiser when advertiserIdSyncApiKey is an empty string', async () => {
+      let searchCalled = false;
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: () => {
+          searchCalled = true;
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: '' },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(searchCalled).toBe(false);
+      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+    });
+
+    it('should not call searchAdvertiser when the user has no plain email identity', async () => {
+      let searchCalled = false;
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: () => {
+          searchCalled = true;
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: {} }) }),
+      );
+
+      expect(searchCalled).toBe(false);
+      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+    });
+
+    it('should not throw when Identity.searchAdvertiser is unavailable', async () => {
+      (window as any).mParticle.Identity = {};
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      expect(() => {
+        (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      }).not.toThrow();
+      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+    });
+
+    it('should swallow errors thrown by searchAdvertiser', async () => {
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: () => {
+          throw new Error('boom');
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      expect(() => {
+        (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      }).not.toThrow();
+      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+    });
+  });
+
   describe('#onLoginComplete', () => {
     it('should update userAttributes from the filtered user', () => {
       (window as any).mParticle.forwarder.onLoginComplete({
