@@ -2933,8 +2933,8 @@ describe('Rokt Forwarder', () => {
     });
   });
 
-  describe('#advertiserIdSync', () => {
-    const ADVERTISER_API_KEY = 'advertiser-key-abc123';
+  describe('#workspaceIdSync', () => {
+    const WORKSPACE_API_KEY = 'workspace-key-abc123';
 
     function makeUser(overrides: any = {}) {
       return {
@@ -2954,14 +2954,22 @@ describe('Rokt Forwarder', () => {
     afterEach(() => {
       (window as any).mParticle.Identity = originalIdentity;
       (window as any).mParticle.forwarder.userAttributes = {};
-      (window as any).mParticle.forwarder.userIdentifiedInAdvertiser = false;
+      // The kit's `init()` only runs once per instance in production, so it
+      // does NOT reset workspace-search state. In tests, multiple cases
+      // share a single forwarder instance and call init repeatedly, so we
+      // have to clear search state here to keep tests independent —
+      // otherwise the email-cache hit would suppress a search the next
+      // test expects.
+      (window as any).mParticle.forwarder.userIdentifiedInWorkspace = false;
+      (window as any).mParticle.forwarder._workspaceSearchInFlight = null;
+      (window as any).mParticle.forwarder._workspaceLastSearchedEmail = undefined;
     });
 
-    it('should call Identity.searchAdvertiser with the configured api key and set userIdentifiedInAdvertiser when 200 returned', async () => {
+    it('should call Identity.searchWorkspace with the configured api key and set userIdentifiedInWorkspace when 200 returned', async () => {
       let receivedApiKey: any = null;
       let receivedKnownIdentities: any = null;
       (window as any).mParticle.Identity = {
-        searchAdvertiser: (apiKey: any, knownIdentities: any, cb: any) => {
+        searchWorkspace: (apiKey: any, knownIdentities: any, cb: any) => {
           receivedApiKey = apiKey;
           receivedKnownIdentities = knownIdentities;
           cb({ httpCode: 200, body: { mpid: '999' } });
@@ -2969,7 +2977,7 @@ describe('Rokt Forwarder', () => {
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -2978,20 +2986,20 @@ describe('Rokt Forwarder', () => {
 
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
 
-      expect(receivedApiKey).toBe(ADVERTISER_API_KEY);
+      expect(receivedApiKey).toBe(WORKSPACE_API_KEY);
       expect(receivedKnownIdentities).toEqual({ email: 'test@example.com' });
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
     });
 
-    it('should not set userIdentifiedInAdvertiser when search returns 404', async () => {
+    it('should not set userIdentifiedInWorkspace when search returns 404', async () => {
       (window as any).mParticle.Identity = {
-        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
           cb({ httpCode: 404 });
         },
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -3000,13 +3008,13 @@ describe('Rokt Forwarder', () => {
 
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
 
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not call searchAdvertiser when advertiserIdSyncApiKey is missing', async () => {
+    it('should not call searchWorkspace when workspaceIdSyncApiKey is missing', async () => {
       let searchCalled = false;
       (window as any).mParticle.Identity = {
-        searchAdvertiser: () => {
+        searchWorkspace: () => {
           searchCalled = true;
         },
       };
@@ -3016,19 +3024,19 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
 
       expect(searchCalled).toBe(false);
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not call searchAdvertiser when advertiserIdSyncApiKey is an empty string', async () => {
+    it('should not call searchWorkspace when workspaceIdSyncApiKey is an empty string', async () => {
       let searchCalled = false;
       (window as any).mParticle.Identity = {
-        searchAdvertiser: () => {
+        searchWorkspace: () => {
           searchCalled = true;
         },
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: '' },
+        { accountId: '123456', workspaceIdSyncApiKey: '' },
         reportService.cb,
         true,
         null,
@@ -3038,19 +3046,19 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
 
       expect(searchCalled).toBe(false);
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not call searchAdvertiser when the user has no plain email identity', async () => {
+    it('should not call searchWorkspace when the user has no plain email identity', async () => {
       let searchCalled = false;
       (window as any).mParticle.Identity = {
-        searchAdvertiser: () => {
+        searchWorkspace: () => {
           searchCalled = true;
         },
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -3062,14 +3070,14 @@ describe('Rokt Forwarder', () => {
       );
 
       expect(searchCalled).toBe(false);
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not throw when Identity.searchAdvertiser is unavailable', async () => {
+    it('should not throw when Identity.searchWorkspace is unavailable', async () => {
       (window as any).mParticle.Identity = {};
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -3079,18 +3087,18 @@ describe('Rokt Forwarder', () => {
       expect(() => {
         (window as any).mParticle.forwarder.onUserIdentified(makeUser());
       }).not.toThrow();
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should swallow errors thrown by searchAdvertiser', async () => {
+    it('should swallow errors thrown by searchWorkspace', async () => {
       (window as any).mParticle.Identity = {
-        searchAdvertiser: () => {
+        searchWorkspace: () => {
           throw new Error('boom');
         },
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -3100,50 +3108,11 @@ describe('Rokt Forwarder', () => {
       expect(() => {
         (window as any).mParticle.forwarder.onUserIdentified(makeUser());
       }).not.toThrow();
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should preserve the flag when handleIdentityComplete reassigns userAttributes', async () => {
-      // Race regression: the search response writes to a kit-class field,
-      // not the userAttributes map. handleIdentityComplete runs synchronously
-      // after searchAdvertiser inside onUserIdentified and does
-      // `userAttributes = user.getAllUserAttributes()`. If the flag lived in
-      // userAttributes it would be wiped here. It must not be.
-      (window as any).mParticle.Identity = {
-        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
-          cb({ httpCode: 200, body: { mpid: '999' } });
-        },
-      };
-
-      await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
-        reportService.cb,
-        true,
-        null,
-        {},
-      );
-
-      // The user's attribute set deliberately omits userIdentifiedInAdvertiser
-      // — simulating the real-world case where the advertiser search wrote
-      // the flag and then handleIdentityComplete reassigned userAttributes
-      // from a fresh getAllUserAttributes() call that doesn't include it.
-      (window as any).mParticle.forwarder.onUserIdentified(
-        makeUser({
-          getAllUserAttributes: () => ({ 'preexisting-attr': 'value' }),
-        }),
-      );
-
-      // Kit-class flag survives the reassignment.
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
-      // userAttributes does NOT contain the flag (and shouldn't — that's the
-      // whole point of moving it off the map).
-      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
-      // userAttributes still reflects what the user object returned.
-      expect((window as any).mParticle.forwarder.userAttributes['preexisting-attr']).toBe('value');
-    });
-
-    it('should wait for an in-flight searchAdvertiser before selectPlacements builds attributes', async () => {
-      // Race regression: previously, onUserIdentified fired searchAdvertiser
+    it('should wait for an in-flight searchWorkspace before selectPlacements builds attributes', async () => {
+      // Race regression: previously, onUserIdentified fired searchWorkspace
       // synchronously and returned. Partners doing
       // `Identity.login(...).then(() => Rokt.selectPlacements(...))` would
       // read the flag before the HTTP response landed, missing the flag for
@@ -3151,14 +3120,14 @@ describe('Rokt Forwarder', () => {
       // in-flight search (with a timeout) before building attributes.
       let triggerSearchResponse: () => void = () => undefined;
       (window as any).mParticle.Identity = {
-        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
           // Defer the callback to simulate a real network round-trip.
           triggerSearchResponse = () => cb({ httpCode: 200, body: { mpid: '999' } });
         },
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -3192,18 +3161,18 @@ describe('Rokt Forwarder', () => {
       triggerSearchResponse();
       await placementPromise;
 
-      expect(launcherCalledWithAttributes.userIdentifiedInAdvertiser).toBe(true);
+      expect(launcherCalledWithAttributes.userIdentifiedInWorkspace).toBe(true);
     });
 
-    it('should reset userIdentifiedInAdvertiser on onLogoutComplete', async () => {
+    it('should reset userIdentifiedInWorkspace on onLogoutComplete', async () => {
       (window as any).mParticle.Identity = {
-        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
           cb({ httpCode: 200 });
         },
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -3211,31 +3180,31 @@ describe('Rokt Forwarder', () => {
       );
 
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
 
       // onLogoutComplete must clear the flag so anonymous sessions don't
-      // carry the previous user's match forward — searchAdvertiser is only
+      // carry the previous user's match forward — searchWorkspace is only
       // fired from onUserIdentified, so logout has no re-evaluation path.
       (window as any).mParticle.forwarder.onLogoutComplete({
         getAllUserAttributes: () => ({}),
         getMPID: () => '999',
       });
 
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should reset userIdentifiedInAdvertiser when re-identifying via a short-circuit path', async () => {
+    it('should reset userIdentifiedInWorkspace when re-identifying via a short-circuit path', async () => {
       // A previous identification matched (flag=true). The new user has no
-      // email, so searchAdvertiser short-circuits without dispatching. The
+      // email, so searchWorkspace short-circuits without dispatching. The
       // flag must reset to false rather than leak from the previous user.
       (window as any).mParticle.Identity = {
-        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
           cb({ httpCode: 200 });
         },
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -3243,26 +3212,26 @@ describe('Rokt Forwarder', () => {
       );
 
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
 
       (window as any).mParticle.forwarder.onUserIdentified(
         makeUser({ getUserIdentities: () => ({ userIdentities: {} }) }),
       );
 
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not re-call Identity.searchAdvertiser when the same email re-identifies', async () => {
+    it('should not re-call Identity.searchWorkspace when the same email re-identifies', async () => {
       let searchCallCount = 0;
       (window as any).mParticle.Identity = {
-        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
           searchCallCount += 1;
           cb({ httpCode: 200 });
         },
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -3276,14 +3245,14 @@ describe('Rokt Forwarder', () => {
 
       expect(searchCallCount).toBe(1);
       // Flag from the first match still correct after the second identify.
-      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
     });
 
-    it('should re-call Identity.searchAdvertiser when the email changes', async () => {
+    it('should re-call Identity.searchWorkspace when the email changes', async () => {
       let searchCallCount = 0;
       const observedEmails: string[] = [];
       (window as any).mParticle.Identity = {
-        searchAdvertiser: (_apiKey: any, knownIdentities: any, cb: any) => {
+        searchWorkspace: (_apiKey: any, knownIdentities: any, cb: any) => {
           searchCallCount += 1;
           observedEmails.push(knownIdentities.email);
           cb({ httpCode: 200 });
@@ -3291,7 +3260,7 @@ describe('Rokt Forwarder', () => {
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,
@@ -3309,17 +3278,17 @@ describe('Rokt Forwarder', () => {
       expect(observedEmails).toEqual(['a@example.com', 'b@example.com']);
     });
 
-    it('should re-call Identity.searchAdvertiser after logout even with the same email', async () => {
+    it('should re-call Identity.searchWorkspace after logout even with the same email', async () => {
       let searchCallCount = 0;
       (window as any).mParticle.Identity = {
-        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
           searchCallCount += 1;
           cb({ httpCode: 200 });
         },
       };
 
       await (window as any).mParticle.forwarder.init(
-        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
         reportService.cb,
         true,
         null,

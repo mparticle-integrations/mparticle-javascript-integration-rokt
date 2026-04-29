@@ -30,7 +30,7 @@ interface RoktKitSettings {
   loggingUrl?: string;
   errorUrl?: string;
   isLoggingEnabled?: string | boolean;
-  advertiserIdSyncApiKey?: string;
+  workspaceIdSyncApiKey?: string;
 }
 
 interface EventAttributeCondition {
@@ -87,7 +87,7 @@ interface FilteredUser extends IMParticleUser {
   getUserIdentities?: () => { userIdentities: Record<string, string> };
 }
 
-interface AdvertiserIdSyncResult {
+interface WorkspaceIdSyncResult {
   httpCode: number;
   body?: {
     context?: string | null;
@@ -98,10 +98,10 @@ interface AdvertiserIdSyncResult {
   };
 }
 
-type AdvertiserIdSyncSearcher = (
+type WorkspaceIdSyncSearcher = (
   apiKey: string,
   knownIdentities: { email: string },
-  callback: (result: AdvertiserIdSyncResult) => void,
+  callback: (result: WorkspaceIdSyncResult) => void,
 ) => void;
 
 interface KitFilters {
@@ -152,7 +152,7 @@ interface MParticleExtended {
   loggedEvents?: Array<Record<string, unknown>>;
   _registerErrorReportingService?(service: ErrorReportingService): void;
   _registerLoggingService?(service: LoggingService): void;
-  Identity?: { searchAdvertiser?: AdvertiserIdSyncSearcher };
+  Identity?: { searchWorkspace?: WorkspaceIdSyncSearcher };
 }
 
 interface TestHelpers {
@@ -236,12 +236,12 @@ const ROKT_IDENTITY_EVENT_TYPE = {
 const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
-const USER_IDENTIFIED_IN_ADVERTISER_KEY = 'userIdentifiedInAdvertiser';
-// Bound on how long selectPlacements will wait for an in-flight Advertiser
-// IDSync search before proceeding without the userIdentifiedInAdvertiser flag.
-// Long enough to cover the typical /v1/search round-trip; short enough that a
+const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
+// Bound on how long selectPlacements will wait for an in-flight Workspace
+// IDSync search before proceeding without the userIdentifiedInWorkspace flag.
+// Long enough to cover the typical /v1/search round-trip (~50ms); short enough that a
 // stalled search never blocks placement rendering on a thank-you page.
-const ADVERTISER_SEARCH_SELECT_TIMEOUT_MS = 1000;
+const WORKSPACE_SEARCH_SELECT_TIMEOUT_MS = 500;
 
 type RoktIdentityEventType = (typeof ROKT_IDENTITY_EVENT_TYPE)[keyof typeof ROKT_IDENTITY_EVENT_TYPE];
 
@@ -695,11 +695,9 @@ class RoktKit implements KitInterface {
   public launcher: RoktLauncher | null = null;
   public filters: KitFilters = {};
   public userAttributes: Record<string, unknown> = {};
-  // Flag set by the Advertiser IDSync flow on a 200 response. Stored on the
-  // kit instance (rather than mutated into `userAttributes`) so it isn't
-  // wiped when handleIdentityComplete or setUserAttribute reassigns the
-  // attributes map. Merged into placement attributes inside selectPlacements.
-  public userIdentifiedInAdvertiser = false;
+  // Flag set by the Workspace IDSync flow on a 200 response. Stored on the
+  // kit instance and merged into placement attributes inside selectPlacements.
+  public userIdentifiedInWorkspace = false;
   public testHelpers: TestHelpers | null = null;
   public placementEventMappingLookup: Record<string, string> = {};
   public placementEventAttributeMappingLookup: Record<string, PlacementEventRule[]> = {};
@@ -716,17 +714,16 @@ class RoktKit implements KitInterface {
   private _onboardingExpProvider?: string;
   private _thankYouElementOnLoadCallback: (() => void) | null = null;
   private _isThankYouElementLoaded = false;
-  private _advertiserIdSyncApiKey?: string;
-  // Promise that resolves once the most recent Advertiser IDSync search
-  // completes (or short-circuits). selectPlacements awaits this so the first
-  // call after onUserIdentified can include `userIdentifiedInAdvertiser`
-  // without racing the network response.
-  private _advertiserSearchInFlight: Promise<void> | null = null;
-  // The email value sent in the most recent successful searchAdvertiser
+  private _workspaceIdSyncApiKey?: string;
+  // Held during a searchWorkspace dispatch so the next selectPlacements call;
+  // can wait for the HTTP response before reading userIdentifiedInWorkspace;
+  // — otherwise the first placement call ships without the flag.
+  private _workspaceSearchInFlight: Promise<void> | null = null;
+  // The email value sent in the most recent successful searchWorkspace
   // dispatch. If a subsequent identification arrives with the same email,
   // we skip the network call (the flag is still correct from the prior
   // search). Cleared on logout so a re-login re-evaluates fresh.
-  private _advertiserLastSearchedEmail?: string;
+  private _workspaceLastSearchedEmail?: string;
 
   // ---- Private helpers ----
 
@@ -1085,15 +1082,9 @@ class RoktKit implements KitInterface {
       this._mappedEmailSha256Key = kitSettings.hashedEmailUserIdentityType.toLowerCase();
     }
 
-    this._advertiserIdSyncApiKey = isString(kitSettings.advertiserIdSyncApiKey)
-      ? kitSettings.advertiserIdSyncApiKey
+    this._workspaceIdSyncApiKey = isString(kitSettings.workspaceIdSyncApiKey)
+      ? kitSettings.workspaceIdSyncApiKey
       : undefined;
-    // init reconfigures the kit; any prior advertiser search state is no
-    // longer authoritative (different api key, different session, different
-    // partner page) and must not leak into the new lifecycle.
-    this.userIdentifiedInAdvertiser = false;
-    this._advertiserSearchInFlight = null;
-    this._advertiserLastSearchedEmail = undefined;
 
     const domain = mp().Rokt?.domain;
     const { roktExtensionsQueryParams, legacyRoktExtensions, loadThankYouElement } = extractRoktExtensionConfig(
@@ -1248,56 +1239,56 @@ class RoktKit implements KitInterface {
   public onUserIdentified(user: IMParticleUser): string {
     const filteredUser = user as FilteredUser;
     this.filters.filteredUser = filteredUser;
-    this._advertiserSearchInFlight = this.searchAdvertiser(filteredUser);
+    this._workspaceSearchInFlight = this.searchWorkspace(filteredUser);
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, 'onUserIdentified');
   }
 
-  private searchAdvertiser(filteredUser: FilteredUser): Promise<void> {
-    const apiKey = this._advertiserIdSyncApiKey;
+  private searchWorkspace(filteredUser: FilteredUser): Promise<void> {
+    const apiKey = this._workspaceIdSyncApiKey;
     if (!apiKey) {
-      this.userIdentifiedInAdvertiser = false;
-      this._advertiserLastSearchedEmail = undefined;
+      this.userIdentifiedInWorkspace = false;
+      this._workspaceLastSearchedEmail = undefined;
       return Promise.resolve();
     }
-    const searchAdvertiser = mp().Identity?.searchAdvertiser;
-    if (typeof searchAdvertiser !== 'function') {
-      this.userIdentifiedInAdvertiser = false;
-      this._advertiserLastSearchedEmail = undefined;
+    const searchWorkspace = mp().Identity?.searchWorkspace;
+    if (typeof searchWorkspace !== 'function') {
+      this.userIdentifiedInWorkspace = false;
+      this._workspaceLastSearchedEmail = undefined;
       return Promise.resolve();
     }
     const userIdentities = filteredUser.getUserIdentities ? filteredUser.getUserIdentities().userIdentities : null;
     const email = userIdentities?.email;
     if (!email || !isString(email)) {
-      this.userIdentifiedInAdvertiser = false;
-      this._advertiserLastSearchedEmail = undefined;
+      this.userIdentifiedInWorkspace = false;
+      this._workspaceLastSearchedEmail = undefined;
       return Promise.resolve();
     }
 
     // Same email as the last successful dispatch → skip the network call.
     // The current flag value still reflects the correct match status.
-    if (email === this._advertiserLastSearchedEmail) {
+    if (email === this._workspaceLastSearchedEmail) {
       return Promise.resolve();
     }
 
     // New / different email → reset and re-search. Cache the email up front
     // so a second concurrent invocation with the same email also dedupes.
-    this.userIdentifiedInAdvertiser = false;
-    this._advertiserLastSearchedEmail = email;
+    this.userIdentifiedInWorkspace = false;
+    this._workspaceLastSearchedEmail = email;
 
     return new Promise<void>((resolve) => {
       try {
-        searchAdvertiser(apiKey, { email }, (result: AdvertiserIdSyncResult) => {
+        searchWorkspace(apiKey, { email }, (result: WorkspaceIdSyncResult) => {
           if (result?.httpCode === 200) {
-            this.userIdentifiedInAdvertiser = true;
+            this.userIdentifiedInWorkspace = true;
           }
           resolve();
         });
       } catch (err) {
-        console.error('Rokt Kit: Advertiser IDSync search failed', err);
+        console.error('Rokt Kit: Workspace IDSync search failed', err);
         // Dispatch failed — clear the cache so the same email can retry on
         // the next identification rather than being stuck behind a poisoned
         // entry that short-circuits future searches.
-        this._advertiserLastSearchedEmail = undefined;
+        this._workspaceLastSearchedEmail = undefined;
         resolve();
       }
     });
@@ -1312,9 +1303,9 @@ class RoktKit implements KitInterface {
     // Clear the flag explicitly here. Also clear the email cache so a
     // re-login (possibly the same email) dispatches a fresh search rather
     // than reusing a stale answer.
-    this.userIdentifiedInAdvertiser = false;
-    this._advertiserSearchInFlight = null;
-    this._advertiserLastSearchedEmail = undefined;
+    this.userIdentifiedInWorkspace = false;
+    this._workspaceSearchInFlight = null;
+    this._workspaceLastSearchedEmail = undefined;
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGOUT, 'onLogoutComplete');
   }
 
@@ -1325,10 +1316,10 @@ class RoktKit implements KitInterface {
   /**
    * Selects placements for Rokt Web SDK with merged attributes, filters, and experimentation options.
    *
-   * If an Advertiser IDSync search is in flight from a recent onUserIdentified
-   * call, this method waits up to `ADVERTISER_SEARCH_SELECT_TIMEOUT_MS` for it
+   * If a Workspace IDSync search is in flight from a recent onUserIdentified
+   * call, this method waits up to `WORKSPACE_SEARCH_SELECT_TIMEOUT_MS` for it
    * to settle so the first placement call can include the
-   * `userIdentifiedInAdvertiser` flag without racing the network response.
+   * `userIdentifiedInWorkspace` flag without racing the network response.
    * The timeout protects against a stalled or slow search blocking placement
    * rendering — if it fires, selectPlacements proceeds without the flag.
    *
@@ -1340,11 +1331,11 @@ class RoktKit implements KitInterface {
    * the in-flight search.
    */
   public selectPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
-    if (this._advertiserSearchInFlight) {
-      const inFlight = this._advertiserSearchInFlight;
+    if (this._workspaceSearchInFlight) {
+      const inFlight = this._workspaceSearchInFlight;
       return Promise.race([
         inFlight,
-        new Promise<void>((resolve) => setTimeout(resolve, ADVERTISER_SEARCH_SELECT_TIMEOUT_MS)),
+        new Promise<void>((resolve) => setTimeout(resolve, WORKSPACE_SEARCH_SELECT_TIMEOUT_MS)),
       ]).then(() => this._dispatchPlacements(options)) as Promise<RoktSelection>;
     }
     return this._dispatchPlacements(options);
@@ -1383,7 +1374,7 @@ class RoktKit implements KitInterface {
       ...filteredAttributes,
       ...optimizelyAttributes,
       ...localSessionAttributes,
-      ...(this.userIdentifiedInAdvertiser ? { [USER_IDENTIFIED_IN_ADVERTISER_KEY]: true } : {}),
+      ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
       mpid,
     };
 
