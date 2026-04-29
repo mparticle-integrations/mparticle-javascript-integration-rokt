@@ -3141,6 +3141,201 @@ describe('Rokt Forwarder', () => {
       // userAttributes still reflects what the user object returned.
       expect((window as any).mParticle.forwarder.userAttributes['preexisting-attr']).toBe('value');
     });
+
+    it('should wait for an in-flight searchAdvertiser before selectPlacements builds attributes', async () => {
+      // Race regression: previously, onUserIdentified fired searchAdvertiser
+      // synchronously and returned. Partners doing
+      // `Identity.login(...).then(() => Rokt.selectPlacements(...))` would
+      // read the flag before the HTTP response landed, missing the flag for
+      // the most important placement call. Now selectPlacements awaits the
+      // in-flight search (with a timeout) before building attributes.
+      let triggerSearchResponse: () => void = () => undefined;
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          // Defer the callback to simulate a real network round-trip.
+          triggerSearchResponse = () => cb({ httpCode: 200, body: { mpid: '999' } });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      // Stub launcher + filters so selectPlacements can dispatch.
+      let launcherCalledWithAttributes: any = null;
+      (window as any).mParticle.forwarder.launcher = {
+        selectPlacements: (opts: any) => {
+          launcherCalledWithAttributes = opts.attributes;
+          return { context: { sessionId: Promise.resolve('test-session') } };
+        },
+      };
+      (window as any).mParticle.forwarder.filters = {
+        userAttributesFilters: [],
+        filterUserAttributes: (attributes: any) => attributes,
+        filteredUser: { getMPID: () => '123' },
+      };
+
+      // Identification kicks off the search; callback NOT yet fired.
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      // selectPlacements is invoked while the search is still in flight.
+      const placementPromise = (window as any).mParticle.forwarder.selectPlacements({
+        identifier: 'test-placement',
+        attributes: {},
+      });
+
+      // Resolve the search; selectPlacements should now proceed and merge the flag.
+      triggerSearchResponse();
+      await placementPromise;
+
+      expect(launcherCalledWithAttributes.userIdentifiedInAdvertiser).toBe(true);
+    });
+
+    it('should reset userIdentifiedInAdvertiser on onLogoutComplete', async () => {
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
+
+      // onLogoutComplete must clear the flag so anonymous sessions don't
+      // carry the previous user's match forward — searchAdvertiser is only
+      // fired from onUserIdentified, so logout has no re-evaluation path.
+      (window as any).mParticle.forwarder.onLogoutComplete({
+        getAllUserAttributes: () => ({}),
+        getMPID: () => '999',
+      });
+
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+    });
+
+    it('should reset userIdentifiedInAdvertiser when re-identifying via a short-circuit path', async () => {
+      // A previous identification matched (flag=true). The new user has no
+      // email, so searchAdvertiser short-circuits without dispatching. The
+      // flag must reset to false rather than leak from the previous user.
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: {} }) }),
+      );
+
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+    });
+
+    it('should not re-call Identity.searchAdvertiser when the same email re-identifies', async () => {
+      let searchCallCount = 0;
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      // Two identifications with the same email. Should dispatch only once;
+      // the cached email skips the second network call.
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(searchCallCount).toBe(1);
+      // Flag from the first match still correct after the second identify.
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
+    });
+
+    it('should re-call Identity.searchAdvertiser when the email changes', async () => {
+      let searchCallCount = 0;
+      const observedEmails: string[] = [];
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: (_apiKey: any, knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          observedEmails.push(knownIdentities.email);
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: { email: 'a@example.com' } }) }),
+      );
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: { email: 'b@example.com' } }) }),
+      );
+
+      expect(searchCallCount).toBe(2);
+      expect(observedEmails).toEqual(['a@example.com', 'b@example.com']);
+    });
+
+    it('should re-call Identity.searchAdvertiser after logout even with the same email', async () => {
+      let searchCallCount = 0;
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      // Logout clears the email cache so a re-login re-evaluates.
+      (window as any).mParticle.forwarder.onLogoutComplete({
+        getAllUserAttributes: () => ({}),
+        getMPID: () => '999',
+      });
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(searchCallCount).toBe(2);
+    });
   });
 
   describe('#onLoginComplete', () => {

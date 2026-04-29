@@ -237,6 +237,11 @@ const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 const USER_IDENTIFIED_IN_ADVERTISER_KEY = 'userIdentifiedInAdvertiser';
+// Bound on how long selectPlacements will wait for an in-flight Advertiser
+// IDSync search before proceeding without the userIdentifiedInAdvertiser flag.
+// Long enough to cover the typical /v1/search round-trip; short enough that a
+// stalled search never blocks placement rendering on a thank-you page.
+const ADVERTISER_SEARCH_SELECT_TIMEOUT_MS = 1000;
 
 type RoktIdentityEventType = (typeof ROKT_IDENTITY_EVENT_TYPE)[keyof typeof ROKT_IDENTITY_EVENT_TYPE];
 
@@ -712,6 +717,16 @@ class RoktKit implements KitInterface {
   private _thankYouElementOnLoadCallback: (() => void) | null = null;
   private _isThankYouElementLoaded = false;
   private _advertiserIdSyncApiKey?: string;
+  // Promise that resolves once the most recent Advertiser IDSync search
+  // completes (or short-circuits). selectPlacements awaits this so the first
+  // call after onUserIdentified can include `userIdentifiedInAdvertiser`
+  // without racing the network response.
+  private _advertiserSearchInFlight: Promise<void> | null = null;
+  // The email value sent in the most recent successful searchAdvertiser
+  // dispatch. If a subsequent identification arrives with the same email,
+  // we skip the network call (the flag is still correct from the prior
+  // search). Cleared on logout so a re-login re-evaluates fresh.
+  private _advertiserLastSearchedEmail?: string;
 
   // ---- Private helpers ----
 
@@ -1227,37 +1242,55 @@ class RoktKit implements KitInterface {
   public onUserIdentified(user: IMParticleUser): string {
     const filteredUser = user as FilteredUser;
     this.filters.filteredUser = filteredUser;
-    this.searchAdvertiser(filteredUser);
+    this._advertiserSearchInFlight = this.searchAdvertiser(filteredUser);
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, 'onUserIdentified');
   }
 
-  private searchAdvertiser(filteredUser: FilteredUser): void {
+  private searchAdvertiser(filteredUser: FilteredUser): Promise<void> {
     const apiKey = this._advertiserIdSyncApiKey;
     if (!apiKey) {
-      return;
+      this.userIdentifiedInAdvertiser = false;
+      this._advertiserLastSearchedEmail = undefined;
+      return Promise.resolve();
     }
     const searchAdvertiser = mp().Identity?.searchAdvertiser;
     if (typeof searchAdvertiser !== 'function') {
-      return;
+      this.userIdentifiedInAdvertiser = false;
+      this._advertiserLastSearchedEmail = undefined;
+      return Promise.resolve();
     }
     const userIdentities = filteredUser.getUserIdentities ? filteredUser.getUserIdentities().userIdentities : null;
     const email = userIdentities?.email;
     if (!email || !isString(email)) {
-      return;
+      this.userIdentifiedInAdvertiser = false;
+      this._advertiserLastSearchedEmail = undefined;
+      return Promise.resolve();
     }
-    try {
-      searchAdvertiser(apiKey, { email }, (result: AdvertiserIdSyncResult) => {
-        if (result?.httpCode === 200) {
-          // Stored on the kit, not the userAttributes map. handleIdentityComplete
-          // reassigns userAttributes to user.getAllUserAttributes() in the same
-          // synchronous flow as onUserIdentified, which would wipe this flag if
-          // it were written there. selectPlacements merges it back in below.
-          this.userIdentifiedInAdvertiser = true;
-        }
-      });
-    } catch (err) {
-      console.error('Rokt Kit: Advertiser IDSync search failed', err);
+
+    // Same email as the last successful dispatch → skip the network call.
+    // The current flag value still reflects the correct match status.
+    if (email === this._advertiserLastSearchedEmail) {
+      return Promise.resolve();
     }
+
+    // New / different email → reset and re-search. Cache the email up front
+    // so a second concurrent invocation with the same email also dedupes.
+    this.userIdentifiedInAdvertiser = false;
+    this._advertiserLastSearchedEmail = email;
+
+    return new Promise<void>((resolve) => {
+      try {
+        searchAdvertiser(apiKey, { email }, (result: AdvertiserIdSyncResult) => {
+          if (result?.httpCode === 200) {
+            this.userIdentifiedInAdvertiser = true;
+          }
+          resolve();
+        });
+      } catch (err) {
+        console.error('Rokt Kit: Advertiser IDSync search failed', err);
+        resolve();
+      }
+    });
   }
 
   public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
@@ -1265,6 +1298,13 @@ class RoktKit implements KitInterface {
   }
 
   public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    // Anonymous sessions must not carry the previous user's match forward.
+    // Clear the flag explicitly here. Also clear the email cache so a
+    // re-login (possibly the same email) dispatches a fresh search rather
+    // than reusing a stale answer.
+    this.userIdentifiedInAdvertiser = false;
+    this._advertiserSearchInFlight = null;
+    this._advertiserLastSearchedEmail = undefined;
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGOUT, 'onLogoutComplete');
   }
 
@@ -1274,8 +1314,33 @@ class RoktKit implements KitInterface {
 
   /**
    * Selects placements for Rokt Web SDK with merged attributes, filters, and experimentation options.
+   *
+   * If an Advertiser IDSync search is in flight from a recent onUserIdentified
+   * call, this method waits up to `ADVERTISER_SEARCH_SELECT_TIMEOUT_MS` for it
+   * to settle so the first placement call can include the
+   * `userIdentifiedInAdvertiser` flag without racing the network response.
+   * The timeout protects against a stalled or slow search blocking placement
+   * rendering — if it fires, selectPlacements proceeds without the flag.
+   *
+   * Implementation note: this method stays non-async (returns the existing
+   * `RoktSelection | Promise<RoktSelection> | undefined` union) because
+   * `RoktSelection` has an optional `then?` member, which TS1058 rejects as
+   * ambiguously promise-like inside an async function's return type. The
+   * inner work runs in `_dispatchPlacements`; this wrapper just gates it on
+   * the in-flight search.
    */
   public selectPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
+    if (this._advertiserSearchInFlight) {
+      const inFlight = this._advertiserSearchInFlight;
+      return Promise.race([
+        inFlight,
+        new Promise<void>((resolve) => setTimeout(resolve, ADVERTISER_SEARCH_SELECT_TIMEOUT_MS)),
+      ]).then(() => this._dispatchPlacements(options)) as Promise<RoktSelection>;
+    }
+    return this._dispatchPlacements(options);
+  }
+
+  private _dispatchPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
     const attributes = ((options && (options.attributes as Record<string, unknown>)) || {}) as Record<string, unknown>;
     const placementAttributes: Record<string, unknown> = { ...this.userAttributes, ...attributes };
 
