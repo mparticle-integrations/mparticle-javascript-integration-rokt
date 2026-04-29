@@ -2954,6 +2954,7 @@ describe('Rokt Forwarder', () => {
     afterEach(() => {
       (window as any).mParticle.Identity = originalIdentity;
       (window as any).mParticle.forwarder.userAttributes = {};
+      (window as any).mParticle.forwarder.userIdentifiedInAdvertiser = false;
     });
 
     it('should call Identity.searchAdvertiser with the configured api key and set userIdentifiedInAdvertiser when 200 returned', async () => {
@@ -2979,7 +2980,7 @@ describe('Rokt Forwarder', () => {
 
       expect(receivedApiKey).toBe(ADVERTISER_API_KEY);
       expect(receivedKnownIdentities).toEqual({ email: 'test@example.com' });
-      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBe(true);
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
     });
 
     it('should not set userIdentifiedInAdvertiser when search returns 404', async () => {
@@ -2999,7 +3000,7 @@ describe('Rokt Forwarder', () => {
 
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
 
-      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
     });
 
     it('should not call searchAdvertiser when advertiserIdSyncApiKey is missing', async () => {
@@ -3015,7 +3016,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
 
       expect(searchCalled).toBe(false);
-      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
     });
 
     it('should not call searchAdvertiser when advertiserIdSyncApiKey is an empty string', async () => {
@@ -3037,7 +3038,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
 
       expect(searchCalled).toBe(false);
-      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
     });
 
     it('should not call searchAdvertiser when the user has no plain email identity', async () => {
@@ -3061,7 +3062,7 @@ describe('Rokt Forwarder', () => {
       );
 
       expect(searchCalled).toBe(false);
-      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
     });
 
     it('should not throw when Identity.searchAdvertiser is unavailable', async () => {
@@ -3078,7 +3079,7 @@ describe('Rokt Forwarder', () => {
       expect(() => {
         (window as any).mParticle.forwarder.onUserIdentified(makeUser());
       }).not.toThrow();
-      expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
     });
 
     it('should swallow errors thrown by searchAdvertiser', async () => {
@@ -3099,7 +3100,46 @@ describe('Rokt Forwarder', () => {
       expect(() => {
         (window as any).mParticle.forwarder.onUserIdentified(makeUser());
       }).not.toThrow();
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(false);
+    });
+
+    it('should preserve the flag when handleIdentityComplete reassigns userAttributes', async () => {
+      // Race regression: the search response writes to a kit-class field,
+      // not the userAttributes map. handleIdentityComplete runs synchronously
+      // after searchAdvertiser inside onUserIdentified and does
+      // `userAttributes = user.getAllUserAttributes()`. If the flag lived in
+      // userAttributes it would be wiped here. It must not be.
+      (window as any).mParticle.Identity = {
+        searchAdvertiser: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          cb({ httpCode: 200, body: { mpid: '999' } });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', advertiserIdSyncApiKey: ADVERTISER_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      // The user's attribute set deliberately omits userIdentifiedInAdvertiser
+      // — simulating the real-world case where the advertiser search wrote
+      // the flag and then handleIdentityComplete reassigned userAttributes
+      // from a fresh getAllUserAttributes() call that doesn't include it.
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({
+          getAllUserAttributes: () => ({ 'preexisting-attr': 'value' }),
+        }),
+      );
+
+      // Kit-class flag survives the reassignment.
+      expect((window as any).mParticle.forwarder.userIdentifiedInAdvertiser).toBe(true);
+      // userAttributes does NOT contain the flag (and shouldn't — that's the
+      // whole point of moving it off the map).
       expect((window as any).mParticle.forwarder.userAttributes.userIdentifiedInAdvertiser).toBeUndefined();
+      // userAttributes still reflects what the user object returned.
+      expect((window as any).mParticle.forwarder.userAttributes['preexisting-attr']).toBe('value');
     });
   });
 

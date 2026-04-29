@@ -690,6 +690,11 @@ class RoktKit implements KitInterface {
   public launcher: RoktLauncher | null = null;
   public filters: KitFilters = {};
   public userAttributes: Record<string, unknown> = {};
+  // Flag set by the Advertiser IDSync flow on a 200 response. Stored on the
+  // kit instance (rather than mutated into `userAttributes`) so it isn't
+  // wiped when handleIdentityComplete or setUserAttribute reassigns the
+  // attributes map. Merged into placement attributes inside selectPlacements.
+  public userIdentifiedInAdvertiser = false;
   public testHelpers: TestHelpers | null = null;
   public placementEventMappingLookup: Record<string, string> = {};
   public placementEventAttributeMappingLookup: Record<string, PlacementEventRule[]> = {};
@@ -1243,7 +1248,11 @@ class RoktKit implements KitInterface {
     try {
       searchAdvertiser(apiKey, { email }, (result: AdvertiserIdSyncResult) => {
         if (result?.httpCode === 200) {
-          this.userAttributes[USER_IDENTIFIED_IN_ADVERTISER_KEY] = true;
+          // Stored on the kit, not the userAttributes map. handleIdentityComplete
+          // reassigns userAttributes to user.getAllUserAttributes() in the same
+          // synchronous flow as onUserIdentified, which would wipe this flag if
+          // it were written there. selectPlacements merges it back in below.
+          this.userIdentifiedInAdvertiser = true;
         }
       });
     } catch (err) {
@@ -1299,6 +1308,7 @@ class RoktKit implements KitInterface {
       ...filteredAttributes,
       ...optimizelyAttributes,
       ...localSessionAttributes,
+      ...(this.userIdentifiedInAdvertiser ? { [USER_IDENTIFIED_IN_ADVERTISER_KEY]: true } : {}),
       mpid,
     };
 
