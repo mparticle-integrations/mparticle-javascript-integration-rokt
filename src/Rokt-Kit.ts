@@ -152,7 +152,7 @@ interface MParticleExtended {
   loggedEvents?: Array<Record<string, unknown>>;
   _registerErrorReportingService?(service: ErrorReportingService): void;
   _registerLoggingService?(service: LoggingService): void;
-  Identity?: { searchWorkspace?: WorkspaceIdSyncSearcher };
+  Identity?: { search?: WorkspaceIdSyncSearcher };
 }
 
 interface TestHelpers {
@@ -715,11 +715,11 @@ class RoktKit implements KitInterface {
   private _thankYouElementOnLoadCallback: (() => void) | null = null;
   private _isThankYouElementLoaded = false;
   private _workspaceIdSyncApiKey?: string;
-  // Held during a searchWorkspace dispatch so the next selectPlacements call;
+  // Held during a search dispatch so the next selectPlacements call;
   // can wait for the HTTP response before reading userIdentifiedInWorkspace;
   // — otherwise the first placement call ships without the flag.
   private _workspaceSearchInFlight: Promise<void> | null = null;
-  // The email value sent in the most recent successful searchWorkspace
+  // The email value sent in the most recent successful search
   // dispatch. If a subsequent identification arrives with the same email,
   // we skip the network call (the flag is still correct from the prior
   // search). Cleared on logout so a re-login re-evaluates fresh.
@@ -1239,19 +1239,19 @@ class RoktKit implements KitInterface {
   public onUserIdentified(user: IMParticleUser): string {
     const filteredUser = user as FilteredUser;
     this.filters.filteredUser = filteredUser;
-    this._workspaceSearchInFlight = this.searchWorkspace(filteredUser);
+    this._workspaceSearchInFlight = this.search(filteredUser);
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, 'onUserIdentified');
   }
 
-  private searchWorkspace(filteredUser: FilteredUser): Promise<void> {
+  private search(filteredUser: FilteredUser): Promise<void> {
     const apiKey = this._workspaceIdSyncApiKey;
     if (!apiKey) {
       this.userIdentifiedInWorkspace = false;
       this._workspaceLastSearchedEmail = undefined;
       return Promise.resolve();
     }
-    const searchWorkspace = mp().Identity?.searchWorkspace;
-    if (typeof searchWorkspace !== 'function') {
+    const search = mp().Identity?.search;
+    if (typeof search !== 'function') {
       this.userIdentifiedInWorkspace = false;
       this._workspaceLastSearchedEmail = undefined;
       return Promise.resolve();
@@ -1277,7 +1277,7 @@ class RoktKit implements KitInterface {
 
     return new Promise<void>((resolve) => {
       try {
-        searchWorkspace(apiKey, { email }, (result: WorkspaceIdSyncResult) => {
+        search(apiKey, { email }, (result: WorkspaceIdSyncResult) => {
           if (result?.httpCode === 200) {
             this.userIdentifiedInWorkspace = true;
           }

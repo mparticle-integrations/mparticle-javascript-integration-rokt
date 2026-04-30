@@ -2965,11 +2965,11 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder._workspaceLastSearchedEmail = undefined;
     });
 
-    it('should call Identity.searchWorkspace with the configured api key and set userIdentifiedInWorkspace when 200 returned', async () => {
+    it('should call Identity.search with the configured api key and set userIdentifiedInWorkspace when 200 returned', async () => {
       let receivedApiKey: any = null;
       let receivedKnownIdentities: any = null;
       (window as any).mParticle.Identity = {
-        searchWorkspace: (apiKey: any, knownIdentities: any, cb: any) => {
+        search: (apiKey: any, knownIdentities: any, cb: any) => {
           receivedApiKey = apiKey;
           receivedKnownIdentities = knownIdentities;
           cb({ httpCode: 200, body: { mpid: '999' } });
@@ -2993,7 +2993,7 @@ describe('Rokt Forwarder', () => {
 
     it('should not set userIdentifiedInWorkspace when search returns 404', async () => {
       (window as any).mParticle.Identity = {
-        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
           cb({ httpCode: 404 });
         },
       };
@@ -3011,10 +3011,10 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not call searchWorkspace when workspaceIdSyncApiKey is missing', async () => {
+    it('should not call search when workspaceIdSyncApiKey is missing', async () => {
       let searchCalled = false;
       (window as any).mParticle.Identity = {
-        searchWorkspace: () => {
+        search: () => {
           searchCalled = true;
         },
       };
@@ -3027,10 +3027,10 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not call searchWorkspace when workspaceIdSyncApiKey is an empty string', async () => {
+    it('should not call search when workspaceIdSyncApiKey is an empty string', async () => {
       let searchCalled = false;
       (window as any).mParticle.Identity = {
-        searchWorkspace: () => {
+        search: () => {
           searchCalled = true;
         },
       };
@@ -3049,10 +3049,10 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not call searchWorkspace when the user has no plain email identity', async () => {
+    it('should not call search when the user has no plain email identity', async () => {
       let searchCalled = false;
       (window as any).mParticle.Identity = {
-        searchWorkspace: () => {
+        search: () => {
           searchCalled = true;
         },
       };
@@ -3073,7 +3073,7 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not throw when Identity.searchWorkspace is unavailable', async () => {
+    it('should not throw when Identity.search is unavailable', async () => {
       (window as any).mParticle.Identity = {};
 
       await (window as any).mParticle.forwarder.init(
@@ -3090,9 +3090,9 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should swallow errors thrown by searchWorkspace', async () => {
+    it('should swallow errors thrown by search', async () => {
       (window as any).mParticle.Identity = {
-        searchWorkspace: () => {
+        search: () => {
           throw new Error('boom');
         },
       };
@@ -3111,8 +3111,8 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should wait for an in-flight searchWorkspace before selectPlacements builds attributes', async () => {
-      // Race regression: previously, onUserIdentified fired searchWorkspace
+    it('should wait for an in-flight search before selectPlacements builds attributes', async () => {
+      // Race regression: previously, onUserIdentified fired search
       // synchronously and returned. Partners doing
       // `Identity.login(...).then(() => Rokt.selectPlacements(...))` would
       // read the flag before the HTTP response landed, missing the flag for
@@ -3120,7 +3120,7 @@ describe('Rokt Forwarder', () => {
       // in-flight search (with a timeout) before building attributes.
       let triggerSearchResponse: () => void = () => undefined;
       (window as any).mParticle.Identity = {
-        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
           // Defer the callback to simulate a real network round-trip.
           triggerSearchResponse = () => cb({ httpCode: 200, body: { mpid: '999' } });
         },
@@ -3166,7 +3166,7 @@ describe('Rokt Forwarder', () => {
 
     it('should reset userIdentifiedInWorkspace on onLogoutComplete', async () => {
       (window as any).mParticle.Identity = {
-        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
           cb({ httpCode: 200 });
         },
       };
@@ -3183,7 +3183,7 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
 
       // onLogoutComplete must clear the flag so anonymous sessions don't
-      // carry the previous user's match forward — searchWorkspace is only
+      // carry the previous user's match forward — search is only
       // fired from onUserIdentified, so logout has no re-evaluation path.
       (window as any).mParticle.forwarder.onLogoutComplete({
         getAllUserAttributes: () => ({}),
@@ -3195,10 +3195,10 @@ describe('Rokt Forwarder', () => {
 
     it('should reset userIdentifiedInWorkspace when re-identifying via a short-circuit path', async () => {
       // A previous identification matched (flag=true). The new user has no
-      // email, so searchWorkspace short-circuits without dispatching. The
+      // email, so search short-circuits without dispatching. The
       // flag must reset to false rather than leak from the previous user.
       (window as any).mParticle.Identity = {
-        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
           cb({ httpCode: 200 });
         },
       };
@@ -3221,10 +3221,10 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not re-call Identity.searchWorkspace when the same email re-identifies', async () => {
+    it('should not re-call Identity.search when the same email re-identifies', async () => {
       let searchCallCount = 0;
       (window as any).mParticle.Identity = {
-        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
           searchCallCount += 1;
           cb({ httpCode: 200 });
         },
@@ -3248,11 +3248,11 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
     });
 
-    it('should re-call Identity.searchWorkspace when the email changes', async () => {
+    it('should re-call Identity.search when the email changes', async () => {
       let searchCallCount = 0;
       const observedEmails: string[] = [];
       (window as any).mParticle.Identity = {
-        searchWorkspace: (_apiKey: any, knownIdentities: any, cb: any) => {
+        search: (_apiKey: any, knownIdentities: any, cb: any) => {
           searchCallCount += 1;
           observedEmails.push(knownIdentities.email);
           cb({ httpCode: 200 });
@@ -3278,10 +3278,10 @@ describe('Rokt Forwarder', () => {
       expect(observedEmails).toEqual(['a@example.com', 'b@example.com']);
     });
 
-    it('should re-call Identity.searchWorkspace after logout even with the same email', async () => {
+    it('should re-call Identity.search after logout even with the same email', async () => {
       let searchCallCount = 0;
       (window as any).mParticle.Identity = {
-        searchWorkspace: (_apiKey: any, _knownIdentities: any, cb: any) => {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
           searchCallCount += 1;
           cb({ httpCode: 200 });
         },
