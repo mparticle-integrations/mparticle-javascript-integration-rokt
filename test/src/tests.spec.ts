@@ -2961,7 +2961,7 @@ describe('Rokt Forwarder', () => {
       // otherwise the email-cache hit would suppress a search the next
       // test expects.
       (window as any).mParticle.forwarder.userIdentifiedInWorkspace = false;
-      (window as any).mParticle.forwarder._workspaceSearchInFlight = null;
+      (window as any).mParticle.forwarder._workspaceSearchInFlightPromise = null;
       (window as any).mParticle.forwarder._workspaceLastSearchedEmail = undefined;
     });
 

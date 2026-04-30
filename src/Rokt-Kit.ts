@@ -87,6 +87,10 @@ interface FilteredUser extends IMParticleUser {
   getUserIdentities?: () => { userIdentities: Record<string, string> };
 }
 
+// TODO: Replace with `IIdentitySearchResult` from `@mparticle/web-sdk` once
+// a version that exports it is published (currently on a feature branch in
+// mParticle/mparticle-web-sdk PR #1255). The shape below is intentionally
+// structurally identical so the swap is a one-line import change.
 interface WorkspaceIdSyncResult {
   httpCode: number;
   body?: {
@@ -98,6 +102,8 @@ interface WorkspaceIdSyncResult {
   };
 }
 
+// TODO: Replace with `IdentitySearchCallback`-compatible reference from
+// `@mparticle/web-sdk` once published (mirrors `SDKIdentityApi.search`).
 type WorkspaceIdSyncSearcher = (
   apiKey: string,
   knownIdentities: { email: string },
@@ -237,6 +243,7 @@ const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
+
 // Bound on how long selectPlacements will wait for an in-flight Workspace
 // IDSync search before proceeding without the userIdentifiedInWorkspace flag.
 // Long enough to cover the typical /v1/search round-trip (~50ms); short enough that a
@@ -715,10 +722,11 @@ class RoktKit implements KitInterface {
   private _thankYouElementOnLoadCallback: (() => void) | null = null;
   private _isThankYouElementLoaded = false;
   private _workspaceIdSyncApiKey?: string;
+
   // Held during a search dispatch so the next selectPlacements call;
   // can wait for the HTTP response before reading userIdentifiedInWorkspace;
   // — otherwise the first placement call ships without the flag.
-  private _workspaceSearchInFlight: Promise<void> | null = null;
+  private _workspaceSearchInFlightPromise: Promise<void> | null = null;
   // The email value sent in the most recent successful search
   // dispatch. If a subsequent identification arrives with the same email,
   // we skip the network call (the flag is still correct from the prior
@@ -1239,7 +1247,7 @@ class RoktKit implements KitInterface {
   public onUserIdentified(user: IMParticleUser): string {
     const filteredUser = user as FilteredUser;
     this.filters.filteredUser = filteredUser;
-    this._workspaceSearchInFlight = this.search(filteredUser);
+    this._workspaceSearchInFlightPromise = this.search(filteredUser);
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, 'onUserIdentified');
   }
 
@@ -1304,7 +1312,7 @@ class RoktKit implements KitInterface {
     // re-login (possibly the same email) dispatches a fresh search rather
     // than reusing a stale answer.
     this.userIdentifiedInWorkspace = false;
-    this._workspaceSearchInFlight = null;
+    this._workspaceSearchInFlightPromise = null;
     this._workspaceLastSearchedEmail = undefined;
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGOUT, 'onLogoutComplete');
   }
@@ -1323,16 +1331,22 @@ class RoktKit implements KitInterface {
    * The timeout protects against a stalled or slow search blocking placement
    * rendering — if it fires, selectPlacements proceeds without the flag.
    *
-   * Implementation note: this method stays non-async (returns the existing
-   * `RoktSelection | Promise<RoktSelection> | undefined` union) because
-   * `RoktSelection` has an optional `then?` member, which TS1058 rejects as
-   * ambiguously promise-like inside an async function's return type. The
-   * inner work runs in `_dispatchPlacements`; this wrapper just gates it on
-   * the in-flight search.
+   * Implementation note: this method stays non-async deliberately. First,
+   * the public return type is `RoktSelection | Promise<RoktSelection> |
+   * undefined` — a superset of the `RoktSelection | Promise<RoktSelection>`
+   * shape declared for `RoktLauncher.selectPlacements` above (line ~70).
+   * Marking this `async` would narrow it to `Promise<RoktSelection |
+   * undefined>` and silently change the contract for callers that read
+   * the result synchronously. Second, `RoktSelection` has an optional
+   * `then?` member, so TS treats it as ambiguously promise-like and
+   * rejects it as the awaited return of an async function (TS1058) —
+   * working around that would require a cast or wrapping every return in
+   * `Promise.resolve(...)`. The inner work runs in `_dispatchPlacements`;
+   * this wrapper just gates it on the in-flight search via `Promise.race`.
    */
   public selectPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
-    if (this._workspaceSearchInFlight) {
-      const inFlight = this._workspaceSearchInFlight;
+    if (this._workspaceSearchInFlightPromise) {
+      const inFlight = this._workspaceSearchInFlightPromise;
       return Promise.race([
         inFlight,
         new Promise<void>((resolve) => setTimeout(resolve, WORKSPACE_SEARCH_SELECT_TIMEOUT_MS)),
