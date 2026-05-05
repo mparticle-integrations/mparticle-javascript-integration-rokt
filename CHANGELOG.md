@@ -1,3 +1,15 @@
+# [1.26.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.25.1...v1.26.0) (2026-05-05)
+
+
+### Bug Fixes
+
+* Support more identities in search ([#93](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/93)) ([1526325](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/1526325de752804d811d74ed9a1b95d7171f3383))
+
+
+### Features
+
+* Add Workspace IDSync search on user identification ([#92](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/92)) ([f742616](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/f742616704ff5fea12d1043c8d45762e065f4a6b))
+
 ## [1.25.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.25.0...v1.25.1) (2026-04-27)
 
 
