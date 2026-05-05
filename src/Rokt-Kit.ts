@@ -17,6 +17,8 @@
 // ============================================================
 
 import { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sdk/internal';
+import type { IUserIdentities } from '@mparticle/web-sdk';
+
 // BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
 import { BaseEvent } from '@mparticle/event-models';
 
@@ -80,12 +82,9 @@ interface RoktGlobal {
   setExtensionData(data: Record<string, unknown>): void;
 }
 
-// TODO: getMPID and getUserIdentities exist on the User base type but are not re-exported from
-// @mparticle/web-sdk/internal, so we redeclare them here until the internal types expose them.
-interface FilteredUser extends IMParticleUser {
-  getMPID(): string;
-  getUserIdentities?: () => { userIdentities: Record<string, string> };
-}
+// FilteredUser is the IMParticleUser shape we receive after kit filtering.
+// `getMPID` and `getUserIdentities` are inherited from the SDK's `User` base type.
+type FilteredUser = IMParticleUser;
 
 // TODO: Replace with `IIdentitySearchResult` from `@mparticle/web-sdk` once
 // a version that exports it is published (currently on a feature branch in
@@ -106,7 +105,7 @@ interface WorkspaceIdSyncResult {
 // `@mparticle/web-sdk` once published (mirrors `SDKIdentityApi.search`).
 type WorkspaceIdSyncSearcher = (
   apiKey: string,
-  knownIdentities: { email: string },
+  knownIdentities: IUserIdentities,
   callback: (result: WorkspaceIdSyncResult) => void,
 ) => void;
 
@@ -727,11 +726,14 @@ class RoktKit implements KitInterface {
   // can wait for the HTTP response before reading userIdentifiedInWorkspace;
   // — otherwise the first placement call ships without the flag.
   private _workspaceSearchInFlightPromise: Promise<void> | null = null;
-  // The email value sent in the most recent successful search
-  // dispatch. If a subsequent identification arrives with the same email,
-  // we skip the network call (the flag is still correct from the prior
-  // search). Cleared on logout so a re-login re-evaluates fresh.
-  private _workspaceLastSearchedEmail?: string;
+  // Stable serialization of the identifier set sent in the most recent
+  // successful search dispatch. If a subsequent identification arrives with
+  // an identical set, we skip the network call (the flag is still correct
+  // from the prior search). Keyed over the full IUserIdentities map — not
+  // just email — so partners passing hashed email through `other`/`other2-10`
+  // or any other identifier benefit from the same dedupe. Cleared on logout
+  // so a re-login re-evaluates fresh.
+  private _workspaceLastSearchedIdentitiesKey?: string;
 
   // ---- Private helpers ----
 
@@ -836,7 +838,7 @@ class RoktKit implements KitInterface {
       return {};
     }
 
-    const userIdentities = filteredUser.getUserIdentities().userIdentities;
+    const userIdentities: IUserIdentities = filteredUser.getUserIdentities().userIdentities;
 
     return this.replaceOtherIdentityWithEmailsha256(userIdentities);
   }
@@ -851,11 +853,11 @@ class RoktKit implements KitInterface {
     return mp().Rokt.getLocalSessionAttributes!();
   }
 
-  private replaceOtherIdentityWithEmailsha256(userIdentities: Record<string, string>): Record<string, string> {
+  private replaceOtherIdentityWithEmailsha256(userIdentities: IUserIdentities): Record<string, string> {
     const newUserIdentities: Record<string, string> = { ...(userIdentities || {}) };
     const key = this._mappedEmailSha256Key;
-    if (key && userIdentities[key]) {
-      newUserIdentities[RoktKit.EMAIL_SHA256_KEY] = userIdentities[key];
+    if (key && userIdentities[key as keyof IUserIdentities]) {
+      newUserIdentities[RoktKit.EMAIL_SHA256_KEY] = userIdentities[key as keyof IUserIdentities] as string;
     }
     if (key) {
       delete newUserIdentities[key];
@@ -1070,7 +1072,7 @@ class RoktKit implements KitInterface {
     _service: unknown,
     testMode: boolean,
     _trackerId: unknown,
-    filteredUserAttributes: Record<string, unknown>,
+    filteredUserAttributes?: Record<string, unknown>,
   ): string {
     const kitSettings = settings as unknown as RoktKitSettings;
     const accountId = kitSettings.accountId;
@@ -1255,37 +1257,65 @@ class RoktKit implements KitInterface {
     const apiKey = this._workspaceIdSyncApiKey;
     if (!apiKey) {
       this.userIdentifiedInWorkspace = false;
-      this._workspaceLastSearchedEmail = undefined;
+      this._workspaceLastSearchedIdentitiesKey = undefined;
       return Promise.resolve();
     }
     const search = mp().Identity?.search;
     if (typeof search !== 'function') {
       this.userIdentifiedInWorkspace = false;
-      this._workspaceLastSearchedEmail = undefined;
+      this._workspaceLastSearchedIdentitiesKey = undefined;
       return Promise.resolve();
     }
-    const userIdentities = filteredUser.getUserIdentities ? filteredUser.getUserIdentities().userIdentities : null;
-    const email = userIdentities?.email;
-    if (!email || !isString(email)) {
+
+    const userIdentities: IUserIdentities | null = filteredUser.getUserIdentities
+      ? filteredUser.getUserIdentities().userIdentities
+      : null;
+
+    // Forward every non-empty string identifier the user has — email,
+    // customerid, other/other2-10 (commonly used for hashed email),
+    // mobile_number, facebook, etc. The host SDK's Identity.search accepts
+    // the full IUserIdentities surface and the server validates it.
+    const knownIdentities: Record<string, string> = {};
+    if (userIdentities) {
+      for (const key of Object.keys(userIdentities) as Array<keyof IUserIdentities>) {
+        const value = userIdentities[key];
+        if (isString(value) && value.length > 0) {
+          knownIdentities[key] = value;
+        }
+      }
+    }
+
+    const identityKeys = Object.keys(knownIdentities);
+    if (identityKeys.length === 0) {
       this.userIdentifiedInWorkspace = false;
-      this._workspaceLastSearchedEmail = undefined;
+      this._workspaceLastSearchedIdentitiesKey = undefined;
       return Promise.resolve();
     }
 
-    // Same email as the last successful dispatch → skip the network call.
-    // The current flag value still reflects the correct match status.
-    if (email === this._workspaceLastSearchedEmail) {
+    // Stable cache key: sort keys so insertion-order differences don't
+    // cause false misses. The values are partner-supplied strings; no
+    // hashing needed — equality on this serialization is sufficient.
+    const identitiesKey = identityKeys
+      .sort()
+      .map((k) => `${k}=${knownIdentities[k]}`)
+      .join('&');
+
+    // Same identifier set as the last successful dispatch → skip the
+    // network call. The current flag value still reflects the correct
+    // match status.
+    if (identitiesKey === this._workspaceLastSearchedIdentitiesKey) {
       return Promise.resolve();
     }
 
-    // New / different email → reset and re-search. Cache the email up front
-    // so a second concurrent invocation with the same email also dedupes.
+    // New / different identifier set → reset and re-search. Cache the key
+    // up front so a second concurrent invocation with the same set also
+    // dedupes.
     this.userIdentifiedInWorkspace = false;
-    this._workspaceLastSearchedEmail = email;
+    this._workspaceLastSearchedIdentitiesKey = identitiesKey;
 
     return new Promise<void>((resolve) => {
       try {
-        search(apiKey, { email }, (result: WorkspaceIdSyncResult) => {
+        search(apiKey, knownIdentities as IUserIdentities, (result: WorkspaceIdSyncResult) => {
           if (result?.httpCode === 200) {
             this.userIdentifiedInWorkspace = true;
           }
@@ -1293,10 +1323,10 @@ class RoktKit implements KitInterface {
         });
       } catch (err) {
         console.error('Rokt Kit: Workspace IDSync search failed', err);
-        // Dispatch failed — clear the cache so the same email can retry on
-        // the next identification rather than being stuck behind a poisoned
-        // entry that short-circuits future searches.
-        this._workspaceLastSearchedEmail = undefined;
+        // Dispatch failed — clear the cache so the same identifier set
+        // can retry on the next identification rather than being stuck
+        // behind a poisoned entry that short-circuits future searches.
+        this._workspaceLastSearchedIdentitiesKey = undefined;
         resolve();
       }
     });
@@ -1308,12 +1338,12 @@ class RoktKit implements KitInterface {
 
   public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
     // Anonymous sessions must not carry the previous user's match forward.
-    // Clear the flag explicitly here. Also clear the email cache so a
-    // re-login (possibly the same email) dispatches a fresh search rather
-    // than reusing a stale answer.
+    // Clear the flag explicitly here. Also clear the identities cache so a
+    // re-login (possibly with the same identifiers) dispatches a fresh
+    // search rather than reusing a stale answer.
     this.userIdentifiedInWorkspace = false;
     this._workspaceSearchInFlightPromise = null;
-    this._workspaceLastSearchedEmail = undefined;
+    this._workspaceLastSearchedIdentitiesKey = undefined;
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGOUT, 'onLogoutComplete');
   }
 
