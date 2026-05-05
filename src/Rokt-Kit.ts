@@ -18,6 +18,7 @@
 
 import { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sdk/internal';
 import type { IUserIdentities } from '@mparticle/web-sdk';
+
 // BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
 import { BaseEvent } from '@mparticle/event-models';
 
@@ -1071,7 +1072,7 @@ class RoktKit implements KitInterface {
     _service: unknown,
     testMode: boolean,
     _trackerId: unknown,
-    filteredUserAttributes: Record<string, unknown>,
+    filteredUserAttributes?: Record<string, unknown>,
   ): string {
     const kitSettings = settings as unknown as RoktKitSettings;
     const accountId = kitSettings.accountId;
