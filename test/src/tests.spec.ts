@@ -1438,6 +1438,64 @@ describe('Rokt Forwarder', () => {
         });
       });
 
+      it('should not set emailsha256 when the mapped source identity is null', async () => {
+        // hashedEmailUserIdentityType points at `other`, but `other` is null —
+        // the kit must not forward `emailsha256: null` (or any synthesized
+        // null value) to the placements payload.
+        (window as any).mParticle.Rokt.filters = {
+          userAttributeFilters: [],
+          filterUserAttributes: function () {
+            return {};
+          },
+          filteredUser: {
+            getMPID: function () {
+              return '234';
+            },
+            getUserIdentities: function () {
+              return {
+                userIdentities: {
+                  customerid: 'customer123',
+                  other: null,
+                },
+              };
+            },
+          },
+        };
+
+        (window as any).Rokt.createLauncher = async function () {
+          return Promise.resolve({
+            selectPlacements: function (options: any) {
+              (window as any).mParticle.Rokt.selectPlacementsOptions = options;
+              (window as any).mParticle.Rokt.selectPlacementsCalled = true;
+            },
+          });
+        };
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+            hashedEmailUserIdentityType: 'Other',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {},
+        });
+
+        const attrs = (window as any).Rokt.selectPlacementsOptions.attributes;
+        expect(attrs).toEqual({
+          customerid: 'customer123',
+          mpid: '234',
+        });
+        expect(attrs).not.toHaveProperty('emailsha256');
+        expect(attrs).not.toHaveProperty('other');
+      });
+
       it('should map other to emailsha256 when other is passed through selectPlacements', async () => {
         (window as any).mParticle.Rokt.filters = {
           userAttributeFilters: [],
@@ -2958,11 +3016,11 @@ describe('Rokt Forwarder', () => {
       // does NOT reset workspace-search state. In tests, multiple cases
       // share a single forwarder instance and call init repeatedly, so we
       // have to clear search state here to keep tests independent —
-      // otherwise the email-cache hit would suppress a search the next
-      // test expects.
+      // otherwise the identities-cache hit would suppress a search the
+      // next test expects.
       (window as any).mParticle.forwarder.userIdentifiedInWorkspace = false;
       (window as any).mParticle.forwarder._workspaceSearchInFlightPromise = null;
-      (window as any).mParticle.forwarder._workspaceLastSearchedEmail = undefined;
+      (window as any).mParticle.forwarder._workspaceLastSearchedIdentitiesKey = undefined;
     });
 
     it('should call Identity.search with the configured api key and set userIdentifiedInWorkspace when 200 returned', async () => {
@@ -3049,7 +3107,7 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not call search when the user has no plain email identity', async () => {
+    it('should not call search when the user has no usable identifiers', async () => {
       let searchCalled = false;
       (window as any).mParticle.Identity = {
         search: () => {
@@ -3071,6 +3129,73 @@ describe('Rokt Forwarder', () => {
 
       expect(searchCalled).toBe(false);
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should call search and forward non-email identifiers (e.g. hashed email in `other`)', async () => {
+      let receivedKnownIdentities: any = null;
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, knownIdentities: any, cb: any) => {
+          receivedKnownIdentities = knownIdentities;
+          cb({ httpCode: 200, body: { mpid: '999' } });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({
+          getUserIdentities: () => ({
+            userIdentities: { other: 'sha256:abc123', customerid: 'cust-1' },
+          }),
+        }),
+      );
+
+      expect(receivedKnownIdentities).toEqual({ other: 'sha256:abc123', customerid: 'cust-1' });
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
+    });
+
+    it('should forward all non-empty string identifiers and drop empty/null entries', async () => {
+      let receivedKnownIdentities: any = null;
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, knownIdentities: any, cb: any) => {
+          receivedKnownIdentities = knownIdentities;
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({
+          getUserIdentities: () => ({
+            userIdentities: {
+              email: 'user@example.com',
+              other: 'sha256:abc',
+              customerid: '',
+              mobile_number: null,
+              facebook: 'fb-id',
+            },
+          }),
+        }),
+      );
+
+      expect(receivedKnownIdentities).toEqual({
+        email: 'user@example.com',
+        other: 'sha256:abc',
+        facebook: 'fb-id',
+      });
     });
 
     it('should not throw when Identity.search is unavailable', async () => {
@@ -3221,7 +3346,7 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
     });
 
-    it('should not re-call Identity.search when the same email re-identifies', async () => {
+    it('should not re-call Identity.search when the same identifier set re-identifies', async () => {
       let searchCallCount = 0;
       (window as any).mParticle.Identity = {
         search: (_apiKey: any, _knownIdentities: any, cb: any) => {
@@ -3238,14 +3363,79 @@ describe('Rokt Forwarder', () => {
         {},
       );
 
-      // Two identifications with the same email. Should dispatch only once;
-      // the cached email skips the second network call.
+      // Two identifications with the same identifier set. Should dispatch
+      // only once; the cached identities key skips the second network call.
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
 
       expect(searchCallCount).toBe(1);
       // Flag from the first match still correct after the second identify.
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
+    });
+
+    it('should not re-call Identity.search when the same identifier set arrives with different key insertion order', async () => {
+      let searchCallCount = 0;
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({
+          getUserIdentities: () => ({
+            userIdentities: { email: 'a@example.com', other: 'sha256:abc' },
+          }),
+        }),
+      );
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({
+          getUserIdentities: () => ({
+            userIdentities: { other: 'sha256:abc', email: 'a@example.com' },
+          }),
+        }),
+      );
+
+      expect(searchCallCount).toBe(1);
+    });
+
+    it('should re-call Identity.search when a non-email identifier changes', async () => {
+      let searchCallCount = 0;
+      const observedHashes: string[] = [];
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          observedHashes.push(knownIdentities.other);
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: { other: 'sha256:aaa' } }) }),
+      );
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: { other: 'sha256:bbb' } }) }),
+      );
+
+      expect(searchCallCount).toBe(2);
+      expect(observedHashes).toEqual(['sha256:aaa', 'sha256:bbb']);
     });
 
     it('should re-call Identity.search when the email changes', async () => {
@@ -3278,7 +3468,7 @@ describe('Rokt Forwarder', () => {
       expect(observedEmails).toEqual(['a@example.com', 'b@example.com']);
     });
 
-    it('should re-call Identity.search after logout even with the same email', async () => {
+    it('should re-call Identity.search after logout even with the same identifiers', async () => {
       let searchCallCount = 0;
       (window as any).mParticle.Identity = {
         search: (_apiKey: any, _knownIdentities: any, cb: any) => {
@@ -3296,7 +3486,7 @@ describe('Rokt Forwarder', () => {
       );
 
       (window as any).mParticle.forwarder.onUserIdentified(makeUser());
-      // Logout clears the email cache so a re-login re-evaluates.
+      // Logout clears the identities cache so a re-login re-evaluates.
       (window as any).mParticle.forwarder.onLogoutComplete({
         getAllUserAttributes: () => ({}),
         getMPID: () => '999',
