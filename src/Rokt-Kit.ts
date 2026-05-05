@@ -30,6 +30,7 @@ interface RoktKitSettings {
   loggingUrl?: string;
   errorUrl?: string;
   isLoggingEnabled?: string | boolean;
+  workspaceIdSyncApiKey?: string;
 }
 
 interface EventAttributeCondition {
@@ -86,6 +87,29 @@ interface FilteredUser extends IMParticleUser {
   getUserIdentities?: () => { userIdentities: Record<string, string> };
 }
 
+// TODO: Replace with `IIdentitySearchResult` from `@mparticle/web-sdk` once
+// a version that exports it is published (currently on a feature branch in
+// mParticle/mparticle-web-sdk PR #1255). The shape below is intentionally
+// structurally identical so the swap is a one-line import change.
+interface WorkspaceIdSyncResult {
+  httpCode: number;
+  body?: {
+    context?: string | null;
+    mpid?: string;
+    matched_identities?: Record<string, string>;
+    is_ephemeral?: boolean;
+    is_logged_in?: boolean;
+  };
+}
+
+// TODO: Replace with `IdentitySearchCallback`-compatible reference from
+// `@mparticle/web-sdk` once published (mirrors `SDKIdentityApi.search`).
+type WorkspaceIdSyncSearcher = (
+  apiKey: string,
+  knownIdentities: { email: string },
+  callback: (result: WorkspaceIdSyncResult) => void,
+) => void;
+
 interface KitFilters {
   userAttributeFilters?: string[];
   filterUserAttributes?: (attributes: Record<string, unknown>, filters?: string[]) => Record<string, unknown>;
@@ -134,6 +158,7 @@ interface MParticleExtended {
   loggedEvents?: Array<Record<string, unknown>>;
   _registerErrorReportingService?(service: ErrorReportingService): void;
   _registerLoggingService?(service: LoggingService): void;
+  Identity?: { search?: WorkspaceIdSyncSearcher };
 }
 
 interface TestHelpers {
@@ -217,6 +242,13 @@ const ROKT_IDENTITY_EVENT_TYPE = {
 const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
+const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
+
+// Bound on how long selectPlacements will wait for an in-flight Workspace
+// IDSync search before proceeding without the userIdentifiedInWorkspace flag.
+// Long enough to cover the typical /v1/search round-trip (~50ms); short enough that a
+// stalled search never blocks placement rendering on a thank-you page.
+const WORKSPACE_SEARCH_SELECT_TIMEOUT_MS = 500;
 
 type RoktIdentityEventType = (typeof ROKT_IDENTITY_EVENT_TYPE)[keyof typeof ROKT_IDENTITY_EVENT_TYPE];
 
@@ -670,6 +702,9 @@ class RoktKit implements KitInterface {
   public launcher: RoktLauncher | null = null;
   public filters: KitFilters = {};
   public userAttributes: Record<string, unknown> = {};
+  // Flag set by the Workspace IDSync flow on a 200 response. Stored on the
+  // kit instance and merged into placement attributes inside selectPlacements.
+  public userIdentifiedInWorkspace = false;
   public testHelpers: TestHelpers | null = null;
   public placementEventMappingLookup: Record<string, string> = {};
   public placementEventAttributeMappingLookup: Record<string, PlacementEventRule[]> = {};
@@ -686,6 +721,17 @@ class RoktKit implements KitInterface {
   private _onboardingExpProvider?: string;
   private _thankYouElementOnLoadCallback: (() => void) | null = null;
   private _isThankYouElementLoaded = false;
+  private _workspaceIdSyncApiKey?: string;
+
+  // Held during a search dispatch so the next selectPlacements call;
+  // can wait for the HTTP response before reading userIdentifiedInWorkspace;
+  // — otherwise the first placement call ships without the flag.
+  private _workspaceSearchInFlightPromise: Promise<void> | null = null;
+  // The email value sent in the most recent successful search
+  // dispatch. If a subsequent identification arrives with the same email,
+  // we skip the network call (the flag is still correct from the prior
+  // search). Cleared on logout so a re-login re-evaluates fresh.
+  private _workspaceLastSearchedEmail?: string;
 
   // ---- Private helpers ----
 
@@ -1044,6 +1090,10 @@ class RoktKit implements KitInterface {
       this._mappedEmailSha256Key = kitSettings.hashedEmailUserIdentityType.toLowerCase();
     }
 
+    this._workspaceIdSyncApiKey = isString(kitSettings.workspaceIdSyncApiKey)
+      ? kitSettings.workspaceIdSyncApiKey
+      : undefined;
+
     const domain = mp().Rokt?.domain;
     const { roktExtensionsQueryParams, legacyRoktExtensions, loadThankYouElement } = extractRoktExtensionConfig(
       kitSettings.roktExtensions,
@@ -1195,8 +1245,61 @@ class RoktKit implements KitInterface {
   }
 
   public onUserIdentified(user: IMParticleUser): string {
-    this.filters.filteredUser = user as FilteredUser;
+    const filteredUser = user as FilteredUser;
+    this.filters.filteredUser = filteredUser;
+    this._workspaceSearchInFlightPromise = this.search(filteredUser);
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, 'onUserIdentified');
+  }
+
+  private search(filteredUser: FilteredUser): Promise<void> {
+    const apiKey = this._workspaceIdSyncApiKey;
+    if (!apiKey) {
+      this.userIdentifiedInWorkspace = false;
+      this._workspaceLastSearchedEmail = undefined;
+      return Promise.resolve();
+    }
+    const search = mp().Identity?.search;
+    if (typeof search !== 'function') {
+      this.userIdentifiedInWorkspace = false;
+      this._workspaceLastSearchedEmail = undefined;
+      return Promise.resolve();
+    }
+    const userIdentities = filteredUser.getUserIdentities ? filteredUser.getUserIdentities().userIdentities : null;
+    const email = userIdentities?.email;
+    if (!email || !isString(email)) {
+      this.userIdentifiedInWorkspace = false;
+      this._workspaceLastSearchedEmail = undefined;
+      return Promise.resolve();
+    }
+
+    // Same email as the last successful dispatch → skip the network call.
+    // The current flag value still reflects the correct match status.
+    if (email === this._workspaceLastSearchedEmail) {
+      return Promise.resolve();
+    }
+
+    // New / different email → reset and re-search. Cache the email up front
+    // so a second concurrent invocation with the same email also dedupes.
+    this.userIdentifiedInWorkspace = false;
+    this._workspaceLastSearchedEmail = email;
+
+    return new Promise<void>((resolve) => {
+      try {
+        search(apiKey, { email }, (result: WorkspaceIdSyncResult) => {
+          if (result?.httpCode === 200) {
+            this.userIdentifiedInWorkspace = true;
+          }
+          resolve();
+        });
+      } catch (err) {
+        console.error('Rokt Kit: Workspace IDSync search failed', err);
+        // Dispatch failed — clear the cache so the same email can retry on
+        // the next identification rather than being stuck behind a poisoned
+        // entry that short-circuits future searches.
+        this._workspaceLastSearchedEmail = undefined;
+        resolve();
+      }
+    });
   }
 
   public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
@@ -1204,6 +1307,13 @@ class RoktKit implements KitInterface {
   }
 
   public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
+    // Anonymous sessions must not carry the previous user's match forward.
+    // Clear the flag explicitly here. Also clear the email cache so a
+    // re-login (possibly the same email) dispatches a fresh search rather
+    // than reusing a stale answer.
+    this.userIdentifiedInWorkspace = false;
+    this._workspaceSearchInFlightPromise = null;
+    this._workspaceLastSearchedEmail = undefined;
     return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGOUT, 'onLogoutComplete');
   }
 
@@ -1213,8 +1323,39 @@ class RoktKit implements KitInterface {
 
   /**
    * Selects placements for Rokt Web SDK with merged attributes, filters, and experimentation options.
+   *
+   * If a Workspace IDSync search is in flight from a recent onUserIdentified
+   * call, this method waits up to `WORKSPACE_SEARCH_SELECT_TIMEOUT_MS` for it
+   * to settle so the first placement call can include the
+   * `userIdentifiedInWorkspace` flag without racing the network response.
+   * The timeout protects against a stalled or slow search blocking placement
+   * rendering — if it fires, selectPlacements proceeds without the flag.
+   *
+   * Implementation note: this method stays non-async deliberately. First,
+   * the public return type is `RoktSelection | Promise<RoktSelection> |
+   * undefined` — a superset of the `RoktSelection | Promise<RoktSelection>`
+   * shape declared for `RoktLauncher.selectPlacements` above (line ~70).
+   * Marking this `async` would narrow it to `Promise<RoktSelection |
+   * undefined>` and silently change the contract for callers that read
+   * the result synchronously. Second, `RoktSelection` has an optional
+   * `then?` member, so TS treats it as ambiguously promise-like and
+   * rejects it as the awaited return of an async function (TS1058) —
+   * working around that would require a cast or wrapping every return in
+   * `Promise.resolve(...)`. The inner work runs in `_dispatchPlacements`;
+   * this wrapper just gates it on the in-flight search via `Promise.race`.
    */
   public selectPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
+    if (this._workspaceSearchInFlightPromise) {
+      const inFlight = this._workspaceSearchInFlightPromise;
+      return Promise.race([
+        inFlight,
+        new Promise<void>((resolve) => setTimeout(resolve, WORKSPACE_SEARCH_SELECT_TIMEOUT_MS)),
+      ]).then(() => this._dispatchPlacements(options)) as Promise<RoktSelection>;
+    }
+    return this._dispatchPlacements(options);
+  }
+
+  private _dispatchPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
     const attributes = ((options && (options.attributes as Record<string, unknown>)) || {}) as Record<string, unknown>;
     const placementAttributes: Record<string, unknown> = { ...this.userAttributes, ...attributes };
 
@@ -1247,6 +1388,7 @@ class RoktKit implements KitInterface {
       ...filteredAttributes,
       ...optimizelyAttributes,
       ...localSessionAttributes,
+      ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
       mpid,
     };
 

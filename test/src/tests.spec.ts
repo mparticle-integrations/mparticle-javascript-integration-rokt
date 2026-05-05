@@ -2933,6 +2933,380 @@ describe('Rokt Forwarder', () => {
     });
   });
 
+  describe('#workspaceIdSync', () => {
+    const WORKSPACE_API_KEY = 'workspace-key-abc123';
+
+    function makeUser(overrides: any = {}) {
+      return {
+        getAllUserAttributes: () => ({}),
+        getMPID: () => '123',
+        getUserIdentities: () => ({ userIdentities: { email: 'test@example.com' } }),
+        ...overrides,
+      };
+    }
+
+    let originalIdentity: any;
+
+    beforeEach(() => {
+      originalIdentity = (window as any).mParticle.Identity;
+    });
+
+    afterEach(() => {
+      (window as any).mParticle.Identity = originalIdentity;
+      (window as any).mParticle.forwarder.userAttributes = {};
+      // The kit's `init()` only runs once per instance in production, so it
+      // does NOT reset workspace-search state. In tests, multiple cases
+      // share a single forwarder instance and call init repeatedly, so we
+      // have to clear search state here to keep tests independent —
+      // otherwise the email-cache hit would suppress a search the next
+      // test expects.
+      (window as any).mParticle.forwarder.userIdentifiedInWorkspace = false;
+      (window as any).mParticle.forwarder._workspaceSearchInFlightPromise = null;
+      (window as any).mParticle.forwarder._workspaceLastSearchedEmail = undefined;
+    });
+
+    it('should call Identity.search with the configured api key and set userIdentifiedInWorkspace when 200 returned', async () => {
+      let receivedApiKey: any = null;
+      let receivedKnownIdentities: any = null;
+      (window as any).mParticle.Identity = {
+        search: (apiKey: any, knownIdentities: any, cb: any) => {
+          receivedApiKey = apiKey;
+          receivedKnownIdentities = knownIdentities;
+          cb({ httpCode: 200, body: { mpid: '999' } });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(receivedApiKey).toBe(WORKSPACE_API_KEY);
+      expect(receivedKnownIdentities).toEqual({ email: 'test@example.com' });
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
+    });
+
+    it('should not set userIdentifiedInWorkspace when search returns 404', async () => {
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          cb({ httpCode: 404 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should not call search when workspaceIdSyncApiKey is missing', async () => {
+      let searchCalled = false;
+      (window as any).mParticle.Identity = {
+        search: () => {
+          searchCalled = true;
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(searchCalled).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should not call search when workspaceIdSyncApiKey is an empty string', async () => {
+      let searchCalled = false;
+      (window as any).mParticle.Identity = {
+        search: () => {
+          searchCalled = true;
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: '' },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(searchCalled).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should not call search when the user has no plain email identity', async () => {
+      let searchCalled = false;
+      (window as any).mParticle.Identity = {
+        search: () => {
+          searchCalled = true;
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: {} }) }),
+      );
+
+      expect(searchCalled).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should not throw when Identity.search is unavailable', async () => {
+      (window as any).mParticle.Identity = {};
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      expect(() => {
+        (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      }).not.toThrow();
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should swallow errors thrown by search', async () => {
+      (window as any).mParticle.Identity = {
+        search: () => {
+          throw new Error('boom');
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      expect(() => {
+        (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      }).not.toThrow();
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should wait for an in-flight search before selectPlacements builds attributes', async () => {
+      // Race regression: previously, onUserIdentified fired search
+      // synchronously and returned. Partners doing
+      // `Identity.login(...).then(() => Rokt.selectPlacements(...))` would
+      // read the flag before the HTTP response landed, missing the flag for
+      // the most important placement call. Now selectPlacements awaits the
+      // in-flight search (with a timeout) before building attributes.
+      let triggerSearchResponse: () => void = () => undefined;
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          // Defer the callback to simulate a real network round-trip.
+          triggerSearchResponse = () => cb({ httpCode: 200, body: { mpid: '999' } });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      // Stub launcher + filters so selectPlacements can dispatch.
+      let launcherCalledWithAttributes: any = null;
+      (window as any).mParticle.forwarder.launcher = {
+        selectPlacements: (opts: any) => {
+          launcherCalledWithAttributes = opts.attributes;
+          return { context: { sessionId: Promise.resolve('test-session') } };
+        },
+      };
+      (window as any).mParticle.forwarder.filters = {
+        userAttributesFilters: [],
+        filterUserAttributes: (attributes: any) => attributes,
+        filteredUser: { getMPID: () => '123' },
+      };
+
+      // Identification kicks off the search; callback NOT yet fired.
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      // selectPlacements is invoked while the search is still in flight.
+      const placementPromise = (window as any).mParticle.forwarder.selectPlacements({
+        identifier: 'test-placement',
+        attributes: {},
+      });
+
+      // Resolve the search; selectPlacements should now proceed and merge the flag.
+      triggerSearchResponse();
+      await placementPromise;
+
+      expect(launcherCalledWithAttributes.userIdentifiedInWorkspace).toBe(true);
+    });
+
+    it('should reset userIdentifiedInWorkspace on onLogoutComplete', async () => {
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
+
+      // onLogoutComplete must clear the flag so anonymous sessions don't
+      // carry the previous user's match forward — search is only
+      // fired from onUserIdentified, so logout has no re-evaluation path.
+      (window as any).mParticle.forwarder.onLogoutComplete({
+        getAllUserAttributes: () => ({}),
+        getMPID: () => '999',
+      });
+
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should reset userIdentifiedInWorkspace when re-identifying via a short-circuit path', async () => {
+      // A previous identification matched (flag=true). The new user has no
+      // email, so search short-circuits without dispatching. The
+      // flag must reset to false rather than leak from the previous user.
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: {} }) }),
+      );
+
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should not re-call Identity.search when the same email re-identifies', async () => {
+      let searchCallCount = 0;
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      // Two identifications with the same email. Should dispatch only once;
+      // the cached email skips the second network call.
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(searchCallCount).toBe(1);
+      // Flag from the first match still correct after the second identify.
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
+    });
+
+    it('should re-call Identity.search when the email changes', async () => {
+      let searchCallCount = 0;
+      const observedEmails: string[] = [];
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          observedEmails.push(knownIdentities.email);
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: { email: 'a@example.com' } }) }),
+      );
+      (window as any).mParticle.forwarder.onUserIdentified(
+        makeUser({ getUserIdentities: () => ({ userIdentities: { email: 'b@example.com' } }) }),
+      );
+
+      expect(searchCallCount).toBe(2);
+      expect(observedEmails).toEqual(['a@example.com', 'b@example.com']);
+    });
+
+    it('should re-call Identity.search after logout even with the same email', async () => {
+      let searchCallCount = 0;
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          cb({ httpCode: 200 });
+        },
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      // Logout clears the email cache so a re-login re-evaluates.
+      (window as any).mParticle.forwarder.onLogoutComplete({
+        getAllUserAttributes: () => ({}),
+        getMPID: () => '999',
+      });
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+
+      expect(searchCallCount).toBe(2);
+    });
+  });
+
   describe('#onLoginComplete', () => {
     it('should update userAttributes from the filtered user', () => {
       (window as any).mParticle.forwarder.onLoginComplete({
