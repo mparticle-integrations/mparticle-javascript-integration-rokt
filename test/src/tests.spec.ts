@@ -3049,6 +3049,88 @@ describe('Rokt Forwarder', () => {
       expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
     });
 
+    it('should search cached filtered user identities when the launcher initializes', async () => {
+      let receivedApiKey: any = null;
+      let receivedKnownIdentities: any = null;
+      let searchCallCount = 0;
+      (window as any).mParticle.Identity = {
+        search: (apiKey: any, knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          receivedApiKey = apiKey;
+          receivedKnownIdentities = knownIdentities;
+          cb({ httpCode: 200, body: { mpid: '999' } });
+        },
+      };
+      (window as any).mParticle.Rokt.attachKit = async () => {};
+      (window as any).mParticle.Rokt.filters = {
+        userAttributeFilters: [],
+        filterUserAttributes: (attributes: any) => attributes,
+        filteredUser: makeUser(),
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      await waitForCondition(() => searchCallCount === 1);
+
+      expect(receivedApiKey).toBe(WORKSPACE_API_KEY);
+      expect(receivedKnownIdentities).toEqual({ email: 'test@example.com' });
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(true);
+    });
+
+    it('should not search cached filtered user identities when workspaceIdSyncApiKey is missing', async () => {
+      let searchCalled = false;
+      (window as any).mParticle.Identity = {
+        search: () => {
+          searchCalled = true;
+        },
+      };
+      (window as any).mParticle.Rokt.attachKit = async () => {};
+      (window as any).mParticle.Rokt.filters = {
+        userAttributeFilters: [],
+        filterUserAttributes: (attributes: any) => attributes,
+        filteredUser: makeUser(),
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.forwarder.isInitialized);
+
+      expect(searchCalled).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
+    it('should not search cached filtered user when it has no usable identifiers', async () => {
+      let searchCalled = false;
+      (window as any).mParticle.Identity = {
+        search: () => {
+          searchCalled = true;
+        },
+      };
+      (window as any).mParticle.Rokt.attachKit = async () => {};
+      (window as any).mParticle.Rokt.filters = {
+        userAttributeFilters: [],
+        filterUserAttributes: (attributes: any) => attributes,
+        filteredUser: makeUser({ getUserIdentities: () => ({ userIdentities: {} }) }),
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+      await waitForCondition(() => (window as any).mParticle.forwarder.isInitialized);
+
+      expect(searchCalled).toBe(false);
+      expect((window as any).mParticle.forwarder.userIdentifiedInWorkspace).toBe(false);
+    });
+
     it('should not set userIdentifiedInWorkspace when search returns 404', async () => {
       (window as any).mParticle.Identity = {
         search: (_apiKey: any, _knownIdentities: any, cb: any) => {
@@ -3283,6 +3365,56 @@ describe('Rokt Forwarder', () => {
       });
 
       // Resolve the search; selectPlacements should now proceed and merge the flag.
+      triggerSearchResponse();
+      await placementPromise;
+
+      expect(launcherCalledWithAttributes.userIdentifiedInWorkspace).toBe(true);
+    });
+
+    it('should preserve an in-flight cached-user search when the same identity re-identifies', async () => {
+      let triggerSearchResponse: () => void = () => undefined;
+      let searchCallCount = 0;
+      (window as any).mParticle.Identity = {
+        search: (_apiKey: any, _knownIdentities: any, cb: any) => {
+          searchCallCount += 1;
+          triggerSearchResponse = () => cb({ httpCode: 200, body: { mpid: '999' } });
+        },
+      };
+      (window as any).mParticle.Rokt.attachKit = async () => {};
+      (window as any).mParticle.Rokt.filters = {
+        userAttributeFilters: [],
+        filterUserAttributes: (attributes: any) => attributes,
+        filteredUser: makeUser(),
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        { accountId: '123456', workspaceIdSyncApiKey: WORKSPACE_API_KEY },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+      await waitForCondition(() => searchCallCount === 1);
+
+      // A same-identity onUserIdentified while the cached-user search is
+      // still in flight should dedupe the network call without replacing the
+      // promise selectPlacements needs to wait on.
+      (window as any).mParticle.forwarder.onUserIdentified(makeUser());
+      expect(searchCallCount).toBe(1);
+
+      let launcherCalledWithAttributes: any = null;
+      (window as any).mParticle.forwarder.launcher = {
+        selectPlacements: (opts: any) => {
+          launcherCalledWithAttributes = opts.attributes;
+          return { context: { sessionId: Promise.resolve('test-session') } };
+        },
+      };
+
+      const placementPromise = (window as any).mParticle.forwarder.selectPlacements({
+        identifier: 'test-placement',
+        attributes: {},
+      });
+
       triggerSearchResponse();
       await placementPromise;
 

@@ -1005,6 +1005,8 @@ class RoktKit implements KitInterface {
       this.filters = roktFilters;
       if (!roktFilters.filteredUser) {
         console.warn('Rokt Kit: No filtered user has been set.');
+      } else {
+        this._workspaceSearchInFlightPromise = this.search(roktFilters.filteredUser);
       }
     }
 
@@ -1304,7 +1306,7 @@ class RoktKit implements KitInterface {
     // network call. The current flag value still reflects the correct
     // match status.
     if (identitiesKey === this._workspaceLastSearchedIdentitiesKey) {
-      return Promise.resolve();
+      return this._workspaceSearchInFlightPromise || Promise.resolve();
     }
 
     // New / different identifier set → reset and re-search. Cache the key
