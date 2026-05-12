@@ -1,3 +1,10 @@
+## [1.26.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.26.0...v1.26.1) (2026-05-12)
+
+
+### Bug Fixes
+
+* search workspace for cached Rokt users ([#94](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/94)) ([00f3f73](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/00f3f734e57a1a232841482287f84bdeb37ab634))
+
 # [1.26.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.25.1...v1.26.0) (2026-05-05)
 
 
