@@ -16,8 +16,14 @@
 // Types
 // ============================================================
 
-import { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sdk/internal';
-import type { IUserIdentities } from '@mparticle/web-sdk';
+import type {
+  IIdentitySearchResult,
+  RoktAttributes,
+  RoktSelection,
+  SDKIdentityApi,
+  UserIdentities,
+} from '@mparticle/web-sdk';
+import type { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sdk/internal';
 
 // BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
 import { BaseEvent } from '@mparticle/event-models';
@@ -60,17 +66,9 @@ interface RoktExtensionEntry {
   value: string;
 }
 
-interface RoktSelection {
-  context?: {
-    sessionId?: Promise<string>;
-  };
-  then?: (callback: (sel: RoktSelection) => void) => Promise<void>;
-  catch?: (callback: () => void) => void;
-}
-
 interface RoktLauncher {
   selectPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection>;
-  hashAttributes(attributes: Record<string, unknown>): Promise<Record<string, unknown>>;
+  hashAttributes(attributes: RoktAttributes): Promise<Record<string, unknown>>;
   use(extensionName: string): Promise<unknown>;
 }
 
@@ -85,29 +83,6 @@ interface RoktGlobal {
 // FilteredUser is the IMParticleUser shape we receive after kit filtering.
 // `getMPID` and `getUserIdentities` are inherited from the SDK's `User` base type.
 type FilteredUser = IMParticleUser;
-
-// TODO: Replace with `IIdentitySearchResult` from `@mparticle/web-sdk` once
-// a version that exports it is published (currently on a feature branch in
-// mParticle/mparticle-web-sdk PR #1255). The shape below is intentionally
-// structurally identical so the swap is a one-line import change.
-interface WorkspaceIdSyncResult {
-  httpCode: number;
-  body?: {
-    context?: string | null;
-    mpid?: string;
-    matched_identities?: Record<string, string>;
-    is_ephemeral?: boolean;
-    is_logged_in?: boolean;
-  };
-}
-
-// TODO: Replace with `IdentitySearchCallback`-compatible reference from
-// `@mparticle/web-sdk` once published (mirrors `SDKIdentityApi.search`).
-type WorkspaceIdSyncSearcher = (
-  apiKey: string,
-  knownIdentities: IUserIdentities,
-  callback: (result: WorkspaceIdSyncResult) => void,
-) => void;
 
 interface KitFilters {
   userAttributeFilters?: string[];
@@ -157,7 +132,7 @@ interface MParticleExtended {
   loggedEvents?: Array<Record<string, unknown>>;
   _registerErrorReportingService?(service: ErrorReportingService): void;
   _registerLoggingService?(service: LoggingService): void;
-  Identity?: { search?: WorkspaceIdSyncSearcher };
+  Identity?: Pick<SDKIdentityApi, 'search'>;
 }
 
 interface TestHelpers {
@@ -216,10 +191,6 @@ declare global {
     __rokt_li_guid__?: string;
     optimizely?: OptimizelyGlobal;
     ROKT_DOMAIN?: string;
-    // mParticle is declared as any to avoid conflicts with @mparticle/web-sdk type declarations.
-    // We use the typed mp() accessor for all internal accesses.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mParticle: any;
   }
 }
 
@@ -729,7 +700,7 @@ class RoktKit implements KitInterface {
   // Stable serialization of the identifier set sent in the most recent
   // successful search dispatch. If a subsequent identification arrives with
   // an identical set, we skip the network call (the flag is still correct
-  // from the prior search). Keyed over the full IUserIdentities map — not
+  // from the prior search). Keyed over the full UserIdentities map — not
   // just email — so partners passing hashed email through `other`/`other2-10`
   // or any other identifier benefit from the same dedupe. Cleared on logout
   // so a re-login re-evaluates fresh.
@@ -838,7 +809,7 @@ class RoktKit implements KitInterface {
       return {};
     }
 
-    const userIdentities: IUserIdentities = filteredUser.getUserIdentities().userIdentities;
+    const userIdentities: UserIdentities = filteredUser.getUserIdentities().userIdentities;
 
     return this.replaceOtherIdentityWithEmailsha256(userIdentities);
   }
@@ -853,11 +824,18 @@ class RoktKit implements KitInterface {
     return mp().Rokt.getLocalSessionAttributes!();
   }
 
-  private replaceOtherIdentityWithEmailsha256(userIdentities: IUserIdentities): Record<string, string> {
-    const newUserIdentities: Record<string, string> = { ...(userIdentities || {}) };
+  private replaceOtherIdentityWithEmailsha256(userIdentities: UserIdentities): Record<string, string> {
+    const newUserIdentities: Record<string, string> = {};
+    for (const identityKey of Object.keys(userIdentities || {}) as Array<keyof UserIdentities>) {
+      const identityValue = userIdentities[identityKey];
+      if (isString(identityValue)) {
+        newUserIdentities[identityKey] = identityValue;
+      }
+    }
+
     const key = this._mappedEmailSha256Key;
-    if (key && userIdentities[key as keyof IUserIdentities]) {
-      newUserIdentities[RoktKit.EMAIL_SHA256_KEY] = userIdentities[key as keyof IUserIdentities] as string;
+    if (key && userIdentities[key as keyof UserIdentities]) {
+      newUserIdentities[RoktKit.EMAIL_SHA256_KEY] = userIdentities[key as keyof UserIdentities] as string;
     }
     if (key) {
       delete newUserIdentities[key];
@@ -1269,17 +1247,17 @@ class RoktKit implements KitInterface {
       return Promise.resolve();
     }
 
-    const userIdentities: IUserIdentities | null = filteredUser.getUserIdentities
+    const userIdentities: UserIdentities | null = filteredUser.getUserIdentities
       ? filteredUser.getUserIdentities().userIdentities
       : null;
 
     // Forward every non-empty string identifier the user has — email,
     // customerid, other/other2-10 (commonly used for hashed email),
     // mobile_number, facebook, etc. The host SDK's Identity.search accepts
-    // the full IUserIdentities surface and the server validates it.
+    // the full UserIdentities surface and the server validates it.
     const knownIdentities: Record<string, string> = {};
     if (userIdentities) {
-      for (const key of Object.keys(userIdentities) as Array<keyof IUserIdentities>) {
+      for (const key of Object.keys(userIdentities) as Array<keyof UserIdentities>) {
         const value = userIdentities[key];
         if (isString(value) && value.length > 0) {
           knownIdentities[key] = value;
@@ -1317,7 +1295,7 @@ class RoktKit implements KitInterface {
 
     return new Promise<void>((resolve) => {
       try {
-        search(apiKey, knownIdentities as IUserIdentities, (result: WorkspaceIdSyncResult) => {
+        search(apiKey, knownIdentities as UserIdentities, (result: IIdentitySearchResult) => {
           if (result?.httpCode === 200) {
             this.userIdentifiedInWorkspace = true;
           }
@@ -1442,7 +1420,7 @@ class RoktKit implements KitInterface {
   /**
    * Passes attributes to the Rokt Web SDK for client-side hashing.
    */
-  public hashAttributes(attributes: Record<string, unknown>): Promise<Record<string, unknown>> | null {
+  public hashAttributes(attributes: RoktAttributes): Promise<Record<string, unknown>> | null {
     if (!this.isKitReady()) {
       console.error('Rokt Kit: Not initialized');
       return null;
