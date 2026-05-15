@@ -57,7 +57,7 @@
     "vitest": "^4.0.0"
   },
   "dependencies": {
-    "@mparticle/web-sdk": "^2.62.0"
+    "@mparticle/web-sdk": "3.0.0"
   },
   "license": "Apache-2.0"
 }
