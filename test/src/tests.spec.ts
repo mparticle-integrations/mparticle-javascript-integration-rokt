@@ -6595,13 +6595,7 @@ describe('Rokt Forwarder', () => {
         filteredUser: { getMPID: () => '123' },
       };
 
-      await mParticle.forwarder.init(
-        { accountId: '123456', isLoggingEnabled: 'true' },
-        reportService.cb,
-        true,
-        null,
-        {},
-      );
+      await mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
 
       expect(registeredErrorService).not.toBeNull();
       expect(registeredLoggingService).not.toBeNull();
@@ -6610,6 +6604,69 @@ describe('Rokt Forwarder', () => {
 
       delete (window as any).mParticle._registerErrorReportingService;
       delete (window as any).mParticle._registerLoggingService;
+    });
+
+    it('should enable registered logging service from mParticle config', async () => {
+      let registeredLoggingService: any = null;
+      const fetchCalls: Array<{ url: string; options: any }> = [];
+      const originalFetch = window.fetch;
+      const originalRoktDomain = (window as any).ROKT_DOMAIN;
+      const originalConfig = (window as any).mParticle.config;
+
+      try {
+        (window as any).fetch = (url: string, options: any) => {
+          fetchCalls.push({ url, options });
+          return Promise.resolve({ ok: true });
+        };
+        (window as any).ROKT_DOMAIN = 'set';
+        (window as any).mParticle.config = {
+          ...originalConfig,
+          isLoggingEnabled: true,
+        };
+
+        (window as any).mParticle._registerErrorReportingService = () => {};
+        (window as any).mParticle._registerLoggingService = (service: any) => {
+          registeredLoggingService = service;
+        };
+
+        (window as any).Rokt = new (MockRoktForwarder as any)();
+        (window as any).mParticle.Rokt = (window as any).Rokt;
+        (window as any).mParticle.Rokt.attachKit = async (kit: any) => {
+          (window as any).mParticle.Rokt.kit = kit;
+        };
+        (window as any).mParticle.Rokt.filters = {
+          userAttributesFilters: [],
+          filterUserAttributes: (attributes: any) => attributes,
+          filteredUser: { getMPID: () => '123' },
+        };
+
+        await mParticle.forwarder.init(
+          { accountId: '123456', loggingUrl: 'test.com/v1/log' },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        expect(registeredLoggingService).not.toBeNull();
+
+        registeredLoggingService.log({
+          message: 'global logging flag is enabled',
+          code: ErrorCodesConst.UNKNOWN_ERROR,
+        });
+
+        expect(fetchCalls.length).toBe(1);
+        expect(fetchCalls[0].url).toBe('https://test.com/v1/log');
+        const body = JSON.parse(fetchCalls[0].options.body);
+        expect(body.additionalInformation.message).toBe('global logging flag is enabled');
+        expect(body.code).toBe(ErrorCodesConst.UNKNOWN_ERROR);
+      } finally {
+        window.fetch = originalFetch;
+        (window as any).ROKT_DOMAIN = originalRoktDomain;
+        (window as any).mParticle.config = originalConfig;
+        delete (window as any).mParticle._registerErrorReportingService;
+        delete (window as any).mParticle._registerLoggingService;
+      }
     });
 
     it('should not throw when registration methods do not exist', async () => {

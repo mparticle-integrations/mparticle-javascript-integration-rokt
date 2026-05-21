@@ -31,7 +31,6 @@ interface RoktKitSettings {
   onboardingExpProvider?: string;
   loggingUrl?: string;
   errorUrl?: string;
-  isLoggingEnabled?: string | boolean;
   workspaceIdSyncApiKey?: string;
 }
 
@@ -151,7 +150,7 @@ interface MParticleExtended {
   getInstance(): MParticleInstance;
   sessionManager?: { getSession(): string };
   _getActiveForwarders(): Array<{ name: string }>;
-  config?: { isLocalLauncherEnabled?: boolean };
+  config?: { isLocalLauncherEnabled?: boolean; isLoggingEnabled?: boolean };
   captureTiming?(metricName: string): void;
   forwarder?: RoktKit;
   loggedEvents?: Array<Record<string, unknown>>;
@@ -189,7 +188,7 @@ interface ForwarderRegistration {
 interface ReportingConfig {
   loggingUrl?: string;
   errorUrl?: string;
-  isLoggingEnabled?: boolean | string;
+  isLoggingEnabled: boolean;
 }
 
 interface ErrorReport {
@@ -554,7 +553,7 @@ class ReportingTransport {
     accountId: string | null | undefined,
     rateLimiter?: RateLimiter,
   ) {
-    const isLoggingEnabled = config?.isLoggingEnabled === true || config?.isLoggingEnabled === 'true';
+    const isLoggingEnabled = config.isLoggingEnabled;
     this._integrationName = integrationName || '';
     this._launcherInstanceGuid = launcherInstanceGuid;
     this._accountId = accountId || null;
@@ -1113,7 +1112,7 @@ class RoktKit implements KitInterface {
     const reportingConfig: ReportingConfig = {
       loggingUrl: kitSettings.loggingUrl,
       errorUrl: kitSettings.errorUrl,
-      isLoggingEnabled: kitSettings.isLoggingEnabled === 'true' || kitSettings.isLoggingEnabled === true,
+      isLoggingEnabled: mp().config?.isLoggingEnabled === true,
     };
     const errorReportingService = new ErrorReportingService(
       reportingConfig,
