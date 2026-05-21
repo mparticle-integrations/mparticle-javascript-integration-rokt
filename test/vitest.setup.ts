@@ -11,6 +11,9 @@
     (globalThis as any).mParticle.forwarder = new forwarder.constructor();
   },
   Rokt: {},
+  config: {
+    isLoggingEnabled: true,
+  },
   EventType: { Other: 8 },
   getEnvironment: () => 'development',
   getVersion: () => '1.2.3',
