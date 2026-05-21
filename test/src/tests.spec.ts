@@ -5758,6 +5758,201 @@ describe('Rokt Forwarder', () => {
     });
   });
 
+  describe('#enrichCommerceEventTypes', () => {
+    let mockCommerceBatch: Batch;
+
+    beforeEach(() => {
+      (window as any).mParticle.forwarder.batchQueue = [];
+      (window as any).mParticle.forwarder.batchStreamQueue = [];
+      (window as any).mParticle.forwarder.pendingIdentityEvents = [];
+      (window as any).Rokt = new (MockRoktForwarder as any)();
+      (window as any).Rokt.createLauncher = async function () {
+        return Promise.resolve({
+          selectPlacements: function (options: any) {
+            (window as any).mParticle.Rokt.selectPlacementsOptions = options;
+            (window as any).mParticle.Rokt.selectPlacementsCalled = true;
+          },
+        });
+      };
+      (window as any).mParticle.Rokt = (window as any).Rokt;
+      (window as any).mParticle.Rokt.attachKitCalled = false;
+      (window as any).mParticle.Rokt.attachKit = async (kit: any) => {
+        (window as any).mParticle.Rokt.attachKitCalled = true;
+        (window as any).mParticle.Rokt.kit = kit;
+        Promise.resolve();
+      };
+      (window as any).mParticle.Rokt.setLocalSessionAttribute = function (key: any, value: any) {
+        (window as any).mParticle._Store.localSessionAttributes[key] = value;
+      };
+      (window as any).mParticle.Rokt.getLocalSessionAttributes = function () {
+        return (window as any).mParticle._Store.localSessionAttributes;
+      };
+      (window as any).mParticle.forwarder.launcher = {
+        selectPlacements: function (options: any) {
+          (window as any).mParticle.Rokt.selectPlacementsOptions = options;
+          (window as any).mParticle.Rokt.selectPlacementsCalled = true;
+        },
+      };
+      (window as any).mParticle.Rokt.filters = {
+        userAttributesFilters: [],
+        filterUserAttributes: function (attributes: any) {
+          return attributes;
+        },
+        filteredUser: {
+          getMPID: function () {
+            return '123';
+          },
+        },
+      };
+
+      mockCommerceBatch = {
+        mpid: 'test-mpid-123',
+        events: [
+          {
+            event_type: 'commerce_event',
+            data: {
+              custom_flags: { 'Rokt.CommerceEventType': 'payment_succeeded' },
+              product_action: {
+                action: 'unknown',
+                products: [{ id: 'SKU-1', name: 'Test Product', price: 50, quantity: 1 }],
+              },
+            },
+          },
+        ],
+      };
+    });
+
+    afterEach(() => {
+      delete (window as any).Rokt.__batch_stream__;
+      (window as any).mParticle.forwarder.batchQueue = [];
+      (window as any).mParticle.forwarder.batchStreamQueue = [];
+      (window as any).mParticle.forwarder.pendingIdentityEvents = [];
+      (window as any).mParticle.forwarder.isInitialized = false;
+      (window as any).mParticle.Rokt.attachKitCalled = false;
+    });
+
+    it('should replace action with Rokt.CommerceEventType custom flag for commerce events', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      (window as any).mParticle.forwarder.processBatch(mockCommerceBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events[0].data.product_action.action).toBe('payment_succeeded');
+    });
+
+    it('should not modify action when Rokt.CommerceEventType custom flag is absent', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      mockCommerceBatch.events[0].data.custom_flags = {};
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      (window as any).mParticle.forwarder.processBatch(mockCommerceBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events[0].data.product_action.action).toBe('unknown');
+    });
+
+    it('should not modify non-commerce events', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      const nonCommerceBatch: Batch = {
+        mpid: 'test-mpid-123',
+        events: [
+          {
+            event_type: 'custom_event',
+            data: {
+              event_name: 'Test Event',
+              custom_event_type: 'other',
+              custom_flags: { 'Rokt.CommerceEventType': 'payment_succeeded' },
+            },
+          },
+        ],
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      (window as any).mParticle.forwarder.processBatch(nonCommerceBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events[0].event_type).toBe('custom_event');
+      expect(receivedBatches[0].events[0].data.product_action).toBeUndefined();
+    });
+
+    it('should enrich only commerce events in a mixed batch', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      const mixedBatch: Batch = {
+        mpid: 'test-mpid-123',
+        events: [
+          {
+            event_type: 'custom_event',
+            data: { event_name: 'Page View', custom_event_type: 'other' },
+          },
+          {
+            event_type: 'commerce_event',
+            data: {
+              custom_flags: { 'Rokt.CommerceEventType': 'refund_initiated' },
+              product_action: { action: 'unknown', products: [] },
+            },
+          },
+          {
+            event_type: 'commerce_event',
+            data: {
+              custom_flags: {},
+              product_action: { action: 'purchase', products: [] },
+            },
+          },
+        ],
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      (window as any).mParticle.forwarder.processBatch(mixedBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      const events = receivedBatches[0].events;
+      expect(events[0].event_type).toBe('custom_event');
+      expect(events[1].data.product_action.action).toBe('refund_initiated');
+      expect(events[2].data.product_action.action).toBe('purchase');
+    });
+
+    it('should handle batch with no events', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      const emptyBatch: Batch = { mpid: 'test-mpid-123', events: [] };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      (window as any).mParticle.forwarder.processBatch(emptyBatch);
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events.length).toBe(0);
+    });
+  });
+
   describe('#_setRoktSessionId', () => {
     let setIntegrationAttributeCalls: any[];
 

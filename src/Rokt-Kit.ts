@@ -921,8 +921,27 @@ class RoktKit implements KitInterface {
       this.batchQueue.push(batch);
       return 'Batch queued for forwarder: ' + name;
     }
-    this.sendBatchStream(this.mergePendingIdentityEvents(batch));
+    const enrichedBatch = this.enrichCommerceEventTypes(this.mergePendingIdentityEvents(batch));
+    this.sendBatchStream(enrichedBatch);
     return 'Successfully sent batch to forwarder: ' + name;
+  }
+
+  private enrichCommerceEventTypes(batch: Batch): Batch {
+    if (!batch.events) {
+      return batch;
+    }
+    for (const event of batch.events) {
+      if (event.event_type !== 'commerce_event') continue;
+
+      const data = event.data as Record<string, unknown> | undefined;
+      if (!data) continue;
+
+      const commerceType = (data.custom_flags as Record<string, string> | undefined)?.['Rokt.CommerceEventType'];
+      if (commerceType) {
+        (data.product_action as Record<string, unknown>).action = commerceType;
+      }
+    }
+    return batch;
   }
 
   private sendBatchStream(batch: Batch): void {
