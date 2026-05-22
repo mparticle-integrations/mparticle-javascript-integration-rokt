@@ -1,3 +1,10 @@
+## [1.26.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.26.1...v1.26.2) (2026-05-22)
+
+
+### Bug Fixes
+
+* use mParticle config logging flag ([#98](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/98)) ([1973f5c](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/1973f5cc72c861896d4147a7f179508555c21530))
+
 ## [1.26.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.26.0...v1.26.1) (2026-05-12)
 
 
