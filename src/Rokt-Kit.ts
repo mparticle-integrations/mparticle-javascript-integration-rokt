@@ -937,7 +937,7 @@ class RoktKit implements KitInterface {
       if (!data) continue;
 
       const commerceType = (data.custom_flags as Record<string, string> | undefined)?.['Rokt.CommerceEventType'];
-      if (commerceType) {
+      if (commerceType && isObject(data.product_action)) {
         (data.product_action as Record<string, unknown>).action = commerceType;
       }
     }

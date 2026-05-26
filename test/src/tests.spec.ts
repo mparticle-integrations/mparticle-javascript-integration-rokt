@@ -5935,6 +5935,37 @@ describe('Rokt Forwarder', () => {
       expect(events[2].data.product_action.action).toBe('purchase');
     });
 
+    it('should not throw when product_action is null', async () => {
+      const receivedBatches: any[] = [];
+      (window as any).Rokt.__batch_stream__ = function (payload: any) {
+        receivedBatches.push(payload);
+      };
+
+      const promoBatch: Batch = {
+        mpid: 'test-mpid-123',
+        events: [
+          {
+            event_type: 'commerce_event',
+            data: {
+              custom_flags: {},
+              promotion_action: { action: 'view', promotions: [{ id: 'promo-1', name: 'Summer Sale' }] },
+            },
+          },
+        ],
+      };
+
+      await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      expect(() => {
+        (window as any).mParticle.forwarder.processBatch(promoBatch);
+      }).not.toThrow();
+
+      expect(receivedBatches.length).toBe(1);
+      expect(receivedBatches[0].events[0].data.promotion_action.action).toBe('view');
+      expect(receivedBatches[0].events[0].data.product_action).toBeUndefined();
+    });
+
     it('should handle batch with no events', async () => {
       const receivedBatches: any[] = [];
       (window as any).Rokt.__batch_stream__ = function (payload: any) {
