@@ -20,7 +20,7 @@ import { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sd
 import type { IUserIdentities } from '@mparticle/web-sdk';
 
 // BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
-import { BaseEvent } from '@mparticle/event-models';
+import { BaseEvent, CommerceEvent } from '@mparticle/event-models';
 
 interface RoktKitSettings {
   accountId: string;
@@ -915,8 +915,27 @@ class RoktKit implements KitInterface {
       this.batchQueue.push(batch);
       return 'Batch queued for forwarder: ' + name;
     }
-    this.sendBatchStream(this.mergePendingIdentityEvents(batch));
+    const enrichedBatch = this.enrichCommerceEventTypes(this.mergePendingIdentityEvents(batch));
+    this.sendBatchStream(enrichedBatch);
     return 'Successfully sent batch to forwarder: ' + name;
+  }
+
+  private enrichCommerceEventTypes(batch: Batch): Batch {
+    if (!batch.events) {
+      return batch;
+    }
+    for (const event of batch.events) {
+      if (event.event_type !== 'commerce_event') continue;
+
+      const { data } = event as CommerceEvent;
+      if (!data) continue;
+
+      const commerceType = data.custom_flags?.['Rokt.CommerceEventType'];
+      if (commerceType && isObject(data.product_action)) {
+        (data.product_action as { action: string }).action = commerceType;
+      }
+    }
+    return batch;
   }
 
   private sendBatchStream(batch: Batch): void {
