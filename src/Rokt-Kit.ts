@@ -20,7 +20,7 @@ import { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sd
 import type { IUserIdentities } from '@mparticle/web-sdk';
 
 // BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
-import { BaseEvent } from '@mparticle/event-models';
+import { BaseEvent, CommerceEvent } from '@mparticle/event-models';
 
 interface RoktKitSettings {
   accountId: string;
@@ -933,12 +933,12 @@ class RoktKit implements KitInterface {
     for (const event of batch.events) {
       if (event.event_type !== 'commerce_event') continue;
 
-      const data = event.data as Record<string, unknown> | undefined;
+      const { data } = event as CommerceEvent;
       if (!data) continue;
 
-      const commerceType = (data.custom_flags as Record<string, string> | undefined)?.['Rokt.CommerceEventType'];
+      const commerceType = data.custom_flags?.['Rokt.CommerceEventType'];
       if (commerceType && isObject(data.product_action)) {
-        (data.product_action as Record<string, unknown>).action = commerceType;
+        (data.product_action as { action: string }).action = commerceType;
       }
     }
     return batch;
