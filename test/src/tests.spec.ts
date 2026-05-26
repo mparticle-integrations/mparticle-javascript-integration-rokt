@@ -6227,7 +6227,6 @@ describe('Rokt Forwarder', () => {
   describe('ErrorReportingService', () => {
     let originalFetch: typeof window.fetch;
     let fetchCalls: Array<{ url: string; options: any }>;
-    const originalROKT_DOMAIN_ref = { value: (window as any).ROKT_DOMAIN };
 
     beforeEach(() => {
       fetchCalls = [];
@@ -6236,13 +6235,10 @@ describe('Rokt Forwarder', () => {
         fetchCalls.push({ url, options });
         return Promise.resolve({ ok: true });
       };
-      originalROKT_DOMAIN_ref.value = (window as any).ROKT_DOMAIN;
-      (window as any).ROKT_DOMAIN = 'set';
     });
 
     afterEach(() => {
       window.fetch = originalFetch;
-      (window as any).ROKT_DOMAIN = originalROKT_DOMAIN_ref.value;
     });
 
     it('should send error reports to the errors endpoint', () => {
@@ -6298,21 +6294,26 @@ describe('Rokt Forwarder', () => {
       expect(body.severity).toBe('INFO');
     });
 
-    it('should not send when ROKT_DOMAIN is missing and feature flag is off', () => {
+    it('should send when logging flag is enabled without ROKT_DOMAIN', () => {
       (window as any).ROKT_DOMAIN = undefined;
+      const service = new ErrorReportingServiceClass({ isLoggingEnabled: true }, '1.0.0', 'test-guid');
+      service.report({ message: 'should send', severity: WSDKErrorSeverityConst.ERROR });
+      expect(fetchCalls.length).toBe(1);
+    });
+
+    it('should not send when logging flag is off', () => {
       const service = new ErrorReportingServiceClass({ isLoggingEnabled: false }, '1.0.0', 'test-guid');
       service.report({ message: 'should not send', severity: WSDKErrorSeverityConst.ERROR });
       expect(fetchCalls.length).toBe(0);
     });
 
-    it('should not send when feature flag is off and debug mode is off', () => {
+    it('should not send when logging flag is off and debug mode is off', () => {
       const service = new ErrorReportingServiceClass({ isLoggingEnabled: false }, '1.0.0', 'test-guid');
       service.report({ message: 'should not send', severity: WSDKErrorSeverityConst.ERROR });
       expect(fetchCalls.length).toBe(0);
     });
 
-    it('should send when debug mode is enabled even without ROKT_DOMAIN', () => {
-      (window as any).ROKT_DOMAIN = undefined;
+    it('should send when debug mode is enabled even when logging flag is off', () => {
       const originalSearch = window.location.search;
       window.history.pushState({}, '', window.location.pathname + '?mp_enable_logging=true');
       const service = new ErrorReportingServiceClass({ isLoggingEnabled: false }, '1.0.0', 'test-guid');
@@ -6425,7 +6426,6 @@ describe('Rokt Forwarder', () => {
   describe('LoggingService', () => {
     let originalFetch: typeof window.fetch;
     let fetchCalls: Array<{ url: string; options: any }>;
-    const originalROKT_DOMAIN_ref = { value: (window as any).ROKT_DOMAIN };
 
     beforeEach(() => {
       fetchCalls = [];
@@ -6434,13 +6434,10 @@ describe('Rokt Forwarder', () => {
         fetchCalls.push({ url, options });
         return Promise.resolve({ ok: true });
       };
-      originalROKT_DOMAIN_ref.value = (window as any).ROKT_DOMAIN;
-      (window as any).ROKT_DOMAIN = 'set';
     });
 
     afterEach(() => {
       window.fetch = originalFetch;
-      (window as any).ROKT_DOMAIN = originalROKT_DOMAIN_ref.value;
     });
 
     it('should always send to the logging endpoint with severity INFO', () => {
@@ -6527,7 +6524,6 @@ describe('Rokt Forwarder', () => {
   describe('ErrorReportingService rate limiting', () => {
     let originalFetch: typeof window.fetch;
     let fetchCalls: Array<{ url: string; options: any }>;
-    const originalROKT_DOMAIN_ref = { value: (window as any).ROKT_DOMAIN };
 
     beforeEach(() => {
       fetchCalls = [];
@@ -6536,13 +6532,10 @@ describe('Rokt Forwarder', () => {
         fetchCalls.push({ url, options });
         return Promise.resolve({ ok: true });
       };
-      originalROKT_DOMAIN_ref.value = (window as any).ROKT_DOMAIN;
-      (window as any).ROKT_DOMAIN = 'set';
     });
 
     afterEach(() => {
       window.fetch = originalFetch;
-      (window as any).ROKT_DOMAIN = originalROKT_DOMAIN_ref.value;
     });
 
     it('should rate limit after 10 errors', () => {
@@ -6610,7 +6603,6 @@ describe('Rokt Forwarder', () => {
       let registeredLoggingService: any = null;
       const fetchCalls: Array<{ url: string; options: any }> = [];
       const originalFetch = window.fetch;
-      const originalRoktDomain = (window as any).ROKT_DOMAIN;
       const originalConfig = (window as any).mParticle.config;
 
       try {
@@ -6618,7 +6610,6 @@ describe('Rokt Forwarder', () => {
           fetchCalls.push({ url, options });
           return Promise.resolve({ ok: true });
         };
-        (window as any).ROKT_DOMAIN = 'set';
         (window as any).mParticle.config = {
           ...originalConfig,
           isLoggingEnabled: true,
@@ -6662,7 +6653,6 @@ describe('Rokt Forwarder', () => {
         expect(body.code).toBe(ErrorCodesConst.UNKNOWN_ERROR);
       } finally {
         window.fetch = originalFetch;
-        (window as any).ROKT_DOMAIN = originalRoktDomain;
         (window as any).mParticle.config = originalConfig;
         delete (window as any).mParticle._registerErrorReportingService;
         delete (window as any).mParticle._registerLoggingService;

@@ -214,7 +214,6 @@ declare global {
     Rokt?: RoktGlobal;
     __rokt_li_guid__?: string;
     optimizely?: OptimizelyGlobal;
-    ROKT_DOMAIN?: string;
     // mParticle is declared as any to avoid conflicts with @mparticle/web-sdk type declarations.
     // We use the typed mp() accessor for all internal accesses.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -511,10 +510,6 @@ function sendAdBlockMeasurementSignals(domain: string | undefined, version: stri
 // Reporting helpers
 // ============================================================
 
-function _isRoktDomainPresent(): boolean {
-  return typeof window !== 'undefined' && Boolean(window.ROKT_DOMAIN);
-}
-
 function _isDebugModeEnabled(): boolean {
   return typeof window !== 'undefined' && !!window.location?.search?.toLowerCase().includes('mp_enable_logging=true');
 }
@@ -558,7 +553,7 @@ class ReportingTransport {
     this._launcherInstanceGuid = launcherInstanceGuid;
     this._accountId = accountId || null;
     this._rateLimiter = rateLimiter || new RateLimiter();
-    this._isEnabled = _isDebugModeEnabled() || (_isRoktDomainPresent() && isLoggingEnabled);
+    this._isEnabled = _isDebugModeEnabled() || isLoggingEnabled;
   }
 
   send(
