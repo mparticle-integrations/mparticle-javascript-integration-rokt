@@ -1,3 +1,10 @@
+## [1.26.3](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.26.2...v1.26.3) (2026-05-26)
+
+
+### Bug Fixes
+
+* Remove ROKT_DOMAIN gate from logging ([#99](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/99)) ([cef82cd](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/cef82cd7ca1a3c302d5f5cb85d680d58ac702901))
+
 ## [1.26.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.26.1...v1.26.2) (2026-05-22)
 
 
