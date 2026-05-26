@@ -1098,6 +1098,123 @@ describe('Rokt Forwarder', () => {
           },
         });
       });
+
+      it('should not send denylisted commerce attributes from the cached user attributes', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {
+            confirmationRef: 'previous-order',
+            PaymentServiceProviderAttribute: 'cached-provider',
+            totalPrice: '10.00',
+            couponCode: 'SAVE10',
+            shippingMethod: 'ground',
+            loyaltyTier: 'gold',
+          },
+        );
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {
+            page: 'checkout',
+          },
+        });
+
+        expect((window as any).Rokt.selectPlacementsCalled).toBe(true);
+        expect((window as any).Rokt.selectPlacementsOptions).toEqual({
+          identifier: 'test-placement',
+          attributes: {
+            loyaltyTier: 'gold',
+            page: 'checkout',
+            mpid: '123',
+          },
+        });
+        expect((window as any).mParticle.forwarder.userAttributes).toEqual({
+          loyaltyTier: 'gold',
+          page: 'checkout',
+        });
+      });
+
+      it('should allow explicit commerce attributes for the current call without caching them', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {
+            loyaltyTier: 'gold',
+          },
+        );
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {
+            confirmationRef: 'current-order',
+            paymentServiceProviderAttribute: 'current-provider',
+            totalPrice: '10.00',
+            couponCode: 'SAVE10',
+            shippingMethod: 'ground',
+            page: 'checkout',
+          },
+        });
+
+        expect((window as any).Rokt.selectPlacementsCalled).toBe(true);
+        expect((window as any).Rokt.selectPlacementsOptions).toEqual({
+          identifier: 'test-placement',
+          attributes: {
+            loyaltyTier: 'gold',
+            confirmationRef: 'current-order',
+            paymentServiceProviderAttribute: 'current-provider',
+            totalPrice: '10.00',
+            couponCode: 'SAVE10',
+            shippingMethod: 'ground',
+            page: 'checkout',
+            mpid: '123',
+          },
+        });
+        expect((window as any).mParticle.forwarder.userAttributes).toEqual({
+          loyaltyTier: 'gold',
+          page: 'checkout',
+        });
+      });
+
+      it('should not cache denylisted commerce attributes set through setUserAttribute', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        (window as any).mParticle.forwarder.setUserAttribute('paymentServiceProviderAttribute', 'cached-provider');
+        (window as any).mParticle.forwarder.setUserAttribute('favoriteStore', 'test-store');
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {},
+        });
+
+        expect((window as any).Rokt.selectPlacementsCalled).toBe(true);
+        expect((window as any).Rokt.selectPlacementsOptions).toEqual({
+          identifier: 'test-placement',
+          attributes: {
+            favoriteStore: 'test-store',
+            mpid: '123',
+          },
+        });
+        expect((window as any).mParticle.forwarder.userAttributes).toEqual({
+          favoriteStore: 'test-store',
+        });
+      });
     });
 
     describe('Identity handling', () => {

@@ -240,6 +240,31 @@ const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
+const SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_LIST = [
+  'billingaddress1',
+  'billingaddress2',
+  'billingcity',
+  'billingstate',
+  'billingzipcode',
+  'cartitems',
+  'ccbin',
+  'confirmationref',
+  'country',
+  'couponcode',
+  'currency',
+  'language',
+  'paymentserviceprovider',
+  'paymentserviceproviderattribute',
+  'paymenttype',
+  'shippingaddress1',
+  'shippingcity',
+  'shippingcountry',
+  'shippingmethod',
+  'shippingstate',
+  'shippingzipcode',
+  'totalprice',
+];
+const SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_SET = new Set(SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_LIST);
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
 // IDSync search before proceeding without the userIdentifiedInWorkspace flag.
@@ -434,6 +459,27 @@ function isEmpty(value: unknown): boolean {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
+}
+
+function isSelectPlacementsAttributePersistenceDenied(key: string): boolean {
+  return SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_SET.has(key.toLowerCase());
+}
+
+function removeSelectPlacementsAttributePersistenceDeniedAttributes(
+  attributes: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const filteredAttributes: Record<string, unknown> = {};
+  const sourceAttributes = attributes || {};
+  const attributeKeys = Object.keys(sourceAttributes);
+
+  for (let i = 0; i < attributeKeys.length; i++) {
+    const key = attributeKeys[i];
+    if (!isSelectPlacementsAttributePersistenceDenied(key)) {
+      filteredAttributes[key] = sourceAttributes[key];
+    }
+  }
+
+  return filteredAttributes;
 }
 
 function generateIntegrationName(customIntegrationName?: string): string {
@@ -1091,7 +1137,7 @@ class RoktKit implements KitInterface {
   ): string {
     const kitSettings = settings as unknown as RoktKitSettings;
     const accountId = kitSettings.accountId;
-    this.userAttributes = filteredUserAttributes || {};
+    this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(filteredUserAttributes);
     this._onboardingExpProvider = kitSettings.onboardingExpProvider;
 
     const placementEventMapping = parseSettingsString<PlacementEventMappingEntry>(kitSettings.placementEventMapping);
@@ -1245,6 +1291,11 @@ class RoktKit implements KitInterface {
   }
 
   public setUserAttribute(key: string, value: unknown): string {
+    if (isSelectPlacementsAttributePersistenceDenied(key)) {
+      this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(this.userAttributes);
+      return 'Successfully set user attribute for forwarder: ' + name;
+    }
+
     this.userAttributes[key] = value;
     return 'Successfully set user attribute for forwarder: ' + name;
   }
@@ -1256,7 +1307,7 @@ class RoktKit implements KitInterface {
 
   private handleIdentityComplete(user: IMParticleUser, eventType: RoktIdentityEventType, callbackName: string): string {
     const filteredUser = user as FilteredUser;
-    this.userAttributes = user.getAllUserAttributes();
+    this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(user.getAllUserAttributes());
     this.pendingIdentityEvents.push(this.buildIdentityEvent(eventType, filteredUser));
     return 'Successfully called ' + callbackName + ' for forwarder: ' + name;
   }
@@ -1402,7 +1453,8 @@ class RoktKit implements KitInterface {
 
   private _dispatchPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
     const attributes = ((options && (options.attributes as Record<string, unknown>)) || {}) as Record<string, unknown>;
-    const placementAttributes: Record<string, unknown> = { ...this.userAttributes, ...attributes };
+    const cachedUserAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(this.userAttributes);
+    const placementAttributes: Record<string, unknown> = { ...cachedUserAttributes, ...attributes };
 
     const filters = this.filters || {};
     const userAttributeFilters = (filters.userAttributeFilters as string[]) || [];
@@ -1420,7 +1472,7 @@ class RoktKit implements KitInterface {
       filteredAttributes = placementAttributes;
     }
 
-    this.userAttributes = filteredAttributes;
+    this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(filteredAttributes);
 
     const optimizelyAttributes = this._onboardingExpProvider === 'Optimizely' ? this.fetchOptimizely() : {};
 
