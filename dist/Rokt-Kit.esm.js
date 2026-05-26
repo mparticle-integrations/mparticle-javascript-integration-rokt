@@ -75,7 +75,7 @@ function K(n) {
   }
   return e;
 }
-function D(n) {
+function x(n) {
   const e = {};
   if (!Array.isArray(n))
     return e;
@@ -91,7 +91,7 @@ function D(n) {
   }
   return e;
 }
-function x(n, e, t) {
+function D(n, e, t) {
   return o().generateHash([n, e, t].join(""));
 }
 function y(n) {
@@ -101,7 +101,7 @@ function g(n) {
   return typeof n == "string";
 }
 function ie(n) {
-  let i = "mParticle_wsdkv_" + o().getVersion() + "_kitv_" + "1.26.2";
+  let i = "mParticle_wsdkv_" + o().getVersion() + "_kitv_" + "1.26.3";
   return n && (i += "_" + n), i;
 }
 function H(n) {
@@ -131,15 +131,12 @@ function Y(n, e) {
   );
 }
 function ne() {
-  return typeof window < "u" && !!window.ROKT_DOMAIN;
-}
-function re() {
   return typeof window < "u" && !!window.location?.search?.toLowerCase().includes("mp_enable_logging=true");
 }
-function se() {
+function re() {
   return typeof window < "u" ? window.location?.href : void 0;
 }
-function oe() {
+function se() {
   return typeof window < "u" ? window.navigator?.userAgent : void 0;
 }
 class W {
@@ -155,7 +152,7 @@ class N {
   constructor(e, t, i, r, a) {
     this._reporter = "mp-wsdk";
     const s = e.isLoggingEnabled;
-    this._integrationName = t || "", this._launcherInstanceGuid = i, this._accountId = r || null, this._rateLimiter = a || new W(), this._isEnabled = re() || ne() && s;
+    this._integrationName = t || "", this._launcherInstanceGuid = i, this._accountId = r || null, this._rateLimiter = a || new W(), this._isEnabled = ne() || s;
   }
   send(e, t, i, r, a, s) {
     if (!(!this._isEnabled || this._rateLimiter.incrementAndCheck(t)))
@@ -167,8 +164,8 @@ class N {
           },
           severity: t,
           code: r || T.UNKNOWN_ERROR,
-          url: se(),
-          deviceInfo: oe(),
+          url: re(),
+          deviceInfo: se(),
           stackTrace: a,
           reporter: this._reporter,
           integration: this._integrationName
@@ -394,8 +391,8 @@ const p = class p {
     const d = S(
       s.placementEventAttributeMapping
     );
-    this.placementEventAttributeMappingLookup = D(d), s.hashedEmailUserIdentityType && (this._mappedEmailSha256Key = s.hashedEmailUserIdentityType.toLowerCase()), this._workspaceIdSyncApiKey = g(s.workspaceIdSyncApiKey) ? s.workspaceIdSyncApiKey : void 0;
-    const m = o().Rokt?.domain, { roktExtensionsQueryParams: v, legacyRoktExtensions: _, loadThankYouElement: b } = M(
+    this.placementEventAttributeMappingLookup = x(d), s.hashedEmailUserIdentityType && (this._mappedEmailSha256Key = s.hashedEmailUserIdentityType.toLowerCase()), this._workspaceIdSyncApiKey = g(s.workspaceIdSyncApiKey) ? s.workspaceIdSyncApiKey : void 0;
+    const m = o().Rokt?.domain, { roktExtensionsQueryParams: v, legacyRoktExtensions: E, loadThankYouElement: b } = M(
       s.roktExtensions
     ), h = {
       ...o().Rokt?.launcherOptions || {}
@@ -405,26 +402,26 @@ const p = class p {
       loggingUrl: s.loggingUrl,
       errorUrl: s.errorUrl,
       isLoggingEnabled: o().config?.isLoggingEnabled === !0
-    }, E = new F(
+    }, _ = new F(
       k,
       this.integrationName,
       window.__rokt_li_guid__,
       s.accountId
     ), R = new j(
       k,
-      E,
+      _,
       this.integrationName,
       window.__rokt_li_guid__,
       s.accountId
     );
-    return this.errorReportingService = E, this.loggingService = R, o()._registerErrorReportingService && o()._registerErrorReportingService(E), o()._registerLoggingService && o()._registerLoggingService(R), i ? (this.testHelpers = {
+    return this.errorReportingService = _, this.loggingService = R, o()._registerErrorReportingService && o()._registerErrorReportingService(_), o()._registerLoggingService && o()._registerLoggingService(R), i ? (this.testHelpers = {
       generateLauncherScript: P,
       generateThankYouElementScript: U,
       extractRoktExtensionConfig: M,
-      hashEventMessage: x,
+      hashEventMessage: D,
       parseSettingsString: S,
       generateMappedEventLookup: K,
-      generateMappedEventAttributeLookup: D,
+      generateMappedEventAttributeLookup: x,
       sendAdBlockMeasurementSignals: Y,
       createAutoRemovedIframe: O,
       djb2: H,
@@ -444,9 +441,9 @@ const p = class p {
       onError: (I) => {
         console.error("Error loading Rokt Thank You Element script:", I);
       }
-    })), this.isLauncherReadyToAttach() ? this.attachLauncher(c, h, _) : (C(V, P(m, v), {
+    })), this.isLauncherReadyToAttach() ? this.attachLauncher(c, h, E) : (C(V, P(m, v), {
       onLoad: () => {
-        this.isLauncherReadyToAttach() ? this.attachLauncher(c, h, _) : console.error("Rokt object is not available after script load.");
+        this.isLauncherReadyToAttach() ? this.attachLauncher(c, h, E) : console.error("Rokt object is not available after script load.");
       },
       onError: (I) => {
         console.error("Error loading Rokt launcher script:", I);
@@ -457,7 +454,7 @@ const p = class p {
     if (!this.isKitReady())
       return "Kit not ready for forwarder: " + l;
     if (typeof o().Rokt?.setLocalSessionAttribute == "function" && (y(this.placementEventAttributeMappingLookup) || this.applyPlacementEventAttributeMapping(e), !y(this.placementEventMappingLookup))) {
-      const t = x(e.EventDataType, e.EventCategory, e.EventName ?? "");
+      const t = D(e.EventDataType, e.EventCategory, e.EventName ?? "");
       this.placementEventMappingLookup[String(t)] && o().Rokt.setLocalSessionAttribute?.(this.placementEventMappingLookup[String(t)], !0);
     }
     return "Successfully sent to forwarder: " + l;
@@ -556,15 +553,15 @@ const p = class p {
     const t = e && e.attributes || {}, i = { ...this.userAttributes, ...t }, r = this.filters || {}, a = r.userAttributeFilters || [], s = r.filteredUser || null, c = s ? s.getMPID() : null;
     let u;
     r ? r.filterUserAttributes ? u = r.filterUserAttributes(i, a) : u = i : (console.warn("Rokt Kit: No filters available, using user attributes"), u = i), this.userAttributes = u;
-    const d = this._onboardingExpProvider === "Optimizely" ? this.fetchOptimizely() : {}, m = this.returnUserIdentities(s), v = this.returnLocalSessionAttributes(), _ = {
+    const d = this._onboardingExpProvider === "Optimizely" ? this.fetchOptimizely() : {}, m = this.returnUserIdentities(s), v = this.returnLocalSessionAttributes(), E = {
       ...m,
       ...u,
       ...d,
       ...v,
       ...this.userIdentifiedInWorkspace ? { [J]: !0 } : {},
       mpid: c
-    }, b = { ...e, attributes: _ }, h = this.launcher.selectPlacements(b), k = () => this.logSelectPlacementsEvent(_);
-    return Promise.resolve(h).then((E) => E?.context?.sessionId?.then((R) => this.setRoktSessionId(R))).catch(() => {
+    }, b = { ...e, attributes: E }, h = this.launcher.selectPlacements(b), k = () => this.logSelectPlacementsEvent(E);
+    return Promise.resolve(h).then((_) => _?.context?.sessionId?.then((R) => this.setRoktSessionId(R))).catch(() => {
     }).finally(k), h;
   }
   /**
@@ -592,10 +589,10 @@ p._allowedOriginHashes = [-553112570, 549508659], p.PERFORMANCE_MARKS = {
   RoktScriptAppended: "mp:RoktScriptAppended"
 }, p.EMAIL_SHA256_KEY = "emailsha256";
 let f = p;
-function ae() {
+function oe() {
   return 181;
 }
-function ce(n) {
+function ae(n) {
   if (!n) {
     window.console.log("You must pass a config object to register the kit " + l);
     return;
@@ -613,9 +610,9 @@ function ce(n) {
 typeof window < "u" && window.mParticle && o().addForwarder && o().addForwarder({
   name: l,
   constructor: f,
-  getId: ae
+  getId: oe
 });
 export {
-  ce as register
+  ae as register
 };
 //# sourceMappingURL=Rokt-Kit.esm.js.map

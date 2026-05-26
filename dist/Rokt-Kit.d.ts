@@ -10,7 +10,6 @@ declare global {
         Rokt?: RoktGlobal;
         __rokt_li_guid__?: string;
         optimizely?: OptimizelyGlobal;
-        ROKT_DOMAIN?: string;
         mParticle: any;
     }
 }
