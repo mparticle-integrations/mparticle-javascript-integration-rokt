@@ -3106,6 +3106,29 @@ describe('Rokt Forwarder', () => {
       });
       expect((window as any).mParticle.forwarder.filters.filteredUser.getMPID()).toBe('123');
     });
+
+    it('should not cache denylisted commerce attributes from the filtered user', () => {
+      (window as any).mParticle.forwarder.onUserIdentified({
+        getAllUserAttributes: function () {
+          return {
+            confirmationRef: 'previous-order',
+            currency: 'USD',
+            paymentServiceProvider: 'test-provider',
+            'test-attribute': 'test-value',
+          };
+        },
+        getMPID: function () {
+          return '123';
+        },
+        getUserIdentities: function () {
+          return { userIdentities: {} };
+        },
+      });
+
+      expect((window as any).mParticle.forwarder.userAttributes).toEqual({
+        'test-attribute': 'test-value',
+      });
+    });
   });
 
   describe('#workspaceIdSync', () => {

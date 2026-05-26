@@ -1291,12 +1291,9 @@ class RoktKit implements KitInterface {
   }
 
   public setUserAttribute(key: string, value: unknown): string {
-    if (isSelectPlacementsAttributePersistenceDenied(key)) {
-      this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(this.userAttributes);
-      return 'Successfully set user attribute for forwarder: ' + name;
+    if (!isSelectPlacementsAttributePersistenceDenied(key)) {
+      this.userAttributes[key] = value;
     }
-
-    this.userAttributes[key] = value;
     return 'Successfully set user attribute for forwarder: ' + name;
   }
 
