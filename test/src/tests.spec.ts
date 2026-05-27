@@ -1,6 +1,10 @@
 import packageJson from '../../package.json';
 const packageVersion = packageJson.version;
 import '../../src/Rokt-Kit';
+import {
+  isSelectPlacementsAttributePersistenceDenied,
+  removeSelectPlacementsAttributePersistenceDeniedAttributes,
+} from '../../src/selectPlacementsAttributePersistence';
 import { Batch } from '@mparticle/web-sdk/internal';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -1096,6 +1100,126 @@ describe('Rokt Forwarder', () => {
             'changed-attribute': 'new-value',
             mpid: '123',
           },
+        });
+      });
+
+      it('should not send denylisted commerce attributes from the cached user attributes', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {
+            confirmationRef: 'previous-order',
+            conversionType: 'purchase',
+            PaymentServiceProviderAttribute: 'cached-provider',
+            totalPrice: '10.00',
+            couponCode: 'SAVE10',
+            shippingMethod: 'ground',
+            loyaltyTier: 'gold',
+          },
+        );
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {
+            page: 'checkout',
+          },
+        });
+
+        expect((window as any).Rokt.selectPlacementsCalled).toBe(true);
+        expect((window as any).Rokt.selectPlacementsOptions).toEqual({
+          identifier: 'test-placement',
+          attributes: {
+            loyaltyTier: 'gold',
+            page: 'checkout',
+            mpid: '123',
+          },
+        });
+        expect((window as any).mParticle.forwarder.userAttributes).toEqual({
+          loyaltyTier: 'gold',
+          page: 'checkout',
+        });
+      });
+
+      it('should allow explicit commerce attributes for the current call without caching them', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {
+            loyaltyTier: 'gold',
+          },
+        );
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {
+            confirmationRef: 'current-order',
+            conversionType: 'purchase',
+            paymentServiceProviderAttribute: 'current-provider',
+            totalPrice: '10.00',
+            couponCode: 'SAVE10',
+            shippingMethod: 'ground',
+            page: 'checkout',
+          },
+        });
+
+        expect((window as any).Rokt.selectPlacementsCalled).toBe(true);
+        expect((window as any).Rokt.selectPlacementsOptions).toEqual({
+          identifier: 'test-placement',
+          attributes: {
+            loyaltyTier: 'gold',
+            confirmationRef: 'current-order',
+            conversionType: 'purchase',
+            paymentServiceProviderAttribute: 'current-provider',
+            totalPrice: '10.00',
+            couponCode: 'SAVE10',
+            shippingMethod: 'ground',
+            page: 'checkout',
+            mpid: '123',
+          },
+        });
+        expect((window as any).mParticle.forwarder.userAttributes).toEqual({
+          loyaltyTier: 'gold',
+          page: 'checkout',
+        });
+      });
+
+      it('should not cache denylisted commerce attributes set through setUserAttribute', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        (window as any).mParticle.forwarder.setUserAttribute('paymentServiceProviderAttribute', 'cached-provider');
+        (window as any).mParticle.forwarder.setUserAttribute('favoriteStore', 'test-store');
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {},
+        });
+
+        expect((window as any).Rokt.selectPlacementsCalled).toBe(true);
+        expect((window as any).Rokt.selectPlacementsOptions).toEqual({
+          identifier: 'test-placement',
+          attributes: {
+            favoriteStore: 'test-store',
+            mpid: '123',
+          },
+        });
+        expect((window as any).mParticle.forwarder.userAttributes).toEqual({
+          favoriteStore: 'test-store',
         });
       });
     });
@@ -2988,6 +3112,30 @@ describe('Rokt Forwarder', () => {
         'test-attribute': 'test-value',
       });
       expect((window as any).mParticle.forwarder.filters.filteredUser.getMPID()).toBe('123');
+    });
+
+    it('should not cache denylisted commerce attributes from the filtered user', () => {
+      (window as any).mParticle.forwarder.onUserIdentified({
+        getAllUserAttributes: function () {
+          return {
+            confirmationRef: 'previous-order',
+            conversionType: 'purchase',
+            currency: 'USD',
+            paymentServiceProvider: 'test-provider',
+            'test-attribute': 'test-value',
+          };
+        },
+        getMPID: function () {
+          return '123';
+        },
+        getUserIdentities: function () {
+          return { userIdentities: {} };
+        },
+      });
+
+      expect((window as any).mParticle.forwarder.userAttributes).toEqual({
+        'test-attribute': 'test-value',
+      });
     });
   });
 
@@ -6186,6 +6334,50 @@ describe('Rokt Forwarder', () => {
       const settingsString = 'not a valid JSON';
 
       expect((window as any).mParticle.forwarder.testHelpers.parseSettingsString(settingsString)).toEqual([]);
+    });
+  });
+
+  describe('#isSelectPlacementsAttributePersistenceDenied', () => {
+    it('should identify denylisted attributes case-insensitively', () => {
+      expect(isSelectPlacementsAttributePersistenceDenied('confirmationref')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('confirmationRef')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('CONFIRMATIONREF')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('paymentServiceProvider')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('cartItems')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('conversionType')).toBe(true);
+    });
+
+    it('should return false for attributes that are not denylisted', () => {
+      expect(isSelectPlacementsAttributePersistenceDenied('loyaltyTier')).toBe(false);
+      expect(isSelectPlacementsAttributePersistenceDenied('favoriteStore')).toBe(false);
+    });
+  });
+
+  describe('#removeSelectPlacementsAttributePersistenceDeniedAttributes', () => {
+    it('should remove denylisted attributes case-insensitively', () => {
+      const attributes = {
+        confirmationRef: 'previous-order',
+        PaymentServiceProvider: 'test-provider',
+        cartItems: [{ sku: 'test-sku' }],
+        conversionType: 'purchase',
+        loyaltyTier: 'gold',
+      };
+
+      expect(removeSelectPlacementsAttributePersistenceDeniedAttributes(attributes)).toEqual({
+        loyaltyTier: 'gold',
+      });
+      expect(attributes).toEqual({
+        confirmationRef: 'previous-order',
+        PaymentServiceProvider: 'test-provider',
+        cartItems: [{ sku: 'test-sku' }],
+        conversionType: 'purchase',
+        loyaltyTier: 'gold',
+      });
+    });
+
+    it('should return an empty object for null or undefined attributes', () => {
+      expect(removeSelectPlacementsAttributePersistenceDeniedAttributes(null)).toEqual({});
+      expect(removeSelectPlacementsAttributePersistenceDeniedAttributes(undefined)).toEqual({});
     });
   });
 

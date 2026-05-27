@@ -21,6 +21,10 @@ import type { IUserIdentities } from '@mparticle/web-sdk';
 
 // BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
 import { BaseEvent, CommerceEvent } from '@mparticle/event-models';
+import {
+  isSelectPlacementsAttributePersistenceDenied,
+  removeSelectPlacementsAttributePersistenceDeniedAttributes,
+} from './selectPlacementsAttributePersistence';
 
 interface RoktKitSettings {
   accountId: string;
@@ -1091,7 +1095,7 @@ class RoktKit implements KitInterface {
   ): string {
     const kitSettings = settings as unknown as RoktKitSettings;
     const accountId = kitSettings.accountId;
-    this.userAttributes = filteredUserAttributes || {};
+    this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(filteredUserAttributes);
     this._onboardingExpProvider = kitSettings.onboardingExpProvider;
 
     const placementEventMapping = parseSettingsString<PlacementEventMappingEntry>(kitSettings.placementEventMapping);
@@ -1245,7 +1249,9 @@ class RoktKit implements KitInterface {
   }
 
   public setUserAttribute(key: string, value: unknown): string {
-    this.userAttributes[key] = value;
+    if (!isSelectPlacementsAttributePersistenceDenied(key)) {
+      this.userAttributes[key] = value;
+    }
     return 'Successfully set user attribute for forwarder: ' + name;
   }
 
@@ -1256,7 +1262,7 @@ class RoktKit implements KitInterface {
 
   private handleIdentityComplete(user: IMParticleUser, eventType: RoktIdentityEventType, callbackName: string): string {
     const filteredUser = user as FilteredUser;
-    this.userAttributes = user.getAllUserAttributes();
+    this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(user.getAllUserAttributes());
     this.pendingIdentityEvents.push(this.buildIdentityEvent(eventType, filteredUser));
     return 'Successfully called ' + callbackName + ' for forwarder: ' + name;
   }
@@ -1402,7 +1408,8 @@ class RoktKit implements KitInterface {
 
   private _dispatchPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
     const attributes = ((options && (options.attributes as Record<string, unknown>)) || {}) as Record<string, unknown>;
-    const placementAttributes: Record<string, unknown> = { ...this.userAttributes, ...attributes };
+    const cachedUserAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(this.userAttributes);
+    const placementAttributes: Record<string, unknown> = { ...cachedUserAttributes, ...attributes };
 
     const filters = this.filters || {};
     const userAttributeFilters = (filters.userAttributeFilters as string[]) || [];
@@ -1420,7 +1427,7 @@ class RoktKit implements KitInterface {
       filteredAttributes = placementAttributes;
     }
 
-    this.userAttributes = filteredAttributes;
+    this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(filteredAttributes);
 
     const optimizelyAttributes = this._onboardingExpProvider === 'Optimizely' ? this.fetchOptimizely() : {};
 
