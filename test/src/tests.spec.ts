@@ -4,7 +4,7 @@ import '../../src/Rokt-Kit';
 import {
   isSelectPlacementsAttributePersistenceDenied,
   removeSelectPlacementsAttributePersistenceDeniedAttributes,
-} from '../../src/Rokt-Kit';
+} from '../../src/selectPlacementsAttributePersistence';
 import { Batch } from '@mparticle/web-sdk/internal';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

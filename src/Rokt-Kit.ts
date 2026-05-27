@@ -21,6 +21,10 @@ import type { IUserIdentities } from '@mparticle/web-sdk';
 
 // BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
 import { BaseEvent, CommerceEvent } from '@mparticle/event-models';
+import {
+  isSelectPlacementsAttributePersistenceDenied,
+  removeSelectPlacementsAttributePersistenceDeniedAttributes,
+} from './selectPlacementsAttributePersistence';
 
 interface RoktKitSettings {
   accountId: string;
@@ -240,32 +244,6 @@ const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
-const SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_LIST = [
-  'billingaddress1',
-  'billingaddress2',
-  'billingcity',
-  'billingstate',
-  'billingzipcode',
-  'cartitems',
-  'ccbin',
-  'confirmationref',
-  'conversiontype',
-  'country',
-  'couponcode',
-  'currency',
-  'language',
-  'paymentserviceprovider',
-  'paymentserviceproviderattribute',
-  'paymenttype',
-  'shippingaddress1',
-  'shippingcity',
-  'shippingcountry',
-  'shippingmethod',
-  'shippingstate',
-  'shippingzipcode',
-  'totalprice',
-];
-const SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_SET = new Set(SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_LIST);
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
 // IDSync search before proceeding without the userIdentifiedInWorkspace flag.
@@ -460,27 +438,6 @@ function isEmpty(value: unknown): boolean {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
-}
-
-export function isSelectPlacementsAttributePersistenceDenied(key: string): boolean {
-  return SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_SET.has(key.toLowerCase());
-}
-
-export function removeSelectPlacementsAttributePersistenceDeniedAttributes(
-  attributes: Record<string, unknown> | null | undefined,
-): Record<string, unknown> {
-  const filteredAttributes: Record<string, unknown> = {};
-  const sourceAttributes = attributes || {};
-  const attributeKeys = Object.keys(sourceAttributes);
-
-  for (let i = 0; i < attributeKeys.length; i++) {
-    const key = attributeKeys[i];
-    if (!isSelectPlacementsAttributePersistenceDenied(key)) {
-      filteredAttributes[key] = sourceAttributes[key];
-    }
-  }
-
-  return filteredAttributes;
 }
 
 function generateIntegrationName(customIntegrationName?: string): string {
