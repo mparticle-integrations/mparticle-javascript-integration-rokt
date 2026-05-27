@@ -462,11 +462,11 @@ function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
 
-function isSelectPlacementsAttributePersistenceDenied(key: string): boolean {
+export function isSelectPlacementsAttributePersistenceDenied(key: string): boolean {
   return SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_SET.has(key.toLowerCase());
 }
 
-function removeSelectPlacementsAttributePersistenceDeniedAttributes(
+export function removeSelectPlacementsAttributePersistenceDeniedAttributes(
   attributes: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> {
   const filteredAttributes: Record<string, unknown> = {};

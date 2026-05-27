@@ -1,6 +1,10 @@
 import packageJson from '../../package.json';
 const packageVersion = packageJson.version;
 import '../../src/Rokt-Kit';
+import {
+  isSelectPlacementsAttributePersistenceDenied,
+  removeSelectPlacementsAttributePersistenceDeniedAttributes,
+} from '../../src/Rokt-Kit';
 import { Batch } from '@mparticle/web-sdk/internal';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -6330,6 +6334,50 @@ describe('Rokt Forwarder', () => {
       const settingsString = 'not a valid JSON';
 
       expect((window as any).mParticle.forwarder.testHelpers.parseSettingsString(settingsString)).toEqual([]);
+    });
+  });
+
+  describe('#isSelectPlacementsAttributePersistenceDenied', () => {
+    it('should identify denylisted attributes case-insensitively', () => {
+      expect(isSelectPlacementsAttributePersistenceDenied('confirmationref')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('confirmationRef')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('CONFIRMATIONREF')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('paymentServiceProvider')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('cartItems')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('conversionType')).toBe(true);
+    });
+
+    it('should return false for attributes that are not denylisted', () => {
+      expect(isSelectPlacementsAttributePersistenceDenied('loyaltyTier')).toBe(false);
+      expect(isSelectPlacementsAttributePersistenceDenied('favoriteStore')).toBe(false);
+    });
+  });
+
+  describe('#removeSelectPlacementsAttributePersistenceDeniedAttributes', () => {
+    it('should remove denylisted attributes case-insensitively', () => {
+      const attributes = {
+        confirmationRef: 'previous-order',
+        PaymentServiceProvider: 'test-provider',
+        cartItems: [{ sku: 'test-sku' }],
+        conversionType: 'purchase',
+        loyaltyTier: 'gold',
+      };
+
+      expect(removeSelectPlacementsAttributePersistenceDeniedAttributes(attributes)).toEqual({
+        loyaltyTier: 'gold',
+      });
+      expect(attributes).toEqual({
+        confirmationRef: 'previous-order',
+        PaymentServiceProvider: 'test-provider',
+        cartItems: [{ sku: 'test-sku' }],
+        conversionType: 'purchase',
+        loyaltyTier: 'gold',
+      });
+    });
+
+    it('should return an empty object for null or undefined attributes', () => {
+      expect(removeSelectPlacementsAttributePersistenceDeniedAttributes(null)).toEqual({});
+      expect(removeSelectPlacementsAttributePersistenceDeniedAttributes(undefined)).toEqual({});
     });
   });
 
