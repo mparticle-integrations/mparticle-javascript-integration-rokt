@@ -249,6 +249,7 @@ const SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_LIST = [
   'cartitems',
   'ccbin',
   'confirmationref',
+  'conversiontype',
   'country',
   'couponcode',
   'currency',

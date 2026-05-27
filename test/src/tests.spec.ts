@@ -1109,6 +1109,7 @@ describe('Rokt Forwarder', () => {
           null,
           {
             confirmationRef: 'previous-order',
+            conversionType: 'purchase',
             PaymentServiceProviderAttribute: 'cached-provider',
             totalPrice: '10.00',
             couponCode: 'SAVE10',
@@ -1156,6 +1157,7 @@ describe('Rokt Forwarder', () => {
           identifier: 'test-placement',
           attributes: {
             confirmationRef: 'current-order',
+            conversionType: 'purchase',
             paymentServiceProviderAttribute: 'current-provider',
             totalPrice: '10.00',
             couponCode: 'SAVE10',
@@ -1170,6 +1172,7 @@ describe('Rokt Forwarder', () => {
           attributes: {
             loyaltyTier: 'gold',
             confirmationRef: 'current-order',
+            conversionType: 'purchase',
             paymentServiceProviderAttribute: 'current-provider',
             totalPrice: '10.00',
             couponCode: 'SAVE10',
@@ -3112,6 +3115,7 @@ describe('Rokt Forwarder', () => {
         getAllUserAttributes: function () {
           return {
             confirmationRef: 'previous-order',
+            conversionType: 'purchase',
             currency: 'USD',
             paymentServiceProvider: 'test-provider',
             'test-attribute': 'test-value',
