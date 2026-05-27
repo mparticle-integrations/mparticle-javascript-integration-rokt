@@ -1,3 +1,15 @@
+# [1.27.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.26.3...v1.27.0) (2026-05-27)
+
+
+### Bug Fixes
+
+* prevent cached commerce attributes in Rokt placements ([#100](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/100)) ([7c59fc5](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/7c59fc503cdb5938854e031ea1f0cfb06d09de03))
+
+
+### Features
+
+* enrich commerce event action from Rokt.CommerceEventType ([#97](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/97)) ([1535005](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/153500530c70f098b61999abcb5675152fb0ceaa))
+
 ## [1.26.3](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.26.2...v1.26.3) (2026-05-26)
 
 
