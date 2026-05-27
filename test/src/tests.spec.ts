@@ -5809,6 +5809,8 @@ describe('Rokt Forwarder', () => {
       expect(pending.length).toBe(1);
       expect(pending[0].event_type).toBe('login');
       expect(pending[0].data.timestamp_unixtime_ms).toBeTypeOf('number');
+      expect(pending[0].data.user_identities).toEqual({});
+      expect(pending[0].data.user_attributes).toEqual({});
     });
 
     it('should add an identity event to pendingIdentityEvents on onLogoutComplete', () => {
@@ -5824,6 +5826,8 @@ describe('Rokt Forwarder', () => {
       expect(pending.length).toBe(1);
       expect(pending[0].event_type).toBe('logout');
       expect(pending[0].data.timestamp_unixtime_ms).toBeTypeOf('number');
+      expect(pending[0].data.user_identities).toEqual({});
+      expect(pending[0].data.user_attributes).toEqual({});
     });
 
     it('should add identity events to pendingIdentityEvents on onModifyComplete and onUserIdentified', () => {
@@ -5840,6 +5844,104 @@ describe('Rokt Forwarder', () => {
       expect(pending.length).toBe(2);
       expect(pending[0].event_type).toBe('modify_user');
       expect(pending[1].event_type).toBe('identify');
+    });
+
+    it('should include user_identities inside data of the identity event payload', () => {
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({
+          userIdentities: {
+            email: 'user@example.com',
+            customerid: 'cust-456',
+          },
+        }),
+      };
+
+      (window as any).mParticle.forwarder.onLoginComplete(mockUser, null);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(1);
+      expect(pending[0].data.user_identities).toEqual({
+        email: 'user@example.com',
+        customerid: 'cust-456',
+      });
+    });
+
+    it('should apply emailsha256 mapping to user_identities inside data of the identity event payload', () => {
+      (window as any).mParticle.forwarder._mappedEmailSha256Key = 'other';
+
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({
+          userIdentities: {
+            customerid: 'cust-789',
+            other: 'abc123hashedemail',
+          },
+        }),
+      };
+
+      (window as any).mParticle.forwarder.onLoginComplete(mockUser, null);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(1);
+      expect(pending[0].data.user_identities).toEqual({
+        customerid: 'cust-789',
+        emailsha256: 'abc123hashedemail',
+      });
+      expect(pending[0].data.user_identities.other).toBeUndefined();
+    });
+
+    it('should include user_attributes inside data of the identity event payload', () => {
+      const mockUser = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({ plan: 'premium', region: 'us' }),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onLoginComplete(mockUser, null);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(1);
+      expect(pending[0].data.user_attributes).toEqual({ plan: 'premium', region: 'us' });
+    });
+
+    it('should snapshot user_attributes from the user at event build time', () => {
+      const mockUserAtLogin = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({ role: 'admin' }),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+      const mockUserAtModify = {
+        getMPID: () => '123',
+        getAllUserAttributes: () => ({ role: 'viewer' }),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onLoginComplete(mockUserAtLogin, null);
+      (window as any).mParticle.forwarder.onModifyComplete(mockUserAtModify, null);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(2);
+      expect(pending[0].data.user_attributes).toEqual({ role: 'admin' });
+      expect(pending[1].data.user_attributes).toEqual({ role: 'viewer' });
+    });
+
+    it('should include empty user_attributes inside data on logout for an anonymous session', () => {
+      const anonymousUser = {
+        getMPID: () => '-1234567890',
+        getAllUserAttributes: () => ({}),
+        getUserIdentities: () => ({ userIdentities: {} }),
+      };
+
+      (window as any).mParticle.forwarder.onLogoutComplete(anonymousUser, null);
+
+      const pending = (window as any).mParticle.forwarder.pendingIdentityEvents;
+      expect(pending.length).toBe(1);
+      expect(pending[0].event_type).toBe('logout');
+      expect(pending[0].data.user_identities).toEqual({});
+      expect(pending[0].data.user_attributes).toEqual({});
     });
 
     it('should merge pendingIdentityEvents into the outgoing batch and clear the queue', async () => {
@@ -5867,6 +5969,8 @@ describe('Rokt Forwarder', () => {
       expect(receivedBatches[0].events.length).toBe(2);
       expect(receivedBatches[0].events[1].event_type).toBe('login');
       expect(receivedBatches[0].events[1].data.timestamp_unixtime_ms).toBeTypeOf('number');
+      expect(receivedBatches[0].events[1].data.user_identities).toEqual({});
+      expect(receivedBatches[0].events[1].data.user_attributes).toEqual({});
       // Queue should be cleared after flush
       expect((window as any).mParticle.forwarder.pendingIdentityEvents.length).toBe(0);
     });

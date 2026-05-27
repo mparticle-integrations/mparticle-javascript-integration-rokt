@@ -884,6 +884,7 @@ class RoktKit implements KitInterface {
       mp() && mp().sessionManager && typeof mp().sessionManager!.getSession === 'function'
         ? mp().sessionManager!.getSession()
         : undefined;
+    const userIdentities = this.returnUserIdentities(filteredUser);
 
     return {
       event_type: eventType,
@@ -891,6 +892,8 @@ class RoktKit implements KitInterface {
         timestamp_unixtime_ms: Date.now(),
         session_uuid: sessionUuid ?? undefined,
         mpid,
+        user_identities: userIdentities,
+        user_attributes: this.userAttributes,
       },
     } as unknown as BaseEvent;
   }
