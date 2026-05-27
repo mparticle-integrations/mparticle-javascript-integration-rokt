@@ -1,3 +1,10 @@
+# [1.28.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.27.0...v1.28.0) (2026-05-27)
+
+
+### Features
+
+* include identity info in pseudo identity event payloads ([#95](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/95)) ([2f2793b](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/2f2793b5b4f95584589eac902aacb41e33f41031))
+
 # [1.27.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.26.3...v1.27.0) (2026-05-27)
 
 
