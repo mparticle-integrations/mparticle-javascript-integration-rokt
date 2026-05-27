@@ -135,7 +135,7 @@ function f(n) {
   return typeof n == "string";
 }
 function ce(n) {
-  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.27.0";
+  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.28.0";
   return n && (i += "_" + n), i;
 }
 function Q(n) {
@@ -322,13 +322,15 @@ const h = class h {
     a().logEvent(J, t, e);
   }
   buildIdentityEvent(e, t) {
-    const i = t.getMPID(), r = a() && a().sessionManager && typeof a().sessionManager.getSession == "function" ? a().sessionManager.getSession() : void 0;
+    const i = t.getMPID(), r = a() && a().sessionManager && typeof a().sessionManager.getSession == "function" ? a().sessionManager.getSession() : void 0, s = this.returnUserIdentities(t);
     return {
       event_type: e,
       data: {
         timestamp_unixtime_ms: Date.now(),
         session_uuid: r ?? void 0,
-        mpid: i
+        mpid: i,
+        user_identities: s,
+        user_attributes: this.userAttributes
       }
     };
   }
