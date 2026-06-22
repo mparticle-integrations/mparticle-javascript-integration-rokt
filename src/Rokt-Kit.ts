@@ -16,11 +16,9 @@
 // Types
 // ============================================================
 
-import { Batch, KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sdk/internal';
+import { KitInterface, IMParticleUser, SDKEvent } from '@mparticle/web-sdk/internal';
 import type { IUserIdentities } from '@mparticle/web-sdk';
 
-// BaseEvent not re-exported from @mparticle/web-sdk/internal, so we import directly from @mparticle/event-models.
-import { BaseEvent, CommerceEvent } from '@mparticle/event-models';
 import {
   isSelectPlacementsAttributePersistenceDenied,
   removeSelectPlacementsAttributePersistenceDeniedAttributes,
@@ -81,7 +79,6 @@ interface RoktGlobal {
   createLauncher(options: Record<string, unknown>): Promise<RoktLauncher>;
   createLocalLauncher(options: Record<string, unknown>): RoktLauncher;
   currentLauncher?: RoktLauncher;
-  __batch_stream__?(batch: Batch): void;
   setExtensionData(data: Record<string, unknown>): void;
 }
 
@@ -234,12 +231,6 @@ const moduleId = 181;
 const EVENT_NAME_SELECT_PLACEMENTS = 'selectPlacements';
 const ADBLOCK_CONTROL_DOMAIN = 'apps.roktecommerce.com';
 const INIT_LOG_SAMPLING_RATE = 0.1;
-const ROKT_IDENTITY_EVENT_TYPE = {
-  LOGIN: 'login',
-  LOGOUT: 'logout',
-  MODIFY_USER: 'modify_user',
-  IDENTIFY: 'identify',
-} as const;
 const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
@@ -250,8 +241,6 @@ const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 // Long enough to cover the typical /v1/search round-trip (~50ms); short enough that a
 // stalled search never blocks placement rendering on a thank-you page.
 const WORKSPACE_SEARCH_SELECT_TIMEOUT_MS = 500;
-
-type RoktIdentityEventType = (typeof ROKT_IDENTITY_EVENT_TYPE)[keyof typeof ROKT_IDENTITY_EVENT_TYPE];
 
 // ============================================================
 // Reporting service constants
@@ -705,9 +694,6 @@ class RoktKit implements KitInterface {
   public testHelpers: TestHelpers | null = null;
   public placementEventMappingLookup: Record<string, string> = {};
   public placementEventAttributeMappingLookup: Record<string, PlacementEventRule[]> = {};
-  public batchQueue: Batch[] = [];
-  public batchStreamQueue: Batch[] = [];
-  public pendingIdentityEvents: BaseEvent[] = [];
   public integrationName: string | null = null;
   public domain?: string;
   public errorReportingService: ErrorReportingService | null = null;
@@ -878,88 +864,6 @@ class RoktKit implements KitInterface {
     mp().logEvent(EVENT_NAME_SELECT_PLACEMENTS, EVENT_TYPE_OTHER, attributes as Record<string, unknown>);
   }
 
-  private buildIdentityEvent(eventType: RoktIdentityEventType, filteredUser: FilteredUser): BaseEvent {
-    const mpid = filteredUser.getMPID();
-    const sessionUuid =
-      mp() && mp().sessionManager && typeof mp().sessionManager!.getSession === 'function'
-        ? mp().sessionManager!.getSession()
-        : undefined;
-    const userIdentities = this.returnUserIdentities(filteredUser);
-
-    return {
-      event_type: eventType,
-      data: {
-        timestamp_unixtime_ms: Date.now(),
-        session_uuid: sessionUuid ?? undefined,
-        mpid,
-        user_identities: userIdentities,
-        user_attributes: this.userAttributes,
-      },
-    } as unknown as BaseEvent;
-  }
-
-  private mergePendingIdentityEvents(batch: Batch): Batch {
-    if (this.pendingIdentityEvents.length === 0) {
-      return batch;
-    }
-    const merged: Batch = {
-      ...batch,
-      events: [...(batch.events ?? []), ...this.pendingIdentityEvents],
-    };
-    this.pendingIdentityEvents = [];
-    return merged;
-  }
-
-  private drainBatchQueue(): void {
-    this.batchQueue.forEach((batch) => {
-      this.processBatch(batch);
-    });
-    this.batchQueue = [];
-  }
-
-  public processBatch(batch: Batch): string {
-    if (!this.isKitReady()) {
-      this.batchQueue.push(batch);
-      return 'Batch queued for forwarder: ' + name;
-    }
-    const enrichedBatch = this.enrichCommerceEventTypes(this.mergePendingIdentityEvents(batch));
-    this.sendBatchStream(enrichedBatch);
-    return 'Successfully sent batch to forwarder: ' + name;
-  }
-
-  private enrichCommerceEventTypes(batch: Batch): Batch {
-    if (!batch.events) {
-      return batch;
-    }
-    for (const event of batch.events) {
-      if (event.event_type !== 'commerce_event') continue;
-
-      const { data } = event as CommerceEvent;
-      if (!data) continue;
-
-      const commerceType = data.custom_flags?.['Rokt.CommerceEventType'];
-      if (commerceType && isObject(data.product_action)) {
-        (data.product_action as { action: string }).action = commerceType;
-      }
-    }
-    return batch;
-  }
-
-  private sendBatchStream(batch: Batch): void {
-    if (window.Rokt && typeof window.Rokt.__batch_stream__ === 'function') {
-      if (this.batchStreamQueue.length) {
-        const queuedBatches = this.batchStreamQueue;
-        this.batchStreamQueue = [];
-        for (let i = 0; i < queuedBatches.length; i++) {
-          window.Rokt.__batch_stream__(queuedBatches[i]);
-        }
-      }
-      window.Rokt.__batch_stream__(batch);
-    } else {
-      this.batchStreamQueue.push(batch);
-    }
-  }
-
   private setRoktSessionId(sessionId: string): void {
     if (!sessionId || typeof sessionId !== 'string') {
       return;
@@ -1037,7 +941,6 @@ class RoktKit implements KitInterface {
 
     // Attaches the kit to the Rokt manager
     mp().Rokt.attachKit(this);
-    this.drainBatchQueue();
   }
 
   private fetchOptimizely(): Record<string, unknown> {
@@ -1263,10 +1166,8 @@ class RoktKit implements KitInterface {
     return 'Successfully removed user attribute for forwarder: ' + name;
   }
 
-  private handleIdentityComplete(user: IMParticleUser, eventType: RoktIdentityEventType, callbackName: string): string {
-    const filteredUser = user as FilteredUser;
+  private handleIdentityComplete(user: IMParticleUser, callbackName: string): string {
     this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(user.getAllUserAttributes());
-    this.pendingIdentityEvents.push(this.buildIdentityEvent(eventType, filteredUser));
     return 'Successfully called ' + callbackName + ' for forwarder: ' + name;
   }
 
@@ -1274,7 +1175,7 @@ class RoktKit implements KitInterface {
     const filteredUser = user as FilteredUser;
     this.filters.filteredUser = filteredUser;
     this._workspaceSearchInFlightPromise = this.search(filteredUser);
-    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.IDENTIFY, 'onUserIdentified');
+    return this.handleIdentityComplete(user, 'onUserIdentified');
   }
 
   private search(filteredUser: FilteredUser): Promise<void> {
@@ -1357,7 +1258,7 @@ class RoktKit implements KitInterface {
   }
 
   public onLoginComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGIN, 'onLoginComplete');
+    return this.handleIdentityComplete(user, 'onLoginComplete');
   }
 
   public onLogoutComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
@@ -1368,11 +1269,11 @@ class RoktKit implements KitInterface {
     this.userIdentifiedInWorkspace = false;
     this._workspaceSearchInFlightPromise = null;
     this._workspaceLastSearchedIdentitiesKey = undefined;
-    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.LOGOUT, 'onLogoutComplete');
+    return this.handleIdentityComplete(user, 'onLogoutComplete');
   }
 
   public onModifyComplete(user: IMParticleUser, _filteredIdentityRequest: unknown): string {
-    return this.handleIdentityComplete(user, ROKT_IDENTITY_EVENT_TYPE.MODIFY_USER, 'onModifyComplete');
+    return this.handleIdentityComplete(user, 'onModifyComplete');
   }
 
   /**
