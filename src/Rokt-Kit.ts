@@ -515,6 +515,23 @@ function _getUserAgent(): string | undefined {
   return typeof window !== 'undefined' ? window.navigator?.userAgent : undefined;
 }
 
+// Browser network-failure phrases (Chromium / WebKit / Firefox) raised when a request
+// never produces a readable response — including a rate-limited 429 whose response is
+// CORS-blocked or dropped. Reports describing such a failure must not be beaconed: doing
+// so emits another request that is itself rate-limited/blocked, feeding the same limit.
+const NETWORK_FAILURE_PATTERNS = [
+  'failed to fetch',
+  'load failed',
+  'networkerror when attempting to fetch resource',
+  'network request failed',
+];
+
+function _isNetworkFailureMessage(message: string | undefined): boolean {
+  if (!message) return false;
+  const normalized = message.toLowerCase();
+  return NETWORK_FAILURE_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
 class RateLimiter {
   private _logCount: Record<string, number> = {};
 
@@ -622,6 +639,12 @@ class ErrorReportingService {
 
   report(error: ErrorReport | null | undefined): void {
     if (!error) return;
+    // Drop reports that merely describe a transport/network failure of a prior request
+    // (e.g. an identity request that failed with "Failed to fetch", which is also how a
+    // rate-limited 429 surfaces). Beaconing these to /v1/errors emits another request
+    // that is itself rate-limited/blocked, feeding back into the same limit. Genuine
+    // application errors (different messages) are still reported.
+    if (_isNetworkFailureMessage(error.message)) return;
     const severity = error.severity || WSDKErrorSeverity.ERROR;
     this._transport.send(this._errorUrl, severity, error.message, error.code, error.stackTrace);
   }

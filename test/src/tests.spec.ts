@@ -6144,6 +6144,34 @@ describe('Rokt Forwarder', () => {
       expect(body.reporter).toBe('mp-wsdk');
     });
 
+    it.each([
+      'Error sending identity request to servers - Failed to fetch',
+      'Load failed',
+      'NetworkError when attempting to fetch resource.',
+    ])('should NOT beacon a transport/network-failure report: "%s" (no feedback loop)', (message) => {
+      const service = new ErrorReportingServiceClass(
+        { errorUrl: 'test.com/v1/errors', isLoggingEnabled: true },
+        '1.0.0',
+        'test-guid',
+      );
+      service.report({ message, code: ErrorCodesConst.UNKNOWN_ERROR, severity: WSDKErrorSeverityConst.ERROR });
+      expect(fetchCalls.length).toBe(0);
+    });
+
+    it('should still beacon a genuine application error (not a network failure)', () => {
+      const service = new ErrorReportingServiceClass(
+        { errorUrl: 'test.com/v1/errors', isLoggingEnabled: true },
+        '1.0.0',
+        'test-guid',
+      );
+      service.report({
+        message: 'Error sending identity request to servers - e.split is not a function',
+        code: ErrorCodesConst.UNKNOWN_ERROR,
+        severity: WSDKErrorSeverityConst.ERROR,
+      });
+      expect(fetchCalls.length).toBe(1);
+    });
+
     it('should send warning reports to the errors endpoint', () => {
       const service = new ErrorReportingServiceClass(
         { errorUrl: 'test.com/v1/errors', isLoggingEnabled: true },
