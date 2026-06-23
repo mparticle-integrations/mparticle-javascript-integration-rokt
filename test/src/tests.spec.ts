@@ -6338,14 +6338,14 @@ describe('Rokt Forwarder', () => {
       expect(body.additionalInformation.message).toBe('log entry');
     });
 
-    it('should report failure through ErrorReportingService on fetch error', async () => {
+    it('should NOT report failure as an error beacon on fetch error (fire-and-forget, no feedback loop)', async () => {
       const errorReports: any[] = [];
       const errorService = {
         report: (error: any) => {
           errorReports.push(error);
         },
       };
-      (window as any).fetch = () => Promise.reject(new Error('Network failure'));
+      (window as any).fetch = () => Promise.reject(new Error('Failed to fetch'));
       const originalConsoleError = console.error;
       console.error = () => {};
 
@@ -6353,9 +6353,9 @@ describe('Rokt Forwarder', () => {
       service.log({ message: 'test' });
 
       await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(errorReports.length).toBeGreaterThan(0);
-      expect(errorReports[0].severity).toBe('ERROR');
-      expect(errorReports[0].message).toContain('Failed to send log');
+      // A failed /v1/log send must not generate a /v1/errors beacon — otherwise a
+      // rate-limited log send amplifies into rate-limited error traffic.
+      expect(errorReports.length).toBe(0);
       console.error = originalConsoleError;
     });
 

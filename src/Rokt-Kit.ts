@@ -647,22 +647,12 @@ class LoggingService {
 
   log(entry: LogEntry | null | undefined): void {
     if (!entry) return;
-    this._transport.send(
-      this._loggingUrl,
-      WSDKErrorSeverity.INFO,
-      entry.message,
-      entry.code,
-      undefined,
-      (error: Error) => {
-        if (this._errorReportingService) {
-          this._errorReportingService.report({
-            message: 'LoggingService: Failed to send log: ' + error.message,
-            code: ErrorCodes.UNKNOWN_ERROR,
-            severity: WSDKErrorSeverity.ERROR,
-          });
-        }
-      },
-    );
+    // Fire-and-forget: a failed diagnostics-log send must NOT be re-reported as an
+    // error beacon. Doing so creates a feedback loop — when /v1/log is rate-limited,
+    // the 429 surfaces to fetch as "Failed to fetch", and reporting it would emit a
+    // /v1/errors beacon that is itself rate-limited, amplifying load at the log
+    // frequency. ReportingTransport already logs the failure to the console.
+    this._transport.send(this._loggingUrl, WSDKErrorSeverity.INFO, entry.message, entry.code);
   }
 }
 
