@@ -199,6 +199,13 @@ interface ErrorReport {
   stackTrace?: string;
 }
 
+// A log-delivery failure. statusCode is set when the request reached the server
+// and returned a non-2xx status (server-side); it is absent for network-level
+// failures such as ad-blockers, offline, or CORS rejections (client-side).
+interface DeliveryError extends Error {
+  statusCode?: number;
+}
+
 interface LogEntry {
   message: string;
   code?: string;
@@ -250,6 +257,7 @@ const ErrorCodes = {
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
   UNHANDLED_EXCEPTION: 'UNHANDLED_EXCEPTION',
   IDENTITY_REQUEST: 'IDENTITY_REQUEST',
+  LOG_DELIVERY_FAILURE: 'LOG_DELIVERY_FAILURE',
 } as const;
 
 const WSDKErrorSeverity = {
@@ -555,7 +563,7 @@ class ReportingTransport {
     msg: string,
     code?: string,
     stackTrace?: string,
-    onError?: (error: Error) => void,
+    onError?: (error: DeliveryError) => void,
   ): void {
     if (!this._isEnabled || this._rateLimiter.incrementAndCheck(severity)) {
       return;
@@ -594,13 +602,23 @@ class ReportingTransport {
         method: 'POST',
         headers,
         body: JSON.stringify(logRequest),
-      }).catch((error: Error) => {
-        console.error('ReportingTransport: Failed to send log', error);
-        if (onError) onError(error);
-      });
+      })
+        .then((response: Response) => {
+          // fetch only rejects on network failures; an HTTP 5xx resolves with
+          // ok === false. Surface server-side failures so they are not swallowed.
+          if (!response.ok) {
+            const serverError: DeliveryError = new Error('HTTP ' + response.status + ' from log endpoint');
+            serverError.statusCode = response.status;
+            throw serverError;
+          }
+        })
+        .catch((error: DeliveryError) => {
+          console.error('ReportingTransport: Failed to send log', error);
+          if (onError) onError(error);
+        });
     } catch (error) {
       console.error('ReportingTransport: Failed to send log', error);
-      if (onError) onError(error as Error);
+      if (onError) onError(error as DeliveryError);
     }
   }
 }
@@ -653,12 +671,16 @@ class LoggingService {
       entry.message,
       entry.code,
       undefined,
-      (error: Error) => {
+      (error: DeliveryError) => {
         if (this._errorReportingService) {
+          // A failed log POST is not itself an SDK error. Network-level failures
+          // (ad-blockers, offline, CORS) are client-side noise and reported as a
+          // WARNING; only a server-side non-2xx response stays at ERROR severity.
+          const isServerSide = typeof error.statusCode === 'number';
           this._errorReportingService.report({
             message: 'LoggingService: Failed to send log: ' + error.message,
-            code: ErrorCodes.UNKNOWN_ERROR,
-            severity: WSDKErrorSeverity.ERROR,
+            code: ErrorCodes.LOG_DELIVERY_FAILURE,
+            severity: isServerSide ? WSDKErrorSeverity.ERROR : WSDKErrorSeverity.WARNING,
           });
         }
       },

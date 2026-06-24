@@ -6298,6 +6298,23 @@ describe('Rokt Forwarder', () => {
       console.error = originalConsoleError;
     });
 
+    it('should surface a server-side 5xx response that fetch does not reject', async () => {
+      (window as any).fetch = () => Promise.resolve({ ok: false, status: 500 });
+      const consoleErrors: any[][] = [];
+      const originalConsoleError = console.error;
+      console.error = (...args: any[]) => {
+        consoleErrors.push(args);
+      };
+
+      const service = new ErrorReportingServiceClass({ isLoggingEnabled: true }, '1.0.0', 'test-guid');
+      service.report({ message: 'test', severity: WSDKErrorSeverityConst.ERROR });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(consoleErrors.length).toBeGreaterThan(0);
+      expect(consoleErrors[0][0]).toBe('ReportingTransport: Failed to send log');
+      console.error = originalConsoleError;
+    });
+
     it('should not send when report is called with null', () => {
       const service = new ErrorReportingServiceClass({ isLoggingEnabled: true }, '1.0.0', 'test-guid');
       service.report(null);
@@ -6338,7 +6355,7 @@ describe('Rokt Forwarder', () => {
       expect(body.additionalInformation.message).toBe('log entry');
     });
 
-    it('should report failure through ErrorReportingService on fetch error', async () => {
+    it('should report a network failure as a WARNING-level LOG_DELIVERY_FAILURE', async () => {
       const errorReports: any[] = [];
       const errorService = {
         report: (error: any) => {
@@ -6354,8 +6371,31 @@ describe('Rokt Forwarder', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(errorReports.length).toBeGreaterThan(0);
-      expect(errorReports[0].severity).toBe('ERROR');
+      expect(errorReports[0].severity).toBe('WARNING');
+      expect(errorReports[0].code).toBe('LOG_DELIVERY_FAILURE');
       expect(errorReports[0].message).toContain('Failed to send log');
+      console.error = originalConsoleError;
+    });
+
+    it('should report a server-side 5xx as an ERROR-level LOG_DELIVERY_FAILURE', async () => {
+      const errorReports: any[] = [];
+      const errorService = {
+        report: (error: any) => {
+          errorReports.push(error);
+        },
+      };
+      (window as any).fetch = () => Promise.resolve({ ok: false, status: 503 });
+      const originalConsoleError = console.error;
+      console.error = () => {};
+
+      const service = new LoggingServiceClass({ isLoggingEnabled: true }, errorService, '1.0.0', 'test-guid');
+      service.log({ message: 'test' });
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(errorReports.length).toBeGreaterThan(0);
+      expect(errorReports[0].severity).toBe('ERROR');
+      expect(errorReports[0].code).toBe('LOG_DELIVERY_FAILURE');
+      expect(errorReports[0].message).toContain('503');
       console.error = originalConsoleError;
     });
 
