@@ -1,3 +1,10 @@
+## [1.28.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.28.1...v1.28.2) (2026-06-25)
+
+
+### Bug Fixes
+
+* classify log-delivery failures instead of reporting them as errors ([#104](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/104)) ([cec8445](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/cec8445160899b61f493c58413449ca62409171f))
+
 ## [1.28.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.28.0...v1.28.1) (2026-06-22)
 
 # [1.28.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.27.0...v1.28.0) (2026-05-27)
