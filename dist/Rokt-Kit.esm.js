@@ -23,22 +23,23 @@ const q = [
   "shippingzipcode",
   "totalprice"
 ], B = new Set(q);
-function z(n) {
+function G(n) {
   return B.has(n.toLowerCase());
 }
-function S(n) {
+function w(n) {
   const e = {}, t = n || {}, i = Object.keys(t);
   for (let r = 0; r < i.length; r++) {
     const s = i[r];
-    z(s) || (e[s] = t[s]);
+    G(s) || (e[s] = t[s]);
   }
   return e;
 }
-const d = "Rokt", w = 181, J = "selectPlacements", Q = "apps.roktecommerce.com", X = 0.1, $ = "ThankYouPageJourney", Z = "rokt-launcher", ee = "rokt-thank-you-element", te = "userIdentifiedInWorkspace", ie = 500, O = {
+const d = "Rokt", L = 181, J = "selectPlacements", Q = "apps.roktecommerce.com", X = 0.1, $ = "ThankYouPageJourney", Z = "rokt-launcher", ee = "rokt-thank-you-element", te = "userIdentifiedInWorkspace", ie = 500, N = {
   UNKNOWN_ERROR: "UNKNOWN_ERROR",
   UNHANDLED_EXCEPTION: "UNHANDLED_EXCEPTION",
-  IDENTITY_REQUEST: "IDENTITY_REQUEST"
-}, L = {
+  IDENTITY_REQUEST: "IDENTITY_REQUEST",
+  LOG_DELIVERY_FAILURE: "LOG_DELIVERY_FAILURE"
+}, I = {
   ERROR: "ERROR",
   INFO: "INFO",
   WARNING: "WARNING"
@@ -47,13 +48,13 @@ function a() {
   return window.mParticle;
 }
 function C(n, e) {
-  const i = [W(n), "/wsdk/integrations/launcher.js"].join("");
+  const i = [z(n), "/wsdk/integrations/launcher.js"].join("");
   return !e || e.length === 0 ? i : i + "?extensions=" + e.join(",");
 }
 function U(n) {
-  return [W(n), "/rokt-elements/rokt-element-thank-you.js"].join("");
+  return [z(n), "/rokt-elements/rokt-element-thank-you.js"].join("");
 }
-function W(n) {
+function z(n) {
   return ["https://", typeof n < "u" ? n : "apps.rokt-api.com"].join("");
 }
 function K(n, e, t) {
@@ -94,7 +95,7 @@ async function oe(n, e) {
       t.push(e.use(i));
   return Promise.all(t);
 }
-function x(n) {
+function D(n) {
   if (!n)
     return {};
   const e = {};
@@ -104,13 +105,13 @@ function x(n) {
   }
   return e;
 }
-function D(n) {
+function x(n) {
   const e = {};
   if (!Array.isArray(n))
     return e;
   for (let t = 0; t < n.length; t++) {
     const i = n[t];
-    if (!i || !f(i.value) || !f(i.map))
+    if (!i || !m(i.value) || !m(i.map))
       continue;
     const r = i.value, s = i.map;
     e[r] || (e[r] = []), e[r].push({
@@ -120,26 +121,26 @@ function D(n) {
   }
   return e;
 }
-function j(n, e, t) {
+function Y(n, e, t) {
   return a().generateHash([n, e, t].join(""));
 }
 function k(n) {
   return n == null ? !0 : typeof n == "object" ? Object.keys(n).length === 0 : Array.isArray(n) ? n.length === 0 : !1;
 }
-function f(n) {
+function m(n) {
   return typeof n == "string";
 }
 function ae(n) {
-  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.28.1";
+  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.28.2";
   return n && (i += "_" + n), i;
 }
-function G(n) {
+function W(n) {
   let e = 5381;
   for (let t = 0; t < n.length; t++)
     e = (e << 5) + e + n.charCodeAt(t), e = e & e;
   return e;
 }
-function N(n) {
+function O(n) {
   const e = document.createElement("iframe");
   e.style.display = "none", e.setAttribute("sandbox", "allow-scripts allow-same-origin"), e.src = n, e.onload = function() {
     e.onload = null, e.parentNode && e.parentNode.removeChild(e);
@@ -147,15 +148,15 @@ function N(n) {
   const t = document.body || document.head;
   t && t.appendChild(e);
 }
-function Y(n, e) {
-  const t = G(window.location.origin);
-  if (m._allowedOriginHashes.indexOf(t) === -1 || Math.random() >= X)
+function F(n, e) {
+  const t = W(window.location.origin);
+  if (E._allowedOriginHashes.indexOf(t) === -1 || Math.random() >= X)
     return;
   const r = window.__rokt_li_guid__;
   if (!r)
     return;
   const s = window.location.href.split("?")[0].split("#")[0], o = "version=" + encodeURIComponent(e ?? "") + "&launcherInstanceGuid=" + encodeURIComponent(r) + "&pageUrl=" + encodeURIComponent(s);
-  N("https://" + (n || "apps.rokt.com") + "/v1/wsdk-init/index.html?" + o), N(
+  O("https://" + (n || "apps.rokt.com") + "/v1/wsdk-init/index.html?" + o), O(
     "https://" + Q + "/v1/wsdk-init/index.html?" + o + "&isControl=true"
   );
 }
@@ -192,7 +193,7 @@ class P {
             version: this._integrationName
           },
           severity: t,
-          code: r || O.UNKNOWN_ERROR,
+          code: r || N.UNKNOWN_ERROR,
           url: le(),
           deviceInfo: ue(),
           stackTrace: s,
@@ -208,6 +209,11 @@ class P {
           method: "POST",
           headers: u,
           body: JSON.stringify(c)
+        }).then((l) => {
+          if (!l.ok) {
+            const h = new Error("HTTP " + l.status + " from log endpoint");
+            throw h.statusCode = l.status, h;
+          }
         }).catch((l) => {
           console.error("ReportingTransport: Failed to send log", l), o && o(l);
         });
@@ -216,13 +222,13 @@ class P {
       }
   }
 }
-class F {
+class j {
   constructor(e, t, i, r, s) {
     this._transport = new P(e, t, i, r, s), this._errorUrl = "https://" + (e?.errorUrl || re);
   }
   report(e) {
     if (!e) return;
-    const t = e.severity || L.ERROR;
+    const t = e.severity || I.ERROR;
     this._transport.send(this._errorUrl, t, e.message, e.code, e.stackTrace);
   }
 }
@@ -233,23 +239,26 @@ class H {
   log(e) {
     e && this._transport.send(
       this._loggingUrl,
-      L.INFO,
+      I.INFO,
       e.message,
       e.code,
       void 0,
       (t) => {
-        this._errorReportingService && this._errorReportingService.report({
-          message: "LoggingService: Failed to send log: " + t.message,
-          code: O.UNKNOWN_ERROR,
-          severity: L.ERROR
-        });
+        if (this._errorReportingService) {
+          const i = typeof t.statusCode == "number";
+          this._errorReportingService.report({
+            message: "LoggingService: Failed to send log: " + t.message,
+            code: N.LOG_DELIVERY_FAILURE,
+            severity: i ? I.ERROR : I.WARNING
+          });
+        }
       }
     );
   }
 }
-const h = class h {
+const p = class p {
   constructor() {
-    this.name = d, this.id = w, this.moduleId = w, this.isInitialized = !1, this.launcher = null, this.filters = {}, this.userAttributes = {}, this.userIdentifiedInWorkspace = !1, this.testHelpers = null, this.placementEventMappingLookup = {}, this.placementEventAttributeMappingLookup = {}, this.integrationName = null, this.errorReportingService = null, this.loggingService = null, this._thankYouElementOnLoadCallback = null, this._isThankYouElementLoaded = !1, this._workspaceSearchInFlightPromise = null;
+    this.name = d, this.id = L, this.moduleId = L, this.isInitialized = !1, this.launcher = null, this.filters = {}, this.userAttributes = {}, this.userIdentifiedInWorkspace = !1, this.testHelpers = null, this.placementEventMappingLookup = {}, this.placementEventAttributeMappingLookup = {}, this.integrationName = null, this.errorReportingService = null, this.loggingService = null, this._thankYouElementOnLoadCallback = null, this._isThankYouElementLoaded = !1, this._workspaceSearchInFlightPromise = null;
   }
   // ---- Private helpers ----
   getEventAttributeValue(e, t) {
@@ -257,13 +266,13 @@ const h = class h {
     return !i || typeof i[t] > "u" ? null : i[t];
   }
   doesEventAttributeConditionMatch(e, t) {
-    if (!e || !f(e.operator))
+    if (!e || !m(e.operator))
       return !1;
     const i = e.operator.toLowerCase(), r = e.attributeValue;
     return i === "exists" ? t !== null : t == null ? !1 : i === "equals" ? String(t) === String(r) : i === "contains" ? String(t).indexOf(String(r)) !== -1 : !1;
   }
   doesEventMatchRule(e, t) {
-    if (!t || !f(t.eventAttributeKey))
+    if (!t || !m(t.eventAttributeKey))
       return !1;
     const i = t.conditions;
     if (!Array.isArray(i))
@@ -308,7 +317,7 @@ const h = class h {
   }
   replaceOtherIdentityWithEmailsha256(e) {
     const t = { ...e || {} }, i = this._mappedEmailSha256Key;
-    return i && e[i] && (t[h.EMAIL_SHA256_KEY] = e[i]), i && delete t[i], t;
+    return i && e[i] && (t[p.EMAIL_SHA256_KEY] = e[i]), i && delete t[i], t;
   }
   logSelectPlacementsEvent(e) {
     if (!window.mParticle || typeof a().logEvent != "function" || !T(e))
@@ -320,7 +329,7 @@ const h = class h {
     if (!(!e || typeof e != "string"))
       try {
         const t = a().getInstance();
-        t && typeof t.setIntegrationAttribute == "function" && t.setIntegrationAttribute(w, {
+        t && typeof t.setIntegrationAttribute == "function" && t.setIntegrationAttribute(L, {
           roktSessionId: e
         });
       } catch {
@@ -342,7 +351,7 @@ const h = class h {
   initRoktLauncher(e) {
     window.Rokt && (window.Rokt.currentLauncher = e), this.launcher = e;
     const t = a().Rokt?.filters;
-    t ? (this.filters = t, t.filteredUser ? this._workspaceSearchInFlightPromise = this.search(t.filteredUser) : console.warn("Rokt Kit: No filtered user has been set.")) : console.warn("Rokt Kit: No filters have been set."), this.isInitialized = !0, Y(this.domain, this.integrationName), a().Rokt.attachKit(this);
+    t ? (this.filters = t, t.filteredUser ? this._workspaceSearchInFlightPromise = this.search(t.filteredUser) : console.warn("Rokt Kit: No filtered user has been set.")) : console.warn("Rokt Kit: No filters have been set."), this.isInitialized = !0, F(this.domain, this.integrationName), a().Rokt.attachKit(this);
   }
   fetchOptimizely() {
     const e = a()._getActiveForwarders().filter((t) => t.name === "Optimizely");
@@ -374,76 +383,76 @@ const h = class h {
    */
   init(e, t, i, r, s) {
     const o = e, c = o.accountId;
-    this.userAttributes = S(s), this._onboardingExpProvider = o.onboardingExpProvider;
+    this.userAttributes = w(s), this._onboardingExpProvider = o.onboardingExpProvider;
     const u = b(o.placementEventMapping);
-    this.placementEventMappingLookup = x(u);
+    this.placementEventMappingLookup = D(u);
     const l = b(
       o.placementEventAttributeMapping
     );
-    this.placementEventAttributeMappingLookup = D(l), o.hashedEmailUserIdentityType && (this._mappedEmailSha256Key = o.hashedEmailUserIdentityType.toLowerCase()), this._workspaceIdSyncApiKey = f(o.workspaceIdSyncApiKey) ? o.workspaceIdSyncApiKey : void 0;
-    const E = a().Rokt?.domain, { roktExtensionsQueryParams: v, legacyRoktExtensions: I, loadThankYouElement: R } = M(
+    this.placementEventAttributeMappingLookup = x(l), o.hashedEmailUserIdentityType && (this._mappedEmailSha256Key = o.hashedEmailUserIdentityType.toLowerCase()), this._workspaceIdSyncApiKey = m(o.workspaceIdSyncApiKey) ? o.workspaceIdSyncApiKey : void 0;
+    const h = a().Rokt?.domain, { roktExtensionsQueryParams: v, legacyRoktExtensions: R, loadThankYouElement: A } = M(
       o.roktExtensions
-    ), p = {
+    ), g = {
       ...a().Rokt?.launcherOptions || {}
     };
-    this.integrationName = ae(p.integrationName), p.integrationName = this.integrationName, this.domain = E;
+    this.integrationName = ae(g.integrationName), g.integrationName = this.integrationName, this.domain = h;
     const _ = {
       loggingUrl: o.loggingUrl,
       errorUrl: o.errorUrl,
       isLoggingEnabled: a().config?.isLoggingEnabled === !0
-    }, y = new F(
+    }, y = new j(
       _,
       this.integrationName,
       window.__rokt_li_guid__,
       o.accountId
-    ), A = new H(
+    ), S = new H(
       _,
       y,
       this.integrationName,
       window.__rokt_li_guid__,
       o.accountId
     );
-    return this.errorReportingService = y, this.loggingService = A, a()._registerErrorReportingService && a()._registerErrorReportingService(y), a()._registerLoggingService && a()._registerLoggingService(A), i ? (this.testHelpers = {
+    return this.errorReportingService = y, this.loggingService = S, a()._registerErrorReportingService && a()._registerErrorReportingService(y), a()._registerLoggingService && a()._registerLoggingService(S), i ? (this.testHelpers = {
       generateLauncherScript: C,
       generateThankYouElementScript: U,
       extractRoktExtensionConfig: M,
-      hashEventMessage: j,
+      hashEventMessage: Y,
       parseSettingsString: b,
-      generateMappedEventLookup: x,
-      generateMappedEventAttributeLookup: D,
-      sendAdBlockMeasurementSignals: Y,
-      createAutoRemovedIframe: N,
-      djb2: G,
-      setAllowedOriginHashes: (g) => {
-        h._allowedOriginHashes = g;
+      generateMappedEventLookup: D,
+      generateMappedEventAttributeLookup: x,
+      sendAdBlockMeasurementSignals: F,
+      createAutoRemovedIframe: O,
+      djb2: W,
+      setAllowedOriginHashes: (f) => {
+        p._allowedOriginHashes = f;
       },
       ReportingTransport: P,
-      ErrorReportingService: F,
+      ErrorReportingService: j,
       LoggingService: H,
       RateLimiter: V,
-      ErrorCodes: O,
-      WSDKErrorSeverity: L
-    }, this.attachLauncher(c, p), "Successfully initialized: " + d) : (R && (a().Rokt.flushOnShoppableAdsReadyMessageQueue?.(this), K(ee, U(E), {
+      ErrorCodes: N,
+      WSDKErrorSeverity: I
+    }, this.attachLauncher(c, g), "Successfully initialized: " + d) : (A && (a().Rokt.flushOnShoppableAdsReadyMessageQueue?.(this), K(ee, U(h), {
       onLoad: () => {
         this._isThankYouElementLoaded = !0, this._thankYouElementOnLoadCallback && this._thankYouElementOnLoadCallback();
       },
-      onError: (g) => {
-        console.error("Error loading Rokt Thank You Element script:", g);
+      onError: (f) => {
+        console.error("Error loading Rokt Thank You Element script:", f);
       }
-    })), this.isLauncherReadyToAttach() ? this.attachLauncher(c, p, I) : (K(Z, C(E, v), {
+    })), this.isLauncherReadyToAttach() ? this.attachLauncher(c, g, R) : (K(Z, C(h, v), {
       onLoad: () => {
-        this.isLauncherReadyToAttach() ? this.attachLauncher(c, p, I) : console.error("Rokt object is not available after script load.");
+        this.isLauncherReadyToAttach() ? this.attachLauncher(c, g, R) : console.error("Rokt object is not available after script load.");
       },
-      onError: (g) => {
-        console.error("Error loading Rokt launcher script:", g);
+      onError: (f) => {
+        console.error("Error loading Rokt launcher script:", f);
       }
-    }), this.captureTiming(h.PERFORMANCE_MARKS.RoktScriptAppended)), "Successfully initialized: " + d);
+    }), this.captureTiming(p.PERFORMANCE_MARKS.RoktScriptAppended)), "Successfully initialized: " + d);
   }
   process(e) {
     if (!this.isKitReady())
       return "Kit not ready for forwarder: " + d;
     if (typeof a().Rokt?.setLocalSessionAttribute == "function" && (k(this.placementEventAttributeMappingLookup) || this.applyPlacementEventAttributeMapping(e), !k(this.placementEventMappingLookup))) {
-      const t = j(e.EventDataType, e.EventCategory, e.EventName ?? "");
+      const t = Y(e.EventDataType, e.EventCategory, e.EventName ?? "");
       this.placementEventMappingLookup[String(t)] && a().Rokt.setLocalSessionAttribute?.(this.placementEventMappingLookup[String(t)], !0);
     }
     return "Successfully sent to forwarder: " + d;
@@ -456,13 +465,13 @@ const h = class h {
     window.Rokt.setExtensionData(e);
   }
   setUserAttribute(e, t) {
-    return z(e) || (this.userAttributes[e] = t), "Successfully set user attribute for forwarder: " + d;
+    return G(e) || (this.userAttributes[e] = t), "Successfully set user attribute for forwarder: " + d;
   }
   removeUserAttribute(e) {
     return delete this.userAttributes[e], "Successfully removed user attribute for forwarder: " + d;
   }
   handleIdentityComplete(e, t) {
-    return this.userAttributes = S(e.getAllUserAttributes()), "Successfully called " + t + " for forwarder: " + d;
+    return this.userAttributes = w(e.getAllUserAttributes()), "Successfully called " + t + " for forwarder: " + d;
   }
   onUserIdentified(e) {
     const t = e;
@@ -479,7 +488,7 @@ const h = class h {
     if (r)
       for (const u of Object.keys(r)) {
         const l = r[u];
-        f(l) && l.length > 0 && (s[u] = l);
+        m(l) && l.length > 0 && (s[u] = l);
       }
     const o = Object.keys(s);
     if (o.length === 0)
@@ -538,18 +547,18 @@ const h = class h {
     return this._dispatchPlacements(e);
   }
   _dispatchPlacements(e) {
-    const t = e && e.attributes || {}, r = { ...S(this.userAttributes), ...t }, s = this.filters || {}, o = s.userAttributeFilters || [], c = s.filteredUser || null, u = c ? c.getMPID() : null;
+    const t = e && e.attributes || {}, r = { ...w(this.userAttributes), ...t }, s = this.filters || {}, o = s.userAttributeFilters || [], c = s.filteredUser || null, u = c ? c.getMPID() : null;
     let l;
-    s ? s.filterUserAttributes ? l = s.filterUserAttributes(r, o) : l = r : (console.warn("Rokt Kit: No filters available, using user attributes"), l = r), this.userAttributes = S(l);
-    const E = this._onboardingExpProvider === "Optimizely" ? this.fetchOptimizely() : {}, v = this.returnUserIdentities(c), I = this.returnLocalSessionAttributes(), R = {
+    s ? s.filterUserAttributes ? l = s.filterUserAttributes(r, o) : l = r : (console.warn("Rokt Kit: No filters available, using user attributes"), l = r), this.userAttributes = w(l);
+    const h = this._onboardingExpProvider === "Optimizely" ? this.fetchOptimizely() : {}, v = this.returnUserIdentities(c), R = this.returnLocalSessionAttributes(), A = {
       ...v,
       ...l,
-      ...E,
-      ...I,
+      ...h,
+      ...R,
       ...this.userIdentifiedInWorkspace ? { [te]: !0 } : {},
       mpid: u
-    }, p = { ...e, attributes: R }, _ = this.launcher.selectPlacements(p), y = () => this.logSelectPlacementsEvent(R);
-    return Promise.resolve(_).then((A) => A?.context?.sessionId?.then((g) => this.setRoktSessionId(g))).catch(() => {
+    }, g = { ...e, attributes: A }, _ = this.launcher.selectPlacements(g), y = () => this.logSelectPlacementsEvent(A);
+    return Promise.resolve(_).then((S) => S?.context?.sessionId?.then((f) => this.setRoktSessionId(f))).catch(() => {
     }).finally(y), _;
   }
   /**
@@ -564,7 +573,7 @@ const h = class h {
    * @deprecated This functionality has been internalized and will be removed in a future release.
    */
   use(e) {
-    return this.isKitReady() ? !e || !f(e) ? Promise.reject(new Error("Rokt Kit: Invalid extension name")) : this.launcher.use(e) : (console.error("Rokt Kit: Not initialized"), Promise.reject(new Error("Rokt Kit: Not initialized")));
+    return this.isKitReady() ? !e || !m(e) ? Promise.reject(new Error("Rokt Kit: Invalid extension name")) : this.launcher.use(e) : (console.error("Rokt Kit: Not initialized"), Promise.reject(new Error("Rokt Kit: Not initialized")));
   }
   /**
    * Registers a callback to be invoked once rokt-thank-you-element.js becomes available.
@@ -573,12 +582,12 @@ const h = class h {
     this._isThankYouElementLoaded ? e() : this._thankYouElementOnLoadCallback = e;
   }
 };
-h._allowedOriginHashes = [-553112570, 549508659], h.PERFORMANCE_MARKS = {
+p._allowedOriginHashes = [-553112570, 549508659], p.PERFORMANCE_MARKS = {
   RoktScriptAppended: "mp:RoktScriptAppended"
-}, h.EMAIL_SHA256_KEY = "emailsha256";
-let m = h;
+}, p.EMAIL_SHA256_KEY = "emailsha256";
+let E = p;
 function de() {
-  return w;
+  return L;
 }
 function he(n) {
   if (!n) {
@@ -590,14 +599,14 @@ function he(n) {
     return;
   }
   T(n.kits) ? n.kits[d] = {
-    constructor: m
+    constructor: E
   } : (n.kits = {}, n.kits[d] = {
-    constructor: m
+    constructor: E
   }), window.console.log("Successfully registered " + d + " to your mParticle configuration");
 }
 typeof window < "u" && window.mParticle && a().addForwarder && a().addForwarder({
   name: d,
-  constructor: m,
+  constructor: E,
   getId: de
 });
 export {
