@@ -1,3 +1,10 @@
+## [1.28.3](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.28.2...v1.28.3) (2026-07-01)
+
+
+### Bug Fixes
+
+* use integration domain for reporting endpoints ([#105](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/105)) ([c3ec2e9](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/c3ec2e9c7fc35cfb76a6b2463ecf01ebdba4e36f))
+
 ## [1.28.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.28.1...v1.28.2) (2026-06-25)
 
 
