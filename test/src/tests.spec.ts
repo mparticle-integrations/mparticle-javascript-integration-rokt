@@ -6581,6 +6581,65 @@ describe('Rokt Forwarder', () => {
       }
     });
 
+    it('should default registered reporting services to the integration domain', async () => {
+      let registeredErrorService: any = null;
+      let registeredLoggingService: any = null;
+      const fetchCalls: Array<{ url: string; options: any }> = [];
+      const originalFetch = window.fetch;
+      const originalConfig = (window as any).mParticle.config;
+
+      try {
+        (window as any).fetch = (url: string, options: any) => {
+          fetchCalls.push({ url, options });
+          return Promise.resolve({ ok: true });
+        };
+        (window as any).mParticle.config = {
+          ...originalConfig,
+          isLoggingEnabled: true,
+        };
+
+        (window as any).mParticle._registerErrorReportingService = (service: any) => {
+          registeredErrorService = service;
+        };
+        (window as any).mParticle._registerLoggingService = (service: any) => {
+          registeredLoggingService = service;
+        };
+
+        (window as any).Rokt = new (MockRoktForwarder as any)();
+        (window as any).mParticle.Rokt = (window as any).Rokt;
+        (window as any).mParticle.Rokt.domain = 'rkt.carrot.com';
+        (window as any).mParticle.Rokt.attachKit = async (kit: any) => {
+          (window as any).mParticle.Rokt.kit = kit;
+        };
+        (window as any).mParticle.Rokt.filters = {
+          userAttributesFilters: [],
+          filterUserAttributes: (attributes: any) => attributes,
+          filteredUser: { getMPID: () => '123' },
+        };
+
+        await mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+        registeredLoggingService.log({
+          message: 'integration domain log',
+          code: ErrorCodesConst.UNKNOWN_ERROR,
+        });
+        registeredErrorService.report({
+          message: 'integration domain error',
+          severity: WSDKErrorSeverityConst.ERROR,
+        });
+
+        expect(fetchCalls.map((call) => call.url)).toEqual([
+          'https://rkt.carrot.com/v1/log',
+          'https://rkt.carrot.com/v1/errors',
+        ]);
+      } finally {
+        window.fetch = originalFetch;
+        (window as any).mParticle.config = originalConfig;
+        delete (window as any).mParticle._registerErrorReportingService;
+        delete (window as any).mParticle._registerLoggingService;
+      }
+    });
+
     it('should not throw when registration methods do not exist', async () => {
       delete (window as any).mParticle._registerErrorReportingService;
       delete (window as any).mParticle._registerLoggingService;

@@ -189,6 +189,7 @@ interface ForwarderRegistration {
 interface ReportingConfig {
   loggingUrl?: string;
   errorUrl?: string;
+  integrationDomain?: string;
   isLoggingEnabled: boolean;
 }
 
@@ -266,8 +267,9 @@ const WSDKErrorSeverity = {
   WARNING: 'WARNING',
 } as const;
 
-const DEFAULT_LOGGING_URL = 'apps.rokt-api.com/v1/log';
-const DEFAULT_ERROR_URL = 'apps.rokt-api.com/v1/errors';
+const DEFAULT_ROKT_DOMAIN = 'apps.rokt-api.com';
+const LOGGING_ENDPOINT = '/v1/log';
+const ERROR_ENDPOINT = '/v1/errors';
 const RATE_LIMIT_PER_SEVERITY = 10;
 
 // ============================================================
@@ -301,10 +303,21 @@ function generateThankYouElementScript(domain: string | undefined) {
 }
 
 function generateBaseUrl(domain: string | undefined) {
-  const resolvedDomain = typeof domain !== 'undefined' ? domain : 'apps.rokt-api.com';
+  const resolvedDomain = typeof domain !== 'undefined' ? domain : DEFAULT_ROKT_DOMAIN;
   const protocol = 'https://';
 
   return [protocol, resolvedDomain].join('');
+}
+
+function generateReportingUrl(configuredUrl: string | undefined, domain: string | undefined, endpoint: string): string {
+  if (configuredUrl) {
+    if (configuredUrl.startsWith('http://') || configuredUrl.startsWith('https://')) {
+      return configuredUrl;
+    }
+    return 'https://' + configuredUrl;
+  }
+
+  return generateBaseUrl(domain) + endpoint;
 }
 
 function loadRoktScript(
@@ -635,7 +648,7 @@ class ErrorReportingService {
     rateLimiter?: RateLimiter,
   ) {
     this._transport = new ReportingTransport(config, integrationName, launcherInstanceGuid, accountId, rateLimiter);
-    this._errorUrl = 'https://' + (config?.errorUrl || DEFAULT_ERROR_URL);
+    this._errorUrl = generateReportingUrl(config?.errorUrl, config?.integrationDomain, ERROR_ENDPOINT);
   }
 
   report(error: ErrorReport | null | undefined): void {
@@ -659,7 +672,7 @@ class LoggingService {
     rateLimiter?: RateLimiter,
   ) {
     this._transport = new ReportingTransport(config, integrationName, launcherInstanceGuid, accountId, rateLimiter);
-    this._loggingUrl = 'https://' + (config?.loggingUrl || DEFAULT_LOGGING_URL);
+    this._loggingUrl = generateReportingUrl(config?.loggingUrl, config?.integrationDomain, LOGGING_ENDPOINT);
     this._errorReportingService = errorReportingService;
   }
 
@@ -1058,6 +1071,7 @@ class RoktKit implements KitInterface {
     const reportingConfig: ReportingConfig = {
       loggingUrl: kitSettings.loggingUrl,
       errorUrl: kitSettings.errorUrl,
+      integrationDomain: domain,
       isLoggingEnabled: mp().config?.isLoggingEnabled === true,
     };
     const errorReportingService = new ErrorReportingService(
