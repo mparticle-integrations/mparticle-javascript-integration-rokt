@@ -62,16 +62,15 @@ interface RoktExtensionEntry {
 }
 
 // A captured page view, persisted (newest last) under PAGE_VIEWS_KEY.
-// See the security note in the design spec: pageUrl and eventAttributes are
-// stored verbatim and may contain PII; they are persisted to browser storage
-// and sent to Rokt on the next selectPlacements call.
+// pageUrl and eventAttributes are stored verbatim and may contain PII; they are
+// persisted to browser storage and sent to Rokt on the next selectPlacements call.
 interface StoredPageView {
-  name: string; // event.EventName
-  pageUrl: string; // window.location.href (see sanitizeUrl)
-  sourceMessageId: string; // event.SourceMessageId
-  timestamp: number; // event.Timestamp
-  activeTimeOnSite: number; // event.ActiveTimeOnSite
-  eventAttributes?: { [key: string]: string }; // event.EventAttributes
+  name: string;
+  pageUrl: string;
+  sourceMessageId: string;
+  timestamp: number;
+  activeTimeOnSite: number;
+  eventAttributes?: { [key: string]: string };
 }
 
 interface RoktSelection {
@@ -257,18 +256,13 @@ const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 
-// Page-view capture. Page views are identified by the mParticle message type
-// PageView (3); the last MAX_PAGE_VIEWS are stored under PAGE_VIEWS_KEY in the
-// Rokt manager's local session attributes so they flow into selectPlacements.
-const MESSAGE_TYPE_PAGE_VIEW = 3;
+const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const PAGE_VIEWS_KEY = 'mpPageViews';
 const MAX_PAGE_VIEWS = 25;
-// Flat page-view array sent to selectPlacements: each StoredPageView with its
-// eventAttributes exploded into PAGE_EVENT_ATTR_PREFIX-namespaced top-level keys.
 const PAGE_EVENTS_KEY = 'page_events';
 const PAGE_EVENT_ATTR_PREFIX = 'attr_';
-// The page-view event attribute holding the document title; surfaced as the
-// dedicated page_name field rather than an attr_-namespaced key.
+// The page-view event attribute surfaced as the dedicated page_name field rather
+// than an attr_-namespaced key.
 const PAGE_TITLE_ATTRIBUTE = 'title';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
@@ -477,9 +471,8 @@ function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
 
-// Isolates page-view URL handling. Returns the URL verbatim for now (per the
-// design decision). Tightening to strip query/fragment later is a one-line
-// change here and touches nothing else. See the security note in the spec.
+// Isolates page-view URL handling. Returns the URL verbatim for now; tightening
+// to strip query/fragment (which may carry PII) later is a one-line change here.
 function sanitizeUrl(href: string): string {
   return href;
 }
@@ -951,6 +944,9 @@ class RoktKit implements KitInterface {
       flat.timestamp = pv.timestamp;
       flat.activeTimeOnSite = pv.activeTimeOnSite;
 
+      // Active time on this page = diff to the next view's activeTimeOnSite.
+      // Omitted for the still-open last view and for negative diffs (clock skew,
+      // reset, out-of-order) rather than surfacing a misleading value.
       const next = pageViews[i + 1];
       if (next && typeof next.activeTimeOnSite === 'number' && typeof pv.activeTimeOnSite === 'number') {
         const diff = next.activeTimeOnSite - pv.activeTimeOnSite;
