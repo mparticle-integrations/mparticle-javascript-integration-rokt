@@ -1,4 +1,5 @@
 const B = [
+  "active_time_on_site_ms",
   "billingaddress1",
   "billingaddress2",
   "billingcity",
@@ -134,7 +135,7 @@ function m(n) {
   return typeof n == "string";
 }
 function lt(n) {
-  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.28.3";
+  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.29.0";
   return n && (i += "_" + n), i;
 }
 function V(n) {
