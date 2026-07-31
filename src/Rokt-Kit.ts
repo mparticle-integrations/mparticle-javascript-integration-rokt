@@ -73,6 +73,20 @@ interface StoredPageView {
   eventAttributes?: { [key: string]: string };
 }
 
+// A page view flattened for the outgoing page_events array. Event attributes are
+// exploded onto attr_-namespaced keys (the index signature), and timeOnPage is
+// derived at read time so it is omitted for the still-open last view.
+interface PageEvent {
+  event_name: string;
+  page_name?: string;
+  pageUrl: string;
+  sourceMessageId: string;
+  timestamp: number;
+  activeTimeOnSite: number;
+  timeOnPage?: number;
+  [attr: string]: unknown;
+}
+
 interface RoktSelection {
   context?: {
     sessionId?: Promise<string>;
@@ -924,9 +938,15 @@ class RoktKit implements KitInterface {
     return mp().Rokt.getLocalSessionAttributes!();
   }
 
-  private buildPageEvents(pageViews: StoredPageView[]): Record<string, unknown>[] {
+  private buildPageEvents(pageViews: StoredPageView[]): PageEvent[] {
     return pageViews.map((pv, i) => {
-      const flat: Record<string, unknown> = {};
+      const flat: PageEvent = {
+        event_name: pv.event_name,
+        pageUrl: pv.pageUrl,
+        sourceMessageId: pv.sourceMessageId,
+        timestamp: pv.timestamp,
+        activeTimeOnSite: pv.activeTimeOnSite,
+      };
       if (pv.eventAttributes) {
         for (const [key, value] of Object.entries(pv.eventAttributes)) {
           // `title` is surfaced as the dedicated page_name field below, so it is
@@ -937,12 +957,7 @@ class RoktKit implements KitInterface {
           flat[`${PAGE_EVENT_ATTR_PREFIX}${key}`] = value;
         }
       }
-      flat.event_name = pv.event_name;
       flat.page_name = pv.eventAttributes?.[PAGE_TITLE_ATTRIBUTE];
-      flat.pageUrl = pv.pageUrl;
-      flat.sourceMessageId = pv.sourceMessageId;
-      flat.timestamp = pv.timestamp;
-      flat.activeTimeOnSite = pv.activeTimeOnSite;
 
       // Active time on this page = diff to the next view's activeTimeOnSite.
       // Omitted for the still-open last view and for negative diffs (clock skew,

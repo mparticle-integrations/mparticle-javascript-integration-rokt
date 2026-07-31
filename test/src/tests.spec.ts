@@ -13,6 +13,15 @@ declare const mParticle: any;
 const sdkVersion = 'mParticle_wsdkv_1.2.3';
 const kitVersion = 'kitv_' + packageVersion;
 
+// Returns localSessionAttributes without the mpPageViews list. Processing a
+// PageView legitimately captures a page-view record into the same store, so
+// attribute-mapping tests strip it to assert only the mapped keys they set.
+const mappedSessionAttributes = () => {
+  const { mpPageViews, ...attrs } = (window as any).mParticle._Store.localSessionAttributes;
+  void mpPageViews;
+  return attrs;
+};
+
 const waitForCondition = async (conditionFn: () => boolean, timeout = 200, interval = 10) => {
   return new Promise<void>((resolve, reject) => {
     const startTime = Date.now();
@@ -4901,7 +4910,7 @@ describe('Rokt Forwarder', () => {
         EventDataType: MessageType.PageEvent,
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         'foo-mapped-flag': true,
       });
     });
@@ -4939,23 +4948,23 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com/home',
         },
       });
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({});
+      expect(mappedSessionAttributes()).toEqual({});
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com/sale/items',
         },
       });
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         saleSeeker: true,
       });
     });
@@ -4987,13 +4996,13 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com/anything',
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         hasUrl: true,
       });
     });
@@ -5025,13 +5034,13 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           someOtherAttribute: 'value',
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({});
+      expect(mappedSessionAttributes()).toEqual({});
     });
 
     it('should support exists operator for placementEventAttributeMapping conditions', async () => {
@@ -5062,13 +5071,13 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com/anything',
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         hasUrl: true,
       });
 
@@ -5076,13 +5085,13 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           someOtherAttribute: 'value',
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({});
+      expect(mappedSessionAttributes()).toEqual({});
     });
 
     it('should evaluate equals for placementEventAttributeMapping conditions', async () => {
@@ -5118,12 +5127,12 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           number_of_products: 2,
         },
       });
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         multipleproducts: true,
       });
 
@@ -5131,12 +5140,12 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           number_of_products: '2',
         },
       });
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         multipleproducts: true,
       });
     });
@@ -5174,12 +5183,12 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           number_of_products: 2,
         },
       });
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         containsNumber: true,
       });
     });
@@ -5289,7 +5298,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Test',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           boolAttr: true,
           zeroAttr: 0,
@@ -5297,7 +5306,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         lowerCaseMatches: true,
         zeroMatches: true,
         digitMatches: true,
@@ -5337,22 +5346,22 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Test',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           otherAttr: 'value',
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({});
+      expect(mappedSessionAttributes()).toEqual({});
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
         EventName: 'Test',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({});
+      expect(mappedSessionAttributes()).toEqual({});
     });
 
     it('should require ALL rules for the same mapped key to match (AND across rules)', async () => {
@@ -5403,23 +5412,23 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com/sale',
         },
       });
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({});
+      expect(mappedSessionAttributes()).toEqual({});
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com/sale/items',
         },
       });
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         saleSeeker: true,
       });
     });
@@ -5469,12 +5478,12 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com/sale',
         },
       });
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         saleSeeker: true,
       });
 
@@ -5482,12 +5491,12 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com/sale/items',
         },
       });
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         saleSeeker: true,
         saleSeeker1: true,
       });
@@ -5535,7 +5544,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Test',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           zeroProp: 0,
           falseProp: false,
@@ -5543,7 +5552,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         zeroExists: true,
         falseExists: true,
         emptyStringExists: true,
@@ -5583,13 +5592,13 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com',
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({});
+      expect(mappedSessionAttributes()).toEqual({});
     });
 
     it('should support both placementEventMapping and placementEventAttributeMapping together', async () => {
@@ -5630,13 +5639,13 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageEvent,
+        EventDataType: MessageType.PageView,
         EventAttributes: {
           URL: 'https://example.com/anything',
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         hasUrl: true,
       });
 
@@ -5650,7 +5659,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         hasUrl: true,
         'foo-mapped-flag': true,
       });
@@ -5662,7 +5671,7 @@ describe('Rokt Forwarder', () => {
         EventDataType: MessageType.PageEvent,
       });
 
-      expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
+      expect(mappedSessionAttributes()).toEqual({
         'foo-mapped-flag': true,
       });
     });
