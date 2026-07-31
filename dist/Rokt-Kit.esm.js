@@ -453,6 +453,7 @@ const p = class p {
     }), this.captureTiming(p.PERFORMANCE_MARKS.RoktScriptAppended)), "Successfully initialized: " + d);
   }
   process(t) {
+    debugger;
     if (!this.isKitReady())
       return "Kit not ready for forwarder: " + d;
     if (typeof a().Rokt?.setLocalSessionAttribute == "function" && (k(this.placementEventAttributeMappingLookup) || this.applyPlacementEventAttributeMapping(t), !k(this.placementEventMappingLookup))) {

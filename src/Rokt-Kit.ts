@@ -1162,6 +1162,7 @@ class RoktKit implements KitInterface {
   }
 
   public process(event: SDKEvent): string {
+    debugger;
     if (!this.isKitReady()) {
       return 'Kit not ready for forwarder: ' + name;
     }

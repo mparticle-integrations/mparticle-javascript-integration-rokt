@@ -42,9 +42,12 @@ last **N = 25** entries, newest last:
 
 ```ts
 interface StoredPageView {
-  name: string;      // event.EventName
-  url: string;       // window.location.href (full, verbatim — see Security note)
-  timestamp: number; // event.Timestamp
+  name: string;                              // event.EventName
+  pageUrl: string;                           // window.location.href (full, verbatim — see Security note)
+  sourceMessageId: string;                   // event.SourceMessageId
+  timestamp: number;                         // event.Timestamp
+  activeTimeOnSite: number;                  // event.ActiveTimeOnSite
+  eventAttributes?: { [key: string]: string }; // event.EventAttributes (see Security note)
 }
 ```
 
@@ -61,7 +64,17 @@ After the existing readiness check, and guarded by
    capture (existing placement-mapping logic is unaffected).
 2. Read the current list: `mp().Rokt.getLocalSessionAttributes()?.[PAGE_VIEWS_KEY]`,
    defaulting to `[]`. Coerce non-arrays to `[]` defensively.
-3. Build the record: `{ name: event.EventName, url: sanitizeUrl(window.location.href), timestamp: event.Timestamp }`.
+3. Build the record from the event and current location:
+   ```ts
+   {
+     name: event.EventName,
+     pageUrl: sanitizeUrl(window.location.href),
+     sourceMessageId: event.SourceMessageId,
+     timestamp: event.Timestamp,
+     activeTimeOnSite: event.ActiveTimeOnSite,
+     eventAttributes: event.EventAttributes,
+   }
+   ```
 4. Append; if `list.length > MAX_PAGE_VIEWS`, drop from the front (evict oldest).
 5. Write back via `mp().Rokt.setLocalSessionAttribute(PAGE_VIEWS_KEY, list)`.
 
@@ -88,7 +101,7 @@ fragment later is a one-line change inside this helper and touches nothing else.
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Downstream purpose | Feed the next `selectPlacements` | Reuses existing `returnLocalSessionAttributes()` path |
-| Payload per view | Full list, last N (name + url + timestamp) | Richest targeting signal |
+| Payload per view | Full list, last N (name, pageUrl, sourceMessageId, timestamp, activeTimeOnSite, eventAttributes) | Richest targeting signal |
 | Detection | `event.EventDataType === 3` (PageView) | Standard mParticle page-view classification |
 | List cap (N) | 25 | User choice; see size caveat below |
 | URL handling | Full URL verbatim | User choice; see Security note |
@@ -102,6 +115,12 @@ The full-URL choice is implemented as requested; the recommended safer default
 is to strip the query and fragment. The `sanitizeUrl()` helper isolates this so
 it can be tightened later without touching capture logic.
 
+`eventAttributes` is stored verbatim from the event and can likewise contain
+arbitrary developer-supplied values, including PII. It is persisted and sent to
+Rokt under the same conditions. Note the SDK does not run kit user-attribute
+filters over page-view `EventAttributes`, so nothing is stripped automatically —
+flagging in case attribute-level filtering is wanted later.
+
 **Size caveat:** N = 25 full URLs is persisted to cookie/localStorage-backed
 storage, which has size limits. If entries approach those limits, revisit N or
 the URL handling.
@@ -111,7 +130,8 @@ the URL handling.
 Vitest cases in `test/src/tests.spec.ts`:
 
 1. A page-view event (`EventDataType === 3`) appends a record with correct
-   `name`, `url`, and `timestamp`.
+   `name`, `pageUrl`, `sourceMessageId`, `timestamp`, `activeTimeOnSite`, and
+   `eventAttributes`.
 2. A non-page-view event does not append.
 3. The list caps at `MAX_PAGE_VIEWS` and evicts the oldest entry.
 4. Capture no-ops when `setLocalSessionAttribute` is unavailable (does not throw).
