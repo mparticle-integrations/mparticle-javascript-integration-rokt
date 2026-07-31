@@ -61,9 +61,6 @@ interface RoktExtensionEntry {
   value: string;
 }
 
-// A captured page view, persisted (newest last) under PAGE_VIEWS_KEY.
-// pageUrl and eventAttributes are stored verbatim and may contain PII; they are
-// persisted to browser storage and sent to Rokt on the next selectPlacements call.
 interface StoredPageView {
   event_name: string;
   pageUrl: string;
