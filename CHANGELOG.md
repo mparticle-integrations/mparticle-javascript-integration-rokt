@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.28.3...v1.29.0) (2026-07-31)
+
+
+### Features
+
+* prevent caching of active_time_on_site_ms attribute ([#106](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/106)) ([315c4f9](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/315c4f9016a31076a53b8fa97a9e35bf31b5c953))
+
 ## [1.28.3](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.28.2...v1.28.3) (2026-07-01)
 
 
