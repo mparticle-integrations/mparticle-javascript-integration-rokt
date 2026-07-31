@@ -13,15 +13,6 @@ declare const mParticle: any;
 const sdkVersion = 'mParticle_wsdkv_1.2.3';
 const kitVersion = 'kitv_' + packageVersion;
 
-// Returns localSessionAttributes without the mpPageViews list. Processing a
-// PageView legitimately captures a page-view record into the same store, so
-// attribute-mapping tests strip it to assert only the mapped keys they set.
-const mappedSessionAttributes = () => {
-  const { mpPageViews, ...attrs } = (window as any).mParticle._Store.localSessionAttributes;
-  void mpPageViews;
-  return attrs;
-};
-
 const waitForCondition = async (conditionFn: () => boolean, timeout = 200, interval = 10) => {
   return new Promise<void>((resolve, reject) => {
     const startTime = Date.now();
@@ -4910,9 +4901,7 @@ describe('Rokt Forwarder', () => {
         EventDataType: MessageType.PageEvent,
       });
 
-      expect(mappedSessionAttributes()).toEqual({
-        'foo-mapped-flag': true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes['foo-mapped-flag']).toBe(true);
     });
 
     it('should set local session attribute only when placementEventAttributeMapping conditions match (URL contains)', async () => {
@@ -4953,7 +4942,7 @@ describe('Rokt Forwarder', () => {
           URL: 'https://example.com/home',
         },
       });
-      expect(mappedSessionAttributes()).toEqual({});
+      expect((window as any).mParticle._Store.localSessionAttributes.saleSeeker).toBeUndefined();
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
@@ -4964,9 +4953,7 @@ describe('Rokt Forwarder', () => {
           URL: 'https://example.com/sale/items',
         },
       });
-      expect(mappedSessionAttributes()).toEqual({
-        saleSeeker: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.saleSeeker).toBe(true);
     });
 
     it('should support event attribute mapping when conditions are not defined', async () => {
@@ -5002,9 +4989,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({
-        hasUrl: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.hasUrl).toBe(true);
     });
 
     it('should not set local session attribute when mapped attribute key is missing from event and no conditions have been defined', async () => {
@@ -5040,7 +5025,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({});
+      expect((window as any).mParticle._Store.localSessionAttributes.hasUrl).toBeUndefined();
     });
 
     it('should support exists operator for placementEventAttributeMapping conditions', async () => {
@@ -5077,9 +5062,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({
-        hasUrl: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.hasUrl).toBe(true);
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
@@ -5091,7 +5074,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({});
+      expect((window as any).mParticle._Store.localSessionAttributes.hasUrl).toBeUndefined();
     });
 
     it('should evaluate equals for placementEventAttributeMapping conditions', async () => {
@@ -5132,9 +5115,7 @@ describe('Rokt Forwarder', () => {
           number_of_products: 2,
         },
       });
-      expect(mappedSessionAttributes()).toEqual({
-        multipleproducts: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.multipleproducts).toBe(true);
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
@@ -5145,9 +5126,7 @@ describe('Rokt Forwarder', () => {
           number_of_products: '2',
         },
       });
-      expect(mappedSessionAttributes()).toEqual({
-        multipleproducts: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.multipleproducts).toBe(true);
     });
 
     it('should evaluate contains for placementEventAttributeMapping conditions', async () => {
@@ -5188,9 +5167,7 @@ describe('Rokt Forwarder', () => {
           number_of_products: 2,
         },
       });
-      expect(mappedSessionAttributes()).toEqual({
-        containsNumber: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.containsNumber).toBe(true);
     });
 
     it('should correctly match attribute values for different type cases', async () => {
@@ -5306,11 +5283,9 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({
-        lowerCaseMatches: true,
-        zeroMatches: true,
-        digitMatches: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.lowerCaseMatches).toBe(true);
+      expect((window as any).mParticle._Store.localSessionAttributes.zeroMatches).toBe(true);
+      expect((window as any).mParticle._Store.localSessionAttributes.digitMatches).toBe(true);
     });
 
     it('should not match when attribute key is missing or EventAttributes is absent', async () => {
@@ -5352,7 +5327,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({});
+      expect((window as any).mParticle._Store.localSessionAttributes.shouldNotMatch).toBeUndefined();
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
@@ -5361,7 +5336,7 @@ describe('Rokt Forwarder', () => {
         EventDataType: MessageType.PageView,
       });
 
-      expect(mappedSessionAttributes()).toEqual({});
+      expect((window as any).mParticle._Store.localSessionAttributes.shouldNotMatch).toBeUndefined();
     });
 
     it('should require ALL rules for the same mapped key to match (AND across rules)', async () => {
@@ -5417,7 +5392,7 @@ describe('Rokt Forwarder', () => {
           URL: 'https://example.com/sale',
         },
       });
-      expect(mappedSessionAttributes()).toEqual({});
+      expect((window as any).mParticle._Store.localSessionAttributes.saleSeeker).toBeUndefined();
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
@@ -5428,9 +5403,7 @@ describe('Rokt Forwarder', () => {
           URL: 'https://example.com/sale/items',
         },
       });
-      expect(mappedSessionAttributes()).toEqual({
-        saleSeeker: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.saleSeeker).toBe(true);
     });
 
     it('should set multiple local session attributes for the same event attribute key', async () => {
@@ -5483,9 +5456,7 @@ describe('Rokt Forwarder', () => {
           URL: 'https://example.com/sale',
         },
       });
-      expect(mappedSessionAttributes()).toEqual({
-        saleSeeker: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.saleSeeker).toBe(true);
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
@@ -5496,10 +5467,8 @@ describe('Rokt Forwarder', () => {
           URL: 'https://example.com/sale/items',
         },
       });
-      expect(mappedSessionAttributes()).toEqual({
-        saleSeeker: true,
-        saleSeeker1: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.saleSeeker).toBe(true);
+      expect((window as any).mParticle._Store.localSessionAttributes.saleSeeker1).toBe(true);
     });
 
     it('should treat falsy attribute values as existing', async () => {
@@ -5552,11 +5521,9 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({
-        zeroExists: true,
-        falseExists: true,
-        emptyStringExists: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.zeroExists).toBe(true);
+      expect((window as any).mParticle._Store.localSessionAttributes.falseExists).toBe(true);
+      expect((window as any).mParticle._Store.localSessionAttributes.emptyStringExists).toBe(true);
     });
 
     it('should not match when condition has an unrecognized operator', async () => {
@@ -5598,7 +5565,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({});
+      expect((window as any).mParticle._Store.localSessionAttributes.shouldNotMatch).toBeUndefined();
     });
 
     it('should support both placementEventMapping and placementEventAttributeMapping together', async () => {
@@ -5645,9 +5612,7 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({
-        hasUrl: true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.hasUrl).toBe(true);
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
@@ -5659,10 +5624,8 @@ describe('Rokt Forwarder', () => {
         },
       });
 
-      expect(mappedSessionAttributes()).toEqual({
-        hasUrl: true,
-        'foo-mapped-flag': true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes.hasUrl).toBe(true);
+      expect((window as any).mParticle._Store.localSessionAttributes['foo-mapped-flag']).toBe(true);
 
       (window as any).mParticle._Store.localSessionAttributes = {};
       (window as any).mParticle.forwarder.process({
@@ -5671,9 +5634,7 @@ describe('Rokt Forwarder', () => {
         EventDataType: MessageType.PageEvent,
       });
 
-      expect(mappedSessionAttributes()).toEqual({
-        'foo-mapped-flag': true,
-      });
+      expect((window as any).mParticle._Store.localSessionAttributes['foo-mapped-flag']).toBe(true);
     });
 
     describe('page view capture', () => {

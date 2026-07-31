@@ -939,16 +939,16 @@ class RoktKit implements KitInterface {
   }
 
   private buildPageEvents(pageViews: StoredPageView[]): PageEvent[] {
-    return pageViews.map((pv, i) => {
+    return pageViews.map((pageView, index) => {
       const flat: PageEvent = {
-        event_name: pv.event_name,
-        pageUrl: pv.pageUrl,
-        sourceMessageId: pv.sourceMessageId,
-        timestamp: pv.timestamp,
-        activeTimeOnSite: pv.activeTimeOnSite,
+        event_name: pageView.event_name,
+        pageUrl: pageView.pageUrl,
+        sourceMessageId: pageView.sourceMessageId,
+        timestamp: pageView.timestamp,
+        activeTimeOnSite: pageView.activeTimeOnSite,
       };
-      if (pv.eventAttributes) {
-        for (const [key, value] of Object.entries(pv.eventAttributes)) {
+      if (pageView.eventAttributes) {
+        for (const [key, value] of Object.entries(pageView.eventAttributes)) {
           // `title` is surfaced as the dedicated page_name field below, so it is
           // not also emitted as an attr_-namespaced key.
           if (key === PAGE_TITLE_ATTRIBUTE) {
@@ -957,14 +957,14 @@ class RoktKit implements KitInterface {
           flat[`${PAGE_EVENT_ATTR_PREFIX}${key}`] = value;
         }
       }
-      flat.page_name = pv.eventAttributes?.[PAGE_TITLE_ATTRIBUTE];
+      flat.page_name = pageView.eventAttributes?.[PAGE_TITLE_ATTRIBUTE];
 
       // Active time on this page = diff to the next view's activeTimeOnSite.
       // Omitted for the still-open last view and for negative diffs (clock skew,
       // reset, out-of-order) rather than surfacing a misleading value.
-      const next = pageViews[i + 1];
-      if (next && typeof next.activeTimeOnSite === 'number' && typeof pv.activeTimeOnSite === 'number') {
-        const diff = next.activeTimeOnSite - pv.activeTimeOnSite;
+      const next = pageViews[index + 1];
+      if (next && typeof next.activeTimeOnSite === 'number' && typeof pageView.activeTimeOnSite === 'number') {
+        const diff = next.activeTimeOnSite - pageView.activeTimeOnSite;
         if (diff >= 0) {
           flat.timeOnPage = diff;
         }
@@ -1479,19 +1479,16 @@ class RoktKit implements KitInterface {
 
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
-    const localSessionAttributes = this.returnLocalSessionAttributes();
-
-    // Derive the flat page_events array from the stored page views, then drop the
-    // raw nested mpPageViews so Rokt receives only the flattened copy.
-    const rawPageViews = localSessionAttributes[PAGE_VIEWS_KEY];
+    // Split the raw stored page views off the rest of the session attributes without
+    // mutating the returned store; Rokt receives only the flattened page_events copy.
+    const { [PAGE_VIEWS_KEY]: rawPageViews, ...sessionAttributes } = this.returnLocalSessionAttributes();
     const pageEvents = Array.isArray(rawPageViews) ? this.buildPageEvents(rawPageViews as StoredPageView[]) : [];
-    delete localSessionAttributes[PAGE_VIEWS_KEY];
 
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),
       ...filteredAttributes,
       ...optimizelyAttributes,
-      ...localSessionAttributes,
+      ...sessionAttributes,
       ...(pageEvents.length ? { [PAGE_EVENTS_KEY]: pageEvents } : {}),
       ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
       mpid,
