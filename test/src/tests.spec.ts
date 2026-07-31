@@ -5697,7 +5697,7 @@ describe('Rokt Forwarder', () => {
 
         expect((window as any).mParticle._Store.localSessionAttributes.mpPageViews).toEqual([
           {
-            name: 'Home Page',
+            event_name: 'Home Page',
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-1',
             timestamp: 1712345678000,
@@ -5764,8 +5764,8 @@ describe('Rokt Forwarder', () => {
         const stored = (window as any).mParticle._Store.localSessionAttributes.mpPageViews;
         expect(stored.length).toBe(25);
         // Oldest five (Page 0..4) evicted; newest retained.
-        expect(stored[0].name).toBe('Page 5');
-        expect(stored[24].name).toBe('Page 29');
+        expect(stored[0].event_name).toBe('Page 5');
+        expect(stored[24].event_name).toBe('Page 29');
       });
 
       it('does not throw when setLocalSessionAttribute is unavailable', async () => {

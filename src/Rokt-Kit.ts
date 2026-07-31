@@ -65,7 +65,7 @@ interface RoktExtensionEntry {
 // pageUrl and eventAttributes are stored verbatim and may contain PII; they are
 // persisted to browser storage and sent to Rokt on the next selectPlacements call.
 interface StoredPageView {
-  name: string;
+  event_name: string;
   pageUrl: string;
   sourceMessageId: string;
   timestamp: number;
@@ -882,7 +882,7 @@ class RoktKit implements KitInterface {
       const pageViews: StoredPageView[] = Array.isArray(existing) ? (existing as StoredPageView[]) : [];
 
       pageViews.push({
-        name: event.EventName,
+        event_name: event.EventName,
         pageUrl: sanitizeUrl(window.location.href),
         sourceMessageId: event.SourceMessageId,
         timestamp: event.Timestamp,
@@ -937,7 +937,7 @@ class RoktKit implements KitInterface {
           flat[`${PAGE_EVENT_ATTR_PREFIX}${key}`] = value;
         }
       }
-      flat.event_name = pv.name;
+      flat.event_name = pv.event_name;
       flat.page_name = pv.eventAttributes?.[PAGE_TITLE_ATTRIBUTE];
       flat.pageUrl = pv.pageUrl;
       flat.sourceMessageId = pv.sourceMessageId;
