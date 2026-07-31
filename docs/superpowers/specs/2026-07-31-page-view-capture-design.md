@@ -138,9 +138,33 @@ Vitest cases in `test/src/tests.spec.ts`:
 5. Stored page views surface through `returnLocalSessionAttributes()` and into
    `selectPlacements`.
 
+## Time on page (derived output)
+
+Each `page_events` entry carries a `timeOnPage` field: the active time the user
+spent on *that* page before the next page view was logged. It is computed at
+read time in `buildPageEvents()` as the diff of consecutive `activeTimeOnSite`
+values:
+
+```
+entry[i].timeOnPage = pageViews[i+1].activeTimeOnSite − pageViews[i].activeTimeOnSite
+```
+
+Nothing new is persisted; `StoredPageView` is unchanged. `timeOnPage` is only
+emitted when it is a genuine, non-negative number. It is **omitted** (left
+`undefined`) for:
+
+- the last (still-open) entry — there is no next page view yet;
+- a negative diff (clock skew, session reset, out-of-order events) — dropped
+  rather than surfaced as a misleading value;
+- a missing/non-numeric `activeTimeOnSite` on either side.
+
+`undefined` uniformly means "couldn't compute / not yet known."
+
 ## Out of scope
 
 - No new kit setting / server-side feature gate (capture is always on when the
   store is available).
 - No query-string stripping (deferred behind `sanitizeUrl()`).
 - No changes to placement-event mapping behavior.
+- Time on page is derived at read time only — no change to capture,
+  persistence, or `StoredPageView`.

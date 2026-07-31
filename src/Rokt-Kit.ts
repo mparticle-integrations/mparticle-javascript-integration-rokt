@@ -932,7 +932,7 @@ class RoktKit implements KitInterface {
   }
 
   private buildPageEvents(pageViews: StoredPageView[]): Record<string, unknown>[] {
-    return pageViews.map((pv) => {
+    return pageViews.map((pv, i) => {
       const flat: Record<string, unknown> = {};
       if (pv.eventAttributes) {
         for (const [key, value] of Object.entries(pv.eventAttributes)) {
@@ -950,6 +950,14 @@ class RoktKit implements KitInterface {
       flat.sourceMessageId = pv.sourceMessageId;
       flat.timestamp = pv.timestamp;
       flat.activeTimeOnSite = pv.activeTimeOnSite;
+
+      const next = pageViews[i + 1];
+      if (next && typeof next.activeTimeOnSite === 'number' && typeof pv.activeTimeOnSite === 'number') {
+        const diff = next.activeTimeOnSite - pv.activeTimeOnSite;
+        if (diff >= 0) {
+          flat.timeOnPage = diff;
+        }
+      }
       return flat;
     });
   }
@@ -1244,12 +1252,9 @@ class RoktKit implements KitInterface {
   }
 
   public process(event: SDKEvent): string {
-    console.warn('process Event', event);
-    console.warn('is kit ready?', this.isKitReady());
-    // if (!this.isKitReady()) {
-    //   console.warn('kit is ready');
-    //   return 'Kit not ready for forwarder: ' + name;
-    // }
+    if (!this.isKitReady()) {
+      return 'Kit not ready for forwarder: ' + name;
+    }
 
     if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {
       if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {

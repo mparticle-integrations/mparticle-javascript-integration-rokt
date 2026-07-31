@@ -5874,6 +5874,149 @@ describe('Rokt Forwarder', () => {
         expect(forwardedAttributes.page_events).toBeUndefined();
         expect(forwardedAttributes.mpPageViews).toBeUndefined();
       });
+
+      it('surfaces timeOnPage as the active-time diff to the next page view', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-7',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 1000,
+        });
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Product Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-8',
+          Timestamp: 1712345679000,
+          ActiveTimeOnSite: 4200,
+        });
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        // First page's time-on-page is how long it was viewed before the next page:
+        // 4200 - 1000 = 3200. The last (still-open) page has no timeOnPage.
+        expect(forwardedAttributes.page_events).toEqual([
+          {
+            event_name: 'Home Page',
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-7',
+            timestamp: 1712345678000,
+            activeTimeOnSite: 1000,
+            timeOnPage: 3200,
+          },
+          {
+            event_name: 'Product Page',
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-8',
+            timestamp: 1712345679000,
+            activeTimeOnSite: 4200,
+          },
+        ]);
+      });
+
+      it('computes a consecutive timeOnPage diff for each non-last page view', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Page A',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-9',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 1000,
+        });
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Page B',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-10',
+          Timestamp: 1712345679000,
+          ActiveTimeOnSite: 2500,
+        });
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Page C',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-11',
+          Timestamp: 1712345680000,
+          ActiveTimeOnSite: 9000,
+        });
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        const pageEvents = forwardedAttributes.page_events;
+        expect(pageEvents[0].timeOnPage).toBe(1500); // 2500 - 1000
+        expect(pageEvents[1].timeOnPage).toBe(6500); // 9000 - 2500
+        expect(pageEvents[2].timeOnPage).toBeUndefined(); // still open
+      });
+
+      it('omits timeOnPage when the active-time diff would be negative', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Page A',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-12',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 5000,
+        });
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Page B',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-13',
+          Timestamp: 1712345679000,
+          ActiveTimeOnSite: 1000,
+        });
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        const pageEvents = forwardedAttributes.page_events;
+        // 1000 - 5000 = -4000 → omitted rather than emitting a misleading value.
+        expect(pageEvents[0].timeOnPage).toBeUndefined();
+        expect(pageEvents[1].timeOnPage).toBeUndefined();
+      });
     });
   });
 
