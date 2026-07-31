@@ -1190,6 +1190,78 @@ describe('Rokt Forwarder', () => {
         });
       });
 
+      it('should forward active_time_on_site_ms on the current call without caching it', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {
+            loyaltyTier: 'gold',
+          },
+        );
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {
+            active_time_on_site_ms: 12345,
+            page: 'checkout',
+          },
+        });
+
+        expect((window as any).Rokt.selectPlacementsCalled).toBe(true);
+        expect((window as any).Rokt.selectPlacementsOptions).toEqual({
+          identifier: 'test-placement',
+          attributes: {
+            loyaltyTier: 'gold',
+            active_time_on_site_ms: 12345,
+            page: 'checkout',
+            mpid: '123',
+          },
+        });
+        expect((window as any).mParticle.forwarder.userAttributes).toEqual({
+          loyaltyTier: 'gold',
+          page: 'checkout',
+        });
+      });
+
+      it('should not re-send a stale cached active_time_on_site_ms on a later call', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {
+            active_time_on_site_ms: 12345,
+          },
+        });
+
+        await (window as any).mParticle.forwarder.selectPlacements({
+          identifier: 'test-placement',
+          attributes: {
+            active_time_on_site_ms: 67890,
+          },
+        });
+
+        expect((window as any).Rokt.selectPlacementsOptions).toEqual({
+          identifier: 'test-placement',
+          attributes: {
+            active_time_on_site_ms: 67890,
+            mpid: '123',
+          },
+        });
+        expect((window as any).mParticle.forwarder.userAttributes).toEqual({});
+      });
+
       it('should not cache denylisted commerce attributes set through setUserAttribute', async () => {
         await (window as any).mParticle.forwarder.init(
           {
@@ -5809,6 +5881,8 @@ describe('Rokt Forwarder', () => {
       expect(isSelectPlacementsAttributePersistenceDenied('paymentServiceProvider')).toBe(true);
       expect(isSelectPlacementsAttributePersistenceDenied('cartItems')).toBe(true);
       expect(isSelectPlacementsAttributePersistenceDenied('conversionType')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('active_time_on_site_ms')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('Active_Time_On_Site_Ms')).toBe(true);
     });
 
     it('should return false for attributes that are not denylisted', () => {
