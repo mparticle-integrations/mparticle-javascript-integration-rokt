@@ -73,9 +73,6 @@ interface StoredPageView {
   eventAttributes?: { [key: string]: string };
 }
 
-// A page view flattened for the outgoing page_events array. Event attributes are
-// exploded onto attr_-namespaced keys (the index signature), and timeOnPage is
-// derived at read time so it is omitted for the still-open last view.
 interface PageEvent {
   event_name: string;
   page_name?: string;
@@ -949,8 +946,6 @@ class RoktKit implements KitInterface {
       };
       if (pageView.eventAttributes) {
         for (const [key, value] of Object.entries(pageView.eventAttributes)) {
-          // `title` is surfaced as the dedicated page_name field below, so it is
-          // not also emitted as an attr_-namespaced key.
           if (key === PAGE_TITLE_ATTRIBUTE) {
             continue;
           }
@@ -959,9 +954,6 @@ class RoktKit implements KitInterface {
       }
       flat.page_name = pageView.eventAttributes?.[PAGE_TITLE_ATTRIBUTE];
 
-      // Active time on this page = diff to the next view's activeTimeOnSite.
-      // Omitted for the still-open last view and for negative diffs (clock skew,
-      // reset, out-of-order) rather than surfacing a misleading value.
       const next = pageViews[index + 1];
       if (next && typeof next.activeTimeOnSite === 'number' && typeof pageView.activeTimeOnSite === 'number') {
         const diff = next.activeTimeOnSite - pageView.activeTimeOnSite;
@@ -1479,8 +1471,6 @@ class RoktKit implements KitInterface {
 
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
-    // Split the raw stored page views off the rest of the session attributes without
-    // mutating the returned store; Rokt receives only the flattened page_events copy.
     const { [PAGE_VIEWS_KEY]: rawPageViews, ...sessionAttributes } = this.returnLocalSessionAttributes();
     const pageEvents = Array.isArray(rawPageViews) ? this.buildPageEvents(rawPageViews as StoredPageView[]) : [];
 
