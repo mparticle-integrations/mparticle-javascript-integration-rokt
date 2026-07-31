@@ -1254,7 +1254,6 @@ class RoktKit implements KitInterface {
 
     if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {
       if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
-        console.warn('caputre Event', event);
         this.capturePageView(event);
       }
 
