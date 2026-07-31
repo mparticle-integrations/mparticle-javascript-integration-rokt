@@ -12,6 +12,7 @@ const SELECT_PLACEMENTS_ATTRIBUTE_PERSISTENCE_DENY_LIST = [
   'couponcode',
   'currency',
   'language',
+  'passbackconversiontrackingid',
   'paymentserviceprovider',
   'paymentserviceproviderattribute',
   'paymenttype',

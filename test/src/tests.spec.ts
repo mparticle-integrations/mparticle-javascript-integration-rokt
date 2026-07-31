@@ -5809,6 +5809,8 @@ describe('Rokt Forwarder', () => {
       expect(isSelectPlacementsAttributePersistenceDenied('paymentServiceProvider')).toBe(true);
       expect(isSelectPlacementsAttributePersistenceDenied('cartItems')).toBe(true);
       expect(isSelectPlacementsAttributePersistenceDenied('conversionType')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('passbackconversiontrackingid')).toBe(true);
+      expect(isSelectPlacementsAttributePersistenceDenied('passbackConversionTrackingId')).toBe(true);
     });
 
     it('should return false for attributes that are not denylisted', () => {
