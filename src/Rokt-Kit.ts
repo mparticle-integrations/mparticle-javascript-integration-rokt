@@ -61,6 +61,19 @@ interface RoktExtensionEntry {
   value: string;
 }
 
+// A captured page view, persisted (newest last) under PAGE_VIEWS_KEY.
+// See the security note in the design spec: pageUrl and eventAttributes are
+// stored verbatim and may contain PII; they are persisted to browser storage
+// and sent to Rokt on the next selectPlacements call.
+interface StoredPageView {
+  name: string; // event.EventName
+  pageUrl: string; // window.location.href (see sanitizeUrl)
+  sourceMessageId: string; // event.SourceMessageId
+  timestamp: number; // event.Timestamp
+  activeTimeOnSite: number; // event.ActiveTimeOnSite
+  eventAttributes?: { [key: string]: string }; // event.EventAttributes
+}
+
 interface RoktSelection {
   context?: {
     sessionId?: Promise<string>;
@@ -243,6 +256,20 @@ const ROKT_THANK_YOU_JOURNEY_EXTENSION = 'ThankYouPageJourney';
 const ROKT_INTEGRATION_SCRIPT_ID = 'rokt-launcher';
 const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
+
+// Page-view capture. Page views are identified by the mParticle message type
+// PageView (3); the last MAX_PAGE_VIEWS are stored under PAGE_VIEWS_KEY in the
+// Rokt manager's local session attributes so they flow into selectPlacements.
+const MESSAGE_TYPE_PAGE_VIEW = 3;
+const PAGE_VIEWS_KEY = 'mpPageViews';
+const MAX_PAGE_VIEWS = 25;
+// Flat page-view array sent to selectPlacements: each StoredPageView with its
+// eventAttributes exploded into PAGE_EVENT_ATTR_PREFIX-namespaced top-level keys.
+const PAGE_EVENTS_KEY = 'page_events';
+const PAGE_EVENT_ATTR_PREFIX = 'attr_';
+// The page-view event attribute holding the document title; surfaced as the
+// dedicated page_name field rather than an attr_-namespaced key.
+const PAGE_TITLE_ATTRIBUTE = 'title';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
 // IDSync search before proceeding without the userIdentifiedInWorkspace flag.
@@ -448,6 +475,13 @@ function isEmpty(value: unknown): boolean {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
+}
+
+// Isolates page-view URL handling. Returns the URL verbatim for now (per the
+// design decision). Tightening to strip query/fragment later is a one-line
+// change here and touches nothing else. See the security note in the spec.
+function sanitizeUrl(href: string): string {
+  return href;
 }
 
 function generateIntegrationName(customIntegrationName?: string): string {
@@ -845,6 +879,34 @@ class RoktKit implements KitInterface {
     }
   }
 
+  // Appends a page-view record to the persisted list under PAGE_VIEWS_KEY,
+  // capping at MAX_PAGE_VIEWS (oldest evicted). Wrapped so a malformed event
+  // can never throw out of the forwarder. Callers must confirm the event is a
+  // page view and that setLocalSessionAttribute is available.
+  private capturePageView(event: SDKEvent): void {
+    try {
+      const existing = mp().Rokt.getLocalSessionAttributes?.()?.[PAGE_VIEWS_KEY];
+      const pageViews: StoredPageView[] = Array.isArray(existing) ? (existing as StoredPageView[]) : [];
+
+      pageViews.push({
+        name: event.EventName,
+        pageUrl: sanitizeUrl(window.location.href),
+        sourceMessageId: event.SourceMessageId,
+        timestamp: event.Timestamp,
+        activeTimeOnSite: event.ActiveTimeOnSite,
+        eventAttributes: event.EventAttributes,
+      });
+
+      while (pageViews.length > MAX_PAGE_VIEWS) {
+        pageViews.shift();
+      }
+
+      mp().Rokt.setLocalSessionAttribute?.(PAGE_VIEWS_KEY, pageViews);
+    } catch (err) {
+      console.error('Rokt Kit: Failed to capture page view', err);
+    }
+  }
+
   private isLauncherReadyToAttach(): boolean {
     return !!window.Rokt && typeof window.Rokt.createLauncher === 'function';
   }
@@ -866,10 +928,30 @@ class RoktKit implements KitInterface {
     if (!mp().Rokt || typeof mp().Rokt.getLocalSessionAttributes !== 'function') {
       return {};
     }
-    if (isEmpty(this.placementEventMappingLookup) && isEmpty(this.placementEventAttributeMappingLookup)) {
-      return {};
-    }
     return mp().Rokt.getLocalSessionAttributes!();
+  }
+
+  private buildPageEvents(pageViews: StoredPageView[]): Record<string, unknown>[] {
+    return pageViews.map((pv) => {
+      const flat: Record<string, unknown> = {};
+      if (pv.eventAttributes) {
+        for (const [key, value] of Object.entries(pv.eventAttributes)) {
+          // `title` is surfaced as the dedicated page_name field below, so it is
+          // not also emitted as an attr_-namespaced key.
+          if (key === PAGE_TITLE_ATTRIBUTE) {
+            continue;
+          }
+          flat[`${PAGE_EVENT_ATTR_PREFIX}${key}`] = value;
+        }
+      }
+      flat.event_name = pv.name;
+      flat.page_name = pv.eventAttributes?.[PAGE_TITLE_ATTRIBUTE];
+      flat.pageUrl = pv.pageUrl;
+      flat.sourceMessageId = pv.sourceMessageId;
+      flat.timestamp = pv.timestamp;
+      flat.activeTimeOnSite = pv.activeTimeOnSite;
+      return flat;
+    });
   }
 
   private replaceOtherIdentityWithEmailsha256(userIdentities: IUserIdentities): Record<string, string> {
@@ -1162,11 +1244,19 @@ class RoktKit implements KitInterface {
   }
 
   public process(event: SDKEvent): string {
-    debugger;
-    if (!this.isKitReady()) {
-      return 'Kit not ready for forwarder: ' + name;
-    }
+    console.warn('process Event', event);
+    console.warn('is kit ready?', this.isKitReady());
+    // if (!this.isKitReady()) {
+    //   console.warn('kit is ready');
+    //   return 'Kit not ready for forwarder: ' + name;
+    // }
+
     if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {
+      if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
+        console.warn('caputre Event', event);
+        this.capturePageView(event);
+      }
+
       if (!isEmpty(this.placementEventAttributeMappingLookup)) {
         this.applyPlacementEventAttributeMapping(event);
       }
@@ -1376,11 +1466,18 @@ class RoktKit implements KitInterface {
 
     const localSessionAttributes = this.returnLocalSessionAttributes();
 
+    // Derive the flat page_events array from the stored page views, then drop the
+    // raw nested mpPageViews so Rokt receives only the flattened copy.
+    const rawPageViews = localSessionAttributes[PAGE_VIEWS_KEY];
+    const pageEvents = Array.isArray(rawPageViews) ? this.buildPageEvents(rawPageViews as StoredPageView[]) : [];
+    delete localSessionAttributes[PAGE_VIEWS_KEY];
+
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),
       ...filteredAttributes,
       ...optimizelyAttributes,
       ...localSessionAttributes,
+      ...(pageEvents.length ? { [PAGE_EVENTS_KEY]: pageEvents } : {}),
       ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
       mpid,
     };

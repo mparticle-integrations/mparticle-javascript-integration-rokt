@@ -4867,7 +4867,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com/home',
         },
@@ -4878,7 +4878,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com/sale/items',
         },
@@ -4915,7 +4915,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com/anything',
         },
@@ -4953,7 +4953,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           someOtherAttribute: 'value',
         },
@@ -4990,7 +4990,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com/anything',
         },
@@ -5004,7 +5004,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           someOtherAttribute: 'value',
         },
@@ -5046,7 +5046,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           number_of_products: 2,
         },
@@ -5059,7 +5059,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           number_of_products: '2',
         },
@@ -5102,7 +5102,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           number_of_products: 2,
         },
@@ -5217,7 +5217,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Test',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           boolAttr: true,
           zeroAttr: 0,
@@ -5265,7 +5265,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Test',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           otherAttr: 'value',
         },
@@ -5277,7 +5277,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Test',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
       });
 
       expect((window as any).mParticle._Store.localSessionAttributes).toEqual({});
@@ -5331,7 +5331,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com/sale',
         },
@@ -5342,7 +5342,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com/sale/items',
         },
@@ -5397,7 +5397,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com/sale',
         },
@@ -5410,7 +5410,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com/sale/items',
         },
@@ -5463,7 +5463,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Test',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           zeroProp: 0,
           falseProp: false,
@@ -5511,7 +5511,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com',
         },
@@ -5558,7 +5558,7 @@ describe('Rokt Forwarder', () => {
       (window as any).mParticle.forwarder.process({
         EventName: 'Browse',
         EventCategory: EventType.Unknown,
-        EventDataType: MessageType.PageView,
+        EventDataType: MessageType.PageEvent,
         EventAttributes: {
           URL: 'https://example.com/anything',
         },
@@ -5592,6 +5592,287 @@ describe('Rokt Forwarder', () => {
 
       expect((window as any).mParticle._Store.localSessionAttributes).toEqual({
         'foo-mapped-flag': true,
+      });
+    });
+
+    describe('page view capture', () => {
+      it('appends a page view record with the expected fields when the event is a PageView', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-1',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 4200,
+          EventAttributes: {
+            hostname: 'example.com',
+            title: 'Home',
+          },
+        });
+
+        expect((window as any).mParticle._Store.localSessionAttributes.mpPageViews).toEqual([
+          {
+            name: 'Home Page',
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-1',
+            timestamp: 1712345678000,
+            activeTimeOnSite: 4200,
+            eventAttributes: {
+              hostname: 'example.com',
+              title: 'Home',
+            },
+          },
+        ]);
+      });
+
+      it('does not append a page view record for a non-PageView event', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Video Watched',
+          EventCategory: EventType.Other,
+          EventDataType: MessageType.PageEvent,
+          SourceMessageId: 'source-message-id-2',
+          Timestamp: 1712345679000,
+          ActiveTimeOnSite: 100,
+        });
+
+        expect((window as any).mParticle._Store.localSessionAttributes.mpPageViews).toBeUndefined();
+      });
+
+      it('caps the stored list at 25 entries and evicts the oldest', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        for (let i = 0; i < 30; i++) {
+          (window as any).mParticle.forwarder.process({
+            EventName: 'Page ' + i,
+            EventCategory: EventType.Unknown,
+            EventDataType: MessageType.PageView,
+            SourceMessageId: 'source-message-id-' + i,
+            Timestamp: 1712345678000 + i,
+            ActiveTimeOnSite: i,
+          });
+        }
+
+        const stored = (window as any).mParticle._Store.localSessionAttributes.mpPageViews;
+        expect(stored.length).toBe(25);
+        // Oldest five (Page 0..4) evicted; newest retained.
+        expect(stored[0].name).toBe('Page 5');
+        expect(stored[24].name).toBe('Page 29');
+      });
+
+      it('does not throw when setLocalSessionAttribute is unavailable', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        delete (window as any).mParticle.Rokt.setLocalSessionAttribute;
+        (window as any).mParticle._Store.localSessionAttributes = {};
+
+        expect(() => {
+          (window as any).mParticle.forwarder.process({
+            EventName: 'Home Page',
+            EventCategory: EventType.Unknown,
+            EventDataType: MessageType.PageView,
+            SourceMessageId: 'source-message-id-3',
+            Timestamp: 1712345678000,
+            ActiveTimeOnSite: 10,
+          });
+        }).not.toThrow();
+
+        expect((window as any).mParticle._Store.localSessionAttributes.mpPageViews).toBeUndefined();
+      });
+
+      it('surfaces stored page views through selectPlacements as page_events without any placement mapping configured', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-4',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 4200,
+        });
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        // The raw nested store must not ride along; only the flat page_events array is sent.
+        expect(forwardedAttributes.mpPageViews).toBeUndefined();
+        expect(forwardedAttributes.page_events).toEqual([
+          {
+            event_name: 'Home Page',
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-4',
+            timestamp: 1712345678000,
+            activeTimeOnSite: 4200,
+          },
+        ]);
+      });
+
+      it('explodes eventAttributes into attr_-namespaced keys in page_events', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Product Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-5',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 4200,
+          EventAttributes: {
+            category: 'shoes',
+            promo: 'x',
+            title: 'Product Page Title',
+          },
+        });
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        // `title` is surfaced as page_name and must NOT also appear as attr_title.
+        expect(forwardedAttributes.page_events).toEqual([
+          {
+            attr_category: 'shoes',
+            attr_promo: 'x',
+            event_name: 'Product Page',
+            page_name: 'Product Page Title',
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-5',
+            timestamp: 1712345678000,
+            activeTimeOnSite: 4200,
+          },
+        ]);
+      });
+
+      it('namespaces a colliding eventAttribute key so it cannot clobber a base field', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Real Name',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-6',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 4200,
+          EventAttributes: {
+            event_name: 'attribute-event-name',
+          },
+        });
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        expect(forwardedAttributes.page_events).toEqual([
+          {
+            attr_event_name: 'attribute-event-name',
+            event_name: 'Real Name',
+            page_name: undefined,
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-6',
+            timestamp: 1712345678000,
+            activeTimeOnSite: 4200,
+          },
+        ]);
+      });
+
+      it('does not add a page_events attribute when no page views are stored', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        expect(forwardedAttributes.page_events).toBeUndefined();
+        expect(forwardedAttributes.mpPageViews).toBeUndefined();
       });
     });
   });
