@@ -65,7 +65,10 @@ interface PageEvent {
   pageUrl: string;
   sourceMessageId: string;
   timestamp: number;
-  activeTimeOnSite: number;
+  // Optional because it survives a localStorage JSON round-trip: a mangled or
+  // partially-written record can yield undefined/NaN, so consumers must guard
+  // rather than assume a number is present.
+  activeTimeOnSite?: number;
   // Derived at transmission (see buildPageEvents), not at capture — it depends
   // on the next page view's activeTimeOnSite, so it is absent on stored records.
   timeOnPage?: number;
@@ -966,7 +969,7 @@ class RoktKit implements KitInterface {
       };
 
       const next = pageViews[index + 1];
-      if (next) {
+      if (next && typeof next.activeTimeOnSite === 'number' && typeof pageView.activeTimeOnSite === 'number') {
         const diff = next.activeTimeOnSite - pageView.activeTimeOnSite;
         if (diff >= 0) {
           pageEvent.timeOnPage = diff;
