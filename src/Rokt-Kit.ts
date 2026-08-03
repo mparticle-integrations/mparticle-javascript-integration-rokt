@@ -65,10 +65,7 @@ interface PageEvent {
   pageUrl: string;
   sourceMessageId: string;
   timestamp: number;
-  // Optional because it survives a localStorage JSON round-trip: a mangled or
-  // partially-written record can yield undefined/NaN, so consumers must guard
-  // rather than assume a number is present.
-  activeTimeOnSite?: number;
+  activeTimeOnSite: number;
   // Derived at transmission (see buildPageEvents), not at capture — it depends
   // on the next page view's activeTimeOnSite, so it is absent on stored records.
   timeOnPage?: number;
@@ -969,7 +966,7 @@ class RoktKit implements KitInterface {
       };
 
       const next = pageViews[index + 1];
-      if (next && typeof next.activeTimeOnSite === 'number' && typeof pageView.activeTimeOnSite === 'number') {
+      if (next) {
         const diff = next.activeTimeOnSite - pageView.activeTimeOnSite;
         if (diff >= 0) {
           pageEvent.timeOnPage = diff;
@@ -1275,16 +1272,11 @@ class RoktKit implements KitInterface {
   }
 
   public process(event: SDKEvent): string {
-    // Page-view capture uses kit-owned localStorage, so it runs independently
-    // of launcher readiness — but only when targeting is permitted, since page
-    // views are behavioral targeting signals.
     if (!this.isTargetingDisabled()) {
       if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
         this.capturePageView(event);
       }
 
-      // Session end clears the kit-owned page-view list so a new session starts
-      // fresh — page views are scoped to a single session.
       if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
         try {
           clearPageViewsStorage();
