@@ -62,23 +62,18 @@ interface RoktExtensionEntry {
 }
 
 interface StoredPageView {
-  event_name: string;
   pageUrl: string;
   sourceMessageId: string;
   timestamp: number;
   activeTimeOnSite: number;
-  eventAttributes?: { [key: string]: string };
 }
 
 interface PageEvent {
-  event_name: string;
-  page_name?: string;
   pageUrl: string;
   sourceMessageId: string;
   timestamp: number;
   activeTimeOnSite: number;
   timeOnPage?: number;
-  [attr: string]: unknown;
 }
 
 interface RoktSelection {
@@ -270,14 +265,10 @@ const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 // sent to Rokt on selectPlacements.
 const LS_PAGE_VIEWS_KEY = 'mpPageViews';
 // Cap on the retained page-view history. Each entry stores a full URL (which can
-// be long) plus event attributes, so this strikes a balance between a useful
-// browsing history and not overloading local session storage.
+// be long), so this strikes a balance between a useful browsing history and not
+// overloading local session storage.
 const MAX_PAGE_VIEWS = 25;
 const PAGE_EVENTS_KEY = 'page_events';
-const PAGE_EVENT_ATTR_PREFIX = 'attr_';
-// The page-view event attribute surfaced as the dedicated page_name field rather
-// than an attr_-namespaced key.
-const PAGE_TITLE_ATTRIBUTE = 'title';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
 // IDSync search before proceeding without the userIdentifiedInWorkspace flag.
@@ -904,12 +895,10 @@ class RoktKit implements KitInterface {
       const pageViews = this.readStoredPageViews();
 
       pageViews.push({
-        event_name: event.EventName,
         pageUrl: sanitizeUrl(window.location.href),
         sourceMessageId: event.SourceMessageId,
         timestamp: event.Timestamp,
         activeTimeOnSite: event.ActiveTimeOnSite,
-        eventAttributes: event.EventAttributes,
       });
 
       while (pageViews.length > MAX_PAGE_VIEWS) {
@@ -970,21 +959,11 @@ class RoktKit implements KitInterface {
   private buildPageEvents(pageViews: StoredPageView[]): PageEvent[] {
     return pageViews.map((pageView, index) => {
       const pageEvent: PageEvent = {
-        event_name: pageView.event_name,
         pageUrl: pageView.pageUrl,
         sourceMessageId: pageView.sourceMessageId,
         timestamp: pageView.timestamp,
         activeTimeOnSite: pageView.activeTimeOnSite,
       };
-      if (pageView.eventAttributes) {
-        for (const [key, value] of Object.entries(pageView.eventAttributes)) {
-          if (key === PAGE_TITLE_ATTRIBUTE) {
-            continue;
-          }
-          pageEvent[`${PAGE_EVENT_ATTR_PREFIX}${key}`] = value;
-        }
-        pageEvent.page_name = pageView.eventAttributes[PAGE_TITLE_ATTRIBUTE];
-      }
 
       const next = pageViews[index + 1];
       if (next) {

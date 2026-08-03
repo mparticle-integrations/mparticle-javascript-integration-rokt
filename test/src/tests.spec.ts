@@ -5667,15 +5667,10 @@ describe('Rokt Forwarder', () => {
 
         expect(JSON.parse((window as any).mParticle._Store.localSessionAttributes.mpPageViews)).toEqual([
           {
-            event_name: 'Home Page',
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-1',
             timestamp: 1712345678000,
             activeTimeOnSite: 4200,
-            eventAttributes: {
-              hostname: 'example.com',
-              title: 'Home',
-            },
           },
         ]);
       });
@@ -5733,9 +5728,9 @@ describe('Rokt Forwarder', () => {
 
         const stored = JSON.parse((window as any).mParticle._Store.localSessionAttributes.mpPageViews);
         expect(stored.length).toBe(25);
-        // Oldest five (Page 0..4) evicted; newest retained.
-        expect(stored[0].event_name).toBe('Page 5');
-        expect(stored[24].event_name).toBe('Page 29');
+        // Oldest five (source-message-id-0..4) evicted; newest retained.
+        expect(stored[0].sourceMessageId).toBe('source-message-id-5');
+        expect(stored[24].sourceMessageId).toBe('source-message-id-29');
       });
 
       it('does not throw when setLocalSessionAttribute is unavailable', async () => {
@@ -5798,97 +5793,8 @@ describe('Rokt Forwarder', () => {
         expect(forwardedAttributes.mpPageViews).toBeUndefined();
         expect(forwardedAttributes.page_events).toEqual([
           {
-            event_name: 'Home Page',
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-4',
-            timestamp: 1712345678000,
-            activeTimeOnSite: 4200,
-          },
-        ]);
-      });
-
-      it('explodes eventAttributes into attr_-namespaced keys in page_events', async () => {
-        await (window as any).mParticle.forwarder.init(
-          {
-            accountId: '123456',
-          },
-          reportService.cb,
-          true,
-          null,
-          {},
-        );
-
-        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-        (window as any).mParticle._Store.localSessionAttributes = {};
-        (window as any).mParticle.forwarder.process({
-          EventName: 'Product Page',
-          EventCategory: EventType.Unknown,
-          EventDataType: MessageType.PageView,
-          SourceMessageId: 'source-message-id-5',
-          Timestamp: 1712345678000,
-          ActiveTimeOnSite: 4200,
-          EventAttributes: {
-            category: 'shoes',
-            promo: 'x',
-            title: 'Product Page Title',
-          },
-        });
-
-        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
-
-        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
-        // `title` is surfaced as page_name and must NOT also appear as attr_title.
-        expect(forwardedAttributes.page_events).toEqual([
-          {
-            attr_category: 'shoes',
-            attr_promo: 'x',
-            event_name: 'Product Page',
-            page_name: 'Product Page Title',
-            pageUrl: window.location.href,
-            sourceMessageId: 'source-message-id-5',
-            timestamp: 1712345678000,
-            activeTimeOnSite: 4200,
-          },
-        ]);
-      });
-
-      it('namespaces a colliding eventAttribute key so it cannot clobber a base field', async () => {
-        await (window as any).mParticle.forwarder.init(
-          {
-            accountId: '123456',
-          },
-          reportService.cb,
-          true,
-          null,
-          {},
-        );
-
-        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-        (window as any).mParticle._Store.localSessionAttributes = {};
-        (window as any).mParticle.forwarder.process({
-          EventName: 'Real Name',
-          EventCategory: EventType.Unknown,
-          EventDataType: MessageType.PageView,
-          SourceMessageId: 'source-message-id-6',
-          Timestamp: 1712345678000,
-          ActiveTimeOnSite: 4200,
-          EventAttributes: {
-            event_name: 'attribute-event-name',
-          },
-        });
-
-        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
-
-        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
-        expect(forwardedAttributes.page_events).toEqual([
-          {
-            attr_event_name: 'attribute-event-name',
-            event_name: 'Real Name',
-            page_name: undefined,
-            pageUrl: window.location.href,
-            sourceMessageId: 'source-message-id-6',
             timestamp: 1712345678000,
             activeTimeOnSite: 4200,
           },
@@ -5955,7 +5861,6 @@ describe('Rokt Forwarder', () => {
         // 4200 - 1000 = 3200. The last (still-open) page has no timeOnPage.
         expect(forwardedAttributes.page_events).toEqual([
           {
-            event_name: 'Home Page',
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-7',
             timestamp: 1712345678000,
@@ -5963,7 +5868,6 @@ describe('Rokt Forwarder', () => {
             timeOnPage: 3200,
           },
           {
-            event_name: 'Product Page',
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-8',
             timestamp: 1712345679000,
