@@ -255,6 +255,7 @@ const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
+const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
 // localStorage key under which captured page views are persisted (as a JSON
 // string). The kit owns this storage directly — separate from mParticle's
 // cookie/localStorage — so page-view capture does not affect mParticle
@@ -309,10 +310,6 @@ function mp(): MParticleExtended {
 // Module-level utility functions
 // ============================================================
 
-// Reads and parses the kit-owned page-view list from localStorage. Returns an
-// empty array when nothing is stored, the value cannot be parsed, or
-// localStorage is unavailable (Safari private mode, storage disabled). Guarded
-// so a storage failure never throws out of the forwarder.
 function readPageViewsStorage(): PageEvent[] {
   try {
     const stored = window.localStorage.getItem(LS_PAGE_VIEWS_KEY);
@@ -326,10 +323,12 @@ function readPageViewsStorage(): PageEvent[] {
   }
 }
 
-// Serializes and writes the kit-owned page-view list to localStorage. Throws on
-// failure (quota exceeded, storage disabled); the caller's catch handles it.
 function writePageViewsStorage(pageViews: PageEvent[]): void {
   window.localStorage.setItem(LS_PAGE_VIEWS_KEY, JSON.stringify(pageViews));
+}
+
+function clearPageViewsStorage(): void {
+  window.localStorage.removeItem(LS_PAGE_VIEWS_KEY);
 }
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
@@ -1271,6 +1270,21 @@ class RoktKit implements KitInterface {
     // of mParticle's setLocalSessionAttribute availability.
     if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
       this.capturePageView(event);
+    }
+
+    // Session end clears the kit-owned page-view list so a new session starts
+    // fresh — page views are scoped to a single session.
+    if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
+      try {
+        clearPageViewsStorage();
+      } catch (err) {
+        this.errorReportingService?.report({
+          message: 'Rokt Kit: Failed to clear page views on session end',
+          code: 'PAGE_VIEW_CAPTURE_FAILED',
+          severity: WSDKErrorSeverity.WARNING,
+          stackTrace: err instanceof Error ? err.stack : undefined,
+        });
+      }
     }
 
     if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {

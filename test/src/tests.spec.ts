@@ -5743,6 +5743,42 @@ describe('Rokt Forwarder', () => {
         expect(stored[stored.length - 1].sourceMessageId).toBe('source-message-id-29');
       });
 
+      it('clears the stored page-view history on a SessionEnd event', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-1',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 4200,
+        });
+
+        expect(readStoredPageViews()).not.toBeNull();
+
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Session End',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.SessionEnd,
+          SourceMessageId: 'source-message-id-session-end',
+          Timestamp: 1712345679000,
+          ActiveTimeOnSite: 4300,
+        });
+
+        expect(readStoredPageViews()).toBeNull();
+      });
+
       it('does not throw and reports a warning when localStorage writes throw', async () => {
         await (window as any).mParticle.forwarder.init(
           {
