@@ -135,18 +135,8 @@ interface RoktManager {
   setLocalSessionAttribute?(key: string, value: unknown): void;
 }
 
-interface SDKConfigInternal {
-  useCookieStorage?: boolean;
-  maxCookieSize?: number;
-}
-
-interface StoreInternal {
-  SDKConfig?: SDKConfigInternal;
-}
-
 interface MParticleInstance {
   setIntegrationAttribute(moduleId: number, attrs: Record<string, unknown>): void;
-  _Store?: StoreInternal;
 }
 
 interface OptimizelyState {
@@ -265,16 +255,15 @@ const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
-// Local-session-attribute key under which captured page views are persisted (as a
-// JSON string). Distinct from PAGE_EVENTS_KEY, which is the flattened wire shape
-// sent to Rokt on selectPlacements.
+// localStorage key under which captured page views are persisted (as a JSON
+// string). The kit owns this storage directly — separate from mParticle's
+// cookie/localStorage — so page-view capture does not affect mParticle
+// persistence or cookie sync. Distinct from PAGE_EVENTS_KEY, which is the
+// flattened wire shape sent to Rokt on selectPlacements.
 const LS_PAGE_VIEWS_KEY = 'mpPageViews';
-// Byte budget for the persisted page-view history, keyed to the storage backend
-// (see resolvePageViewsBudget). localStorage has no SDK-enforced size cap, so we
-// self-impose 128 KB. Code constant, not a kit setting — change it here.
-const PAGE_VIEWS_LS_BUDGET_BYTES = 128 * 1024;
-// Cookie mode: use 1/3 of the SDK's maxCookieSize so the blob shares the cookie.
-const PAGE_VIEWS_COOKIE_BUDGET_DIVISOR = 3;
+// Fixed cap on the number of persisted page views (oldest evicted first). Code
+// constant, not a kit setting — change it here.
+const PAGE_VIEWS_MAX_COUNT = 25;
 const PAGE_EVENTS_KEY = 'page_events';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
@@ -320,19 +309,27 @@ function mp(): MParticleExtended {
 // Module-level utility functions
 // ============================================================
 
-// Resolves the byte budget for the persisted page-view history from the SDK's
-// storage backend. Reads private SDK internals (_Store.SDKConfig), so every
-// access is optional-chained; any missing internal falls back to the cookie
-// default (maxCookieSize 3000 / 3), the small/safe choice.
-function resolvePageViewsBudget(): number {
-  const sdkConfig = mp().getInstance()?._Store?.SDKConfig;
-  if (sdkConfig?.useCookieStorage === true) {
-    return Math.floor((sdkConfig.maxCookieSize ?? 3000) / PAGE_VIEWS_COOKIE_BUDGET_DIVISOR);
+// Reads and parses the kit-owned page-view list from localStorage. Returns an
+// empty array when nothing is stored, the value cannot be parsed, or
+// localStorage is unavailable (Safari private mode, storage disabled). Guarded
+// so a storage failure never throws out of the forwarder.
+function readPageViewsStorage(): PageEvent[] {
+  try {
+    const stored = window.localStorage.getItem(LS_PAGE_VIEWS_KEY);
+    if (stored === null) {
+      return [];
+    }
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? (parsed as PageEvent[]) : [];
+  } catch {
+    return [];
   }
-  if (sdkConfig) {
-    return PAGE_VIEWS_LS_BUDGET_BYTES;
-  }
-  return Math.floor(3000 / PAGE_VIEWS_COOKIE_BUDGET_DIVISOR);
+}
+
+// Serializes and writes the kit-owned page-view list to localStorage. Throws on
+// failure (quota exceeded, storage disabled); the caller's catch handles it.
+function writePageViewsStorage(pageViews: PageEvent[]): void {
+  window.localStorage.setItem(LS_PAGE_VIEWS_KEY, JSON.stringify(pageViews));
 }
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
@@ -906,19 +903,13 @@ class RoktKit implements KitInterface {
     }
   }
 
-  // Appends a page-view record to the persisted list under LS_PAGE_VIEWS_KEY,
-  // capping at a byte budget (oldest evicted). The list is stored as a JSON
-  // string because setLocalSessionAttribute only contracts to accept primitive
-  // AttributeValues. Wrapped so a malformed event can never throw out of the
-  // forwarder. Callers must confirm the event is a page view and that
-  // setLocalSessionAttribute is available.
   private capturePageView(event: SDKEvent): void {
     let pageUrl: string | undefined;
 
     try {
       pageUrl = sanitizeUrl(window.location.href);
 
-      const pageViews = this.readStoredPageViews();
+      const pageViews = readPageViewsStorage();
 
       pageViews.push({
         pageUrl,
@@ -927,18 +918,11 @@ class RoktKit implements KitInterface {
         activeTimeOnSite: event.ActiveTimeOnSite,
       });
 
-      // Evict oldest until the serialized blob fits the budget. `.length` is a
-      // conservative char-count proxy for UTF-8 bytes. `length > 1` always
-      // retains the current page-view and prevents an empty-array infinite loop.
-      // We reuse `serialized` for the write below, re-serializing only on evict.
-      const budget = resolvePageViewsBudget();
-      let serialized = JSON.stringify(pageViews);
-      while (pageViews.length > 1 && serialized.length > budget) {
+      while (pageViews.length > PAGE_VIEWS_MAX_COUNT) {
         pageViews.shift();
-        serialized = JSON.stringify(pageViews);
       }
 
-      mp().Rokt.setLocalSessionAttribute?.(LS_PAGE_VIEWS_KEY, serialized);
+      writePageViewsStorage(pageViews);
     } catch (err) {
       this.errorReportingService?.report({
         message: `Rokt Kit: Failed to capture page view for ${pageUrl}`,
@@ -946,22 +930,6 @@ class RoktKit implements KitInterface {
         severity: WSDKErrorSeverity.WARNING,
         stackTrace: err instanceof Error ? err.stack : undefined,
       });
-    }
-  }
-
-  // Reads and parses the persisted page-view list from local session attributes.
-  // Returns an empty array when nothing is stored or the value cannot be parsed
-  // (e.g. a legacy raw-array value written before JSON persistence).
-  private readStoredPageViews(): PageEvent[] {
-    const stored = mp().Rokt.getLocalSessionAttributes?.()?.[LS_PAGE_VIEWS_KEY];
-    if (typeof stored !== 'string') {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? (parsed as PageEvent[]) : [];
-    } catch {
-      return [];
     }
   }
 
@@ -1299,11 +1267,13 @@ class RoktKit implements KitInterface {
   }
 
   public process(event: SDKEvent): string {
-    if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {
-      if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
-        this.capturePageView(event);
-      }
+    // Page-view capture uses kit-owned localStorage, so it runs independently
+    // of mParticle's setLocalSessionAttribute availability.
+    if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
+      this.capturePageView(event);
+    }
 
+    if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {
       if (!isEmpty(this.placementEventAttributeMappingLookup)) {
         this.applyPlacementEventAttributeMapping(event);
       }
@@ -1511,8 +1481,8 @@ class RoktKit implements KitInterface {
 
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
-    const { [LS_PAGE_VIEWS_KEY]: _rawPageViews, ...sessionAttributes } = this.returnLocalSessionAttributes();
-    const pageEvents = this.buildPageEvents(this.readStoredPageViews());
+    const sessionAttributes = this.returnLocalSessionAttributes();
+    const pageEvents = this.buildPageEvents(readPageViewsStorage());
 
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),
