@@ -135,8 +135,18 @@ interface RoktManager {
   setLocalSessionAttribute?(key: string, value: unknown): void;
 }
 
+interface SDKConfigInternal {
+  useCookieStorage?: boolean;
+  maxCookieSize?: number;
+}
+
+interface StoreInternal {
+  SDKConfig?: SDKConfigInternal;
+}
+
 interface MParticleInstance {
   setIntegrationAttribute(moduleId: number, attrs: Record<string, unknown>): void;
+  _Store?: StoreInternal;
 }
 
 interface OptimizelyState {
@@ -259,10 +269,12 @@ const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 // JSON string). Distinct from PAGE_EVENTS_KEY, which is the flattened wire shape
 // sent to Rokt on selectPlacements.
 const LS_PAGE_VIEWS_KEY = 'mpPageViews';
-// Cap on the retained page-view history. Each entry stores a full URL (which can
-// be long), so this strikes a balance between a useful browsing history and not
-// overloading local session storage.
-const MAX_PAGE_VIEWS = 25;
+// Byte budget for the persisted page-view history, keyed to the storage backend
+// (see resolvePageViewsBudget). localStorage has no SDK-enforced size cap, so we
+// self-impose 128 KB. Code constant, not a kit setting — change it here.
+const PAGE_VIEWS_LS_BUDGET_BYTES = 128 * 1024;
+// Cookie mode: use 1/3 of the SDK's maxCookieSize so the blob shares the cookie.
+const PAGE_VIEWS_COOKIE_BUDGET_DIVISOR = 3;
 const PAGE_EVENTS_KEY = 'page_events';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
@@ -307,6 +319,21 @@ function mp(): MParticleExtended {
 // ============================================================
 // Module-level utility functions
 // ============================================================
+
+// Resolves the byte budget for the persisted page-view history from the SDK's
+// storage backend. Reads private SDK internals (_Store.SDKConfig), so every
+// access is optional-chained; any missing internal falls back to the cookie
+// default (maxCookieSize 3000 / 3), the small/safe choice.
+function resolvePageViewsBudget(): number {
+  const sdkConfig = mp().getInstance()?._Store?.SDKConfig;
+  if (sdkConfig?.useCookieStorage === true) {
+    return Math.floor((sdkConfig.maxCookieSize ?? 3000) / PAGE_VIEWS_COOKIE_BUDGET_DIVISOR);
+  }
+  if (sdkConfig) {
+    return PAGE_VIEWS_LS_BUDGET_BYTES;
+  }
+  return Math.floor(3000 / PAGE_VIEWS_COOKIE_BUDGET_DIVISOR);
+}
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
   const launcherPath = '/wsdk/integrations/launcher.js';
@@ -880,7 +907,7 @@ class RoktKit implements KitInterface {
   }
 
   // Appends a page-view record to the persisted list under LS_PAGE_VIEWS_KEY,
-  // capping at MAX_PAGE_VIEWS (oldest evicted). The list is stored as a JSON
+  // capping at a byte budget (oldest evicted). The list is stored as a JSON
   // string because setLocalSessionAttribute only contracts to accept primitive
   // AttributeValues. Wrapped so a malformed event can never throw out of the
   // forwarder. Callers must confirm the event is a page view and that
@@ -900,11 +927,18 @@ class RoktKit implements KitInterface {
         activeTimeOnSite: event.ActiveTimeOnSite,
       });
 
-      while (pageViews.length > MAX_PAGE_VIEWS) {
+      // Evict oldest until the serialized blob fits the budget. `.length` is a
+      // conservative char-count proxy for UTF-8 bytes. `length > 1` always
+      // retains the current page-view and prevents an empty-array infinite loop.
+      // We reuse `serialized` for the write below, re-serializing only on evict.
+      const budget = resolvePageViewsBudget();
+      let serialized = JSON.stringify(pageViews);
+      while (pageViews.length > 1 && serialized.length > budget) {
         pageViews.shift();
+        serialized = JSON.stringify(pageViews);
       }
 
-      mp().Rokt.setLocalSessionAttribute?.(LS_PAGE_VIEWS_KEY, JSON.stringify(pageViews));
+      mp().Rokt.setLocalSessionAttribute?.(LS_PAGE_VIEWS_KEY, serialized);
     } catch (err) {
       this.errorReportingService?.report({
         message: `Rokt Kit: Failed to capture page view for ${pageUrl}`,

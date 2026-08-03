@@ -5638,6 +5638,11 @@ describe('Rokt Forwarder', () => {
     });
 
     describe('page view capture', () => {
+      const defaultGetInstance = (window as any).mParticle.getInstance;
+      afterEach(() => {
+        (window as any).mParticle.getInstance = defaultGetInstance;
+      });
+
       it('appends a page view record with the expected fields when the event is a PageView', async () => {
         await (window as any).mParticle.forwarder.init(
           {
@@ -5701,7 +5706,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).mParticle._Store.localSessionAttributes.mpPageViews).toBeUndefined();
       });
 
-      it('caps the stored list at 25 entries and evicts the oldest', async () => {
+      it('evicts oldest to keep the serialized blob within the cookie-mode byte budget', async () => {
         await (window as any).mParticle.forwarder.init(
           {
             accountId: '123456',
@@ -5714,8 +5719,14 @@ describe('Rokt Forwarder', () => {
 
         await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
+        // Cookie mode with maxCookieSize 3000 → budget 3000 / 3 = 1000 bytes.
+        (window as any).mParticle.getInstance = () => ({
+          setIntegrationAttribute: () => {},
+          _Store: { SDKConfig: { useCookieStorage: true, maxCookieSize: 3000 } },
+        });
+
         (window as any).mParticle._Store.localSessionAttributes = {};
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 50; i++) {
           (window as any).mParticle.forwarder.process({
             EventName: 'Page ' + i,
             EventCategory: EventType.Unknown,
@@ -5726,11 +5737,125 @@ describe('Rokt Forwarder', () => {
           });
         }
 
+        const raw = (window as any).mParticle._Store.localSessionAttributes.mpPageViews;
+        const stored = JSON.parse(raw);
+        expect(raw.length).toBeLessThanOrEqual(1000);
+        expect(stored.length).toBeGreaterThan(1);
+        // Oldest were evicted; the newest page view is always retained.
+        expect(stored[stored.length - 1].sourceMessageId).toBe('source-message-id-49');
+        expect(stored[0].sourceMessageId).not.toBe('source-message-id-0');
+      });
+
+      it('retains many records in localStorage mode under the 128 KB budget', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        // localStorage mode → 128 KB budget, room for hundreds of records.
+        (window as any).mParticle.getInstance = () => ({
+          setIntegrationAttribute: () => {},
+          _Store: { SDKConfig: { useCookieStorage: false } },
+        });
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        for (let i = 0; i < 200; i++) {
+          (window as any).mParticle.forwarder.process({
+            EventName: 'Page ' + i,
+            EventCategory: EventType.Unknown,
+            EventDataType: MessageType.PageView,
+            SourceMessageId: 'source-message-id-' + i,
+            Timestamp: 1712345678000 + i,
+            ActiveTimeOnSite: i,
+          });
+        }
+
+        const raw = (window as any).mParticle._Store.localSessionAttributes.mpPageViews;
+        const stored = JSON.parse(raw);
+        expect(raw.length).toBeLessThanOrEqual(128 * 1024);
+        // 200 small records are well within 128 KB — none evicted.
+        expect(stored.length).toBe(200);
+        expect(stored[0].sourceMessageId).toBe('source-message-id-0');
+        expect(stored[199].sourceMessageId).toBe('source-message-id-199');
+      });
+
+      it('stores a single record that on its own exceeds the byte budget (length > 1 guard)', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        // Cookie mode, tiny budget so any single record blows it.
+        (window as any).mParticle.getInstance = () => ({
+          setIntegrationAttribute: () => {},
+          _Store: { SDKConfig: { useCookieStorage: true, maxCookieSize: 3 } },
+        });
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-oversized',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 4200,
+        });
+
         const stored = JSON.parse((window as any).mParticle._Store.localSessionAttributes.mpPageViews);
-        expect(stored.length).toBe(25);
-        // Oldest five (source-message-id-0..4) evicted; newest retained.
-        expect(stored[0].sourceMessageId).toBe('source-message-id-5');
-        expect(stored[24].sourceMessageId).toBe('source-message-id-29');
+        // The current page view is never evicted, even when it alone exceeds the budget.
+        expect(stored.length).toBe(1);
+        expect(stored[0].sourceMessageId).toBe('source-message-id-oversized');
+      });
+
+      it('falls back to the cookie default budget and does not throw when SDK internals are missing', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        // getInstance() present but no _Store — resolver must degrade to 3000 / 3.
+        (window as any).mParticle.getInstance = () => ({
+          setIntegrationAttribute: () => {},
+        });
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        expect(() => {
+          for (let i = 0; i < 50; i++) {
+            (window as any).mParticle.forwarder.process({
+              EventName: 'Page ' + i,
+              EventCategory: EventType.Unknown,
+              EventDataType: MessageType.PageView,
+              SourceMessageId: 'source-message-id-' + i,
+              Timestamp: 1712345678000 + i,
+              ActiveTimeOnSite: i,
+            });
+          }
+        }).not.toThrow();
+
+        const raw = (window as any).mParticle._Store.localSessionAttributes.mpPageViews;
+        expect(raw.length).toBeLessThanOrEqual(1000);
+        expect(JSON.parse(raw).length).toBeGreaterThan(1);
       });
 
       it('does not throw when setLocalSessionAttribute is unavailable', async () => {
