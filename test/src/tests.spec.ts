@@ -5687,6 +5687,41 @@ describe('Rokt Forwarder', () => {
         ]);
       });
 
+      it('coerces a non-finite ActiveTimeOnSite to 0 at the write boundary', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        // A NaN source would serialize to "null" (JSON.stringify(NaN) === 'null')
+        // and read back as a non-number, breaking the honest `number` stored type.
+        // Coercing at capture guarantees only finite numbers ever enter storage.
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-nan',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: NaN,
+        });
+
+        expect(readStoredPageViews()).toEqual([
+          {
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-nan',
+            timestamp: 1712345678000,
+            activeTimeOnSite: 0,
+          },
+        ]);
+      });
+
       it('does not append a page view record for a non-PageView event', async () => {
         await (window as any).mParticle.forwarder.init(
           {

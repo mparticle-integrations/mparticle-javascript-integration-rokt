@@ -914,7 +914,7 @@ class RoktKit implements KitInterface {
         pageUrl,
         sourceMessageId: event.SourceMessageId,
         timestamp: event.Timestamp,
-        activeTimeOnSite: event.ActiveTimeOnSite,
+        activeTimeOnSite: Number.isFinite(event.ActiveTimeOnSite) ? event.ActiveTimeOnSite : 0,
       });
 
       while (pageViews.length > PAGE_VIEWS_MAX_COUNT) {
