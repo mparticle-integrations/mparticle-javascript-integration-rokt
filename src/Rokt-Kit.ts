@@ -1114,6 +1114,12 @@ class RoktKit implements KitInterface {
     return !!(this.isInitialized && this.launcher);
   }
 
+  // When the partner has opted out of targeting (noTargeting launcher option),
+  // the kit must not collect behavioral targeting signals such as page views.
+  private isTargetingDisabled(): boolean {
+    return (mp().Rokt?.launcherOptions as Record<string, unknown> | undefined)?.noTargeting === true;
+  }
+
   private isPartnerInLocalLauncherTestGroup(): boolean {
     return !!(mp().config && mp().config!.isLocalLauncherEnabled && this.isAssignedToSampleGroup());
   }
@@ -1270,24 +1276,33 @@ class RoktKit implements KitInterface {
 
   public process(event: SDKEvent): string {
     // Page-view capture uses kit-owned localStorage, so it runs independently
-    // of mParticle's setLocalSessionAttribute availability.
-    if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
-      this.capturePageView(event);
+    // of launcher readiness — but only when targeting is permitted, since page
+    // views are behavioral targeting signals.
+    if (!this.isTargetingDisabled()) {
+      if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
+        this.capturePageView(event);
+      }
+
+      // Session end clears the kit-owned page-view list so a new session starts
+      // fresh — page views are scoped to a single session.
+      if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
+        try {
+          clearPageViewsStorage();
+        } catch (err) {
+          this.errorReportingService?.report({
+            message: 'Rokt Kit: Failed to clear page views on session end',
+            code: 'PAGE_VIEW_CAPTURE_FAILED',
+            severity: WSDKErrorSeverity.WARNING,
+            stackTrace: err instanceof Error ? err.stack : undefined,
+          });
+        }
+      }
     }
 
-    // Session end clears the kit-owned page-view list so a new session starts
-    // fresh — page views are scoped to a single session.
-    if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
-      try {
-        clearPageViewsStorage();
-      } catch (err) {
-        this.errorReportingService?.report({
-          message: 'Rokt Kit: Failed to clear page views on session end',
-          code: 'PAGE_VIEW_CAPTURE_FAILED',
-          severity: WSDKErrorSeverity.WARNING,
-          stackTrace: err instanceof Error ? err.stack : undefined,
-        });
-      }
+    // The forwarding work below (LSA mapping) depends on the launcher, so guard
+    // it here and surface the not-ready signal to the core SDK.
+    if (!this.isKitReady()) {
+      return 'Kit not ready for forwarder: ' + name;
     }
 
     if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {

@@ -5779,6 +5779,103 @@ describe('Rokt Forwarder', () => {
         expect(readStoredPageViews()).toBeNull();
       });
 
+      it('captures the page view but returns the not-ready signal when the kit is not ready', () => {
+        // Force a not-ready state: capture must still run (kit-owned storage),
+        // but process() must tell the core SDK the forwarder is not ready.
+        (window as any).mParticle.forwarder.isInitialized = false;
+        (window as any).mParticle.forwarder.launcher = null;
+
+        const result = (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-not-ready',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 4200,
+        });
+
+        expect(result).toContain('Kit not ready');
+        expect(readStoredPageViews()).toEqual([
+          {
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-not-ready',
+            timestamp: 1712345678000,
+            activeTimeOnSite: 4200,
+          },
+        ]);
+      });
+
+      it('does not capture page views when targeting is disabled (noTargeting launcher option)', async () => {
+        (window as any).mParticle.Rokt.launcherOptions = {
+          noTargeting: true,
+        };
+
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-1',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 4200,
+        });
+
+        expect(readStoredPageViews()).toBeNull();
+      });
+
+      it('does not clear stored page views on SessionEnd when targeting is disabled', async () => {
+        // Seed a stored page view from a period when targeting was permitted.
+        window.localStorage.setItem(
+          'mpPageViews',
+          JSON.stringify([
+            {
+              pageUrl: 'https://example.com/',
+              sourceMessageId: 'seeded',
+              timestamp: 1712345678000,
+              activeTimeOnSite: 4200,
+            },
+          ]),
+        );
+
+        (window as any).mParticle.Rokt.launcherOptions = {
+          noTargeting: true,
+        };
+
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Session End',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.SessionEnd,
+          SourceMessageId: 'source-message-id-session-end',
+          Timestamp: 1712345679000,
+          ActiveTimeOnSite: 4300,
+        });
+
+        expect(readStoredPageViews()).not.toBeNull();
+      });
+
       it('does not throw and reports a warning when localStorage writes throw', async () => {
         await (window as any).mParticle.forwarder.init(
           {
