@@ -6011,6 +6011,35 @@ describe('Rokt Forwarder', () => {
           });
         }
       });
+
+      it('captures a page view fired before the launcher finishes loading (kit not yet ready)', () => {
+        // Reproduces the race where the core SDK routes the initial page-load
+        // pageview to process() after it marks the forwarder active but before
+        // the async launcher round-trip flips isInitialized/launcher. In that
+        // window isKitReady() is false, yet setLocalSessionAttribute is already
+        // usable — the pageview must still be persisted, not dropped.
+        (window as any).mParticle.forwarder.isInitialized = false;
+        (window as any).mParticle.forwarder.launcher = null;
+        (window as any).mParticle._Store.localSessionAttributes = {};
+
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-race',
+          Timestamp: 1712345678000,
+          ActiveTimeOnSite: 4200,
+        });
+
+        expect(JSON.parse((window as any).mParticle._Store.localSessionAttributes.mpPageViews)).toEqual([
+          {
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-race',
+            timestamp: 1712345678000,
+            activeTimeOnSite: 4200,
+          },
+        ]);
+      });
     });
   });
 

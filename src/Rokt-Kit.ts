@@ -1265,10 +1265,6 @@ class RoktKit implements KitInterface {
   }
 
   public process(event: SDKEvent): string {
-    if (!this.isKitReady()) {
-      return 'Kit not ready for forwarder: ' + name;
-    }
-
     if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {
       if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
         this.capturePageView(event);
