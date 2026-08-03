@@ -5789,9 +5789,10 @@ describe('Rokt Forwarder', () => {
         await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
 
         const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
-        // The raw nested store must not ride along; only the flat page_events array is sent.
+        // The raw nested store must not ride along; only the flat page_events array is sent,
+        // JSON-stringified to satisfy the primitives-only Rokt attribute contract.
         expect(forwardedAttributes.mpPageViews).toBeUndefined();
-        expect(forwardedAttributes.page_events).toEqual([
+        expect(JSON.parse(forwardedAttributes.page_events)).toEqual([
           {
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-4',
@@ -5859,7 +5860,7 @@ describe('Rokt Forwarder', () => {
         const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
         // First page's time-on-page is how long it was viewed before the next page:
         // 4200 - 1000 = 3200. The last (still-open) page has no timeOnPage.
-        expect(forwardedAttributes.page_events).toEqual([
+        expect(JSON.parse(forwardedAttributes.page_events)).toEqual([
           {
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-7',
@@ -5918,7 +5919,7 @@ describe('Rokt Forwarder', () => {
         await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
 
         const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
-        const pageEvents = forwardedAttributes.page_events;
+        const pageEvents = JSON.parse(forwardedAttributes.page_events);
         expect(pageEvents[0].timeOnPage).toBe(1500); // 2500 - 1000
         expect(pageEvents[1].timeOnPage).toBe(6500); // 9000 - 2500
         expect(pageEvents[2].timeOnPage).toBeUndefined(); // still open
@@ -5958,7 +5959,7 @@ describe('Rokt Forwarder', () => {
         await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
 
         const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
-        const pageEvents = forwardedAttributes.page_events;
+        const pageEvents = JSON.parse(forwardedAttributes.page_events);
         // 1000 - 5000 = -4000 → omitted rather than emitting a misleading value.
         expect(pageEvents[0].timeOnPage).toBeUndefined();
         expect(pageEvents[1].timeOnPage).toBeUndefined();
@@ -5999,7 +6000,9 @@ describe('Rokt Forwarder', () => {
           await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
 
           const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
-          expect(forwardedAttributes.page_events[0].pageUrl).toBe('https://www.example.com/checkout#section');
+          expect(JSON.parse(forwardedAttributes.page_events)[0].pageUrl).toBe(
+            'https://www.example.com/checkout#section',
+          );
         } finally {
           Object.defineProperty(window, 'location', {
             value: originalLocation,

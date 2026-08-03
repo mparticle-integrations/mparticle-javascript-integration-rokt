@@ -1490,7 +1490,7 @@ class RoktKit implements KitInterface {
       ...filteredAttributes,
       ...optimizelyAttributes,
       ...sessionAttributes,
-      ...(pageEvents.length ? { [PAGE_EVENTS_KEY]: pageEvents } : {}),
+      ...(pageEvents.length ? { [PAGE_EVENTS_KEY]: JSON.stringify(pageEvents) } : {}),
       ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
       mpid,
     };
