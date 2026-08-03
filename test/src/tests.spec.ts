@@ -5665,7 +5665,7 @@ describe('Rokt Forwarder', () => {
           },
         });
 
-        expect((window as any).mParticle._Store.localSessionAttributes.mpPageViews).toEqual([
+        expect(JSON.parse((window as any).mParticle._Store.localSessionAttributes.mpPageViews)).toEqual([
           {
             event_name: 'Home Page',
             pageUrl: window.location.href,
@@ -5731,7 +5731,7 @@ describe('Rokt Forwarder', () => {
           });
         }
 
-        const stored = (window as any).mParticle._Store.localSessionAttributes.mpPageViews;
+        const stored = JSON.parse((window as any).mParticle._Store.localSessionAttributes.mpPageViews);
         expect(stored.length).toBe(25);
         // Oldest five (Page 0..4) evicted; newest retained.
         expect(stored[0].event_name).toBe('Page 5');

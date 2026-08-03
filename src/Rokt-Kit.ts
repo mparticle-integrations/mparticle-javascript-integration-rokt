@@ -265,7 +265,10 @@ const ROKT_THANK_YOU_ELEMENT_SCRIPT_ID = 'rokt-thank-you-element';
 const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
-const PAGE_VIEWS_KEY = 'mpPageViews';
+// Local-session-attribute key under which captured page views are persisted (as a
+// JSON string). Distinct from PAGE_EVENTS_KEY, which is the flattened wire shape
+// sent to Rokt on selectPlacements.
+const LS_PAGE_VIEWS_KEY = 'mpPageViews';
 const MAX_PAGE_VIEWS = 25;
 const PAGE_EVENTS_KEY = 'page_events';
 const PAGE_EVENT_ATTR_PREFIX = 'attr_';
@@ -880,14 +883,15 @@ class RoktKit implements KitInterface {
     }
   }
 
-  // Appends a page-view record to the persisted list under PAGE_VIEWS_KEY,
-  // capping at MAX_PAGE_VIEWS (oldest evicted). Wrapped so a malformed event
-  // can never throw out of the forwarder. Callers must confirm the event is a
-  // page view and that setLocalSessionAttribute is available.
+  // Appends a page-view record to the persisted list under LS_PAGE_VIEWS_KEY,
+  // capping at MAX_PAGE_VIEWS (oldest evicted). The list is stored as a JSON
+  // string because setLocalSessionAttribute only contracts to accept primitive
+  // AttributeValues. Wrapped so a malformed event can never throw out of the
+  // forwarder. Callers must confirm the event is a page view and that
+  // setLocalSessionAttribute is available.
   private capturePageView(event: SDKEvent): void {
     try {
-      const existing = mp().Rokt.getLocalSessionAttributes?.()?.[PAGE_VIEWS_KEY];
-      const pageViews: StoredPageView[] = Array.isArray(existing) ? (existing as StoredPageView[]) : [];
+      const pageViews = this.readStoredPageViews();
 
       pageViews.push({
         event_name: event.EventName,
@@ -902,9 +906,30 @@ class RoktKit implements KitInterface {
         pageViews.shift();
       }
 
-      mp().Rokt.setLocalSessionAttribute?.(PAGE_VIEWS_KEY, pageViews);
+      mp().Rokt.setLocalSessionAttribute?.(LS_PAGE_VIEWS_KEY, JSON.stringify(pageViews));
     } catch (err) {
-      console.error('Rokt Kit: Failed to capture page view', err);
+      this.errorReportingService?.report({
+        message: 'Rokt Kit: Failed to capture page view',
+        code: 'PAGE_VIEW_CAPTURE_FAILED',
+        severity: WSDKErrorSeverity.WARNING,
+        stackTrace: err instanceof Error ? err.stack : undefined,
+      });
+    }
+  }
+
+  // Reads and parses the persisted page-view list from local session attributes.
+  // Returns an empty array when nothing is stored or the value cannot be parsed
+  // (e.g. a legacy raw-array value written before JSON persistence).
+  private readStoredPageViews(): StoredPageView[] {
+    const stored = mp().Rokt.getLocalSessionAttributes?.()?.[LS_PAGE_VIEWS_KEY];
+    if (typeof stored !== 'string') {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? (parsed as StoredPageView[]) : [];
+    } catch {
+      return [];
     }
   }
 
@@ -948,8 +973,8 @@ class RoktKit implements KitInterface {
           }
           flat[`${PAGE_EVENT_ATTR_PREFIX}${key}`] = value;
         }
+        flat.page_name = pageView.eventAttributes[PAGE_TITLE_ATTRIBUTE];
       }
-      flat.page_name = pageView.eventAttributes?.[PAGE_TITLE_ATTRIBUTE];
 
       const next = pageViews[index + 1];
       if (next && typeof next.activeTimeOnSite === 'number' && typeof pageView.activeTimeOnSite === 'number') {
@@ -1468,8 +1493,8 @@ class RoktKit implements KitInterface {
 
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
-    const { [PAGE_VIEWS_KEY]: rawPageViews, ...sessionAttributes } = this.returnLocalSessionAttributes();
-    const pageEvents = Array.isArray(rawPageViews) ? this.buildPageEvents(rawPageViews as StoredPageView[]) : [];
+    const { [LS_PAGE_VIEWS_KEY]: _rawPageViews, ...sessionAttributes } = this.returnLocalSessionAttributes();
+    const pageEvents = this.buildPageEvents(this.readStoredPageViews());
 
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),
