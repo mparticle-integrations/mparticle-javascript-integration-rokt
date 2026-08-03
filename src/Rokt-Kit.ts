@@ -61,18 +61,13 @@ interface RoktExtensionEntry {
   value: string;
 }
 
-interface StoredPageView {
-  pageUrl: string;
-  sourceMessageId: string;
-  timestamp: number;
-  activeTimeOnSite: number;
-}
-
 interface PageEvent {
   pageUrl: string;
   sourceMessageId: string;
   timestamp: number;
   activeTimeOnSite: number;
+  // Derived at transmission (see buildPageEvents), not at capture — it depends
+  // on the next page view's activeTimeOnSite, so it is absent on stored records.
   timeOnPage?: number;
 }
 
@@ -891,11 +886,15 @@ class RoktKit implements KitInterface {
   // forwarder. Callers must confirm the event is a page view and that
   // setLocalSessionAttribute is available.
   private capturePageView(event: SDKEvent): void {
+    let pageUrl: string | undefined;
+
     try {
+      pageUrl = sanitizeUrl(window.location.href);
+
       const pageViews = this.readStoredPageViews();
 
       pageViews.push({
-        pageUrl: sanitizeUrl(window.location.href),
+        pageUrl,
         sourceMessageId: event.SourceMessageId,
         timestamp: event.Timestamp,
         activeTimeOnSite: event.ActiveTimeOnSite,
@@ -908,7 +907,7 @@ class RoktKit implements KitInterface {
       mp().Rokt.setLocalSessionAttribute?.(LS_PAGE_VIEWS_KEY, JSON.stringify(pageViews));
     } catch (err) {
       this.errorReportingService?.report({
-        message: 'Rokt Kit: Failed to capture page view',
+        message: `Rokt Kit: Failed to capture page view for ${pageUrl}`,
         code: 'PAGE_VIEW_CAPTURE_FAILED',
         severity: WSDKErrorSeverity.WARNING,
         stackTrace: err instanceof Error ? err.stack : undefined,
@@ -919,14 +918,14 @@ class RoktKit implements KitInterface {
   // Reads and parses the persisted page-view list from local session attributes.
   // Returns an empty array when nothing is stored or the value cannot be parsed
   // (e.g. a legacy raw-array value written before JSON persistence).
-  private readStoredPageViews(): StoredPageView[] {
+  private readStoredPageViews(): PageEvent[] {
     const stored = mp().Rokt.getLocalSessionAttributes?.()?.[LS_PAGE_VIEWS_KEY];
     if (typeof stored !== 'string') {
       return [];
     }
     try {
       const parsed = JSON.parse(stored);
-      return Array.isArray(parsed) ? (parsed as StoredPageView[]) : [];
+      return Array.isArray(parsed) ? (parsed as PageEvent[]) : [];
     } catch {
       return [];
     }
@@ -956,7 +955,7 @@ class RoktKit implements KitInterface {
     return mp().Rokt.getLocalSessionAttributes!();
   }
 
-  private buildPageEvents(pageViews: StoredPageView[]): PageEvent[] {
+  private buildPageEvents(pageViews: PageEvent[]): PageEvent[] {
     return pageViews.map((pageView, index) => {
       const pageEvent: PageEvent = {
         pageUrl: pageView.pageUrl,
