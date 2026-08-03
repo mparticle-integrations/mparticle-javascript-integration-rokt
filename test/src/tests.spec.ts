@@ -6059,6 +6059,51 @@ describe('Rokt Forwarder', () => {
         expect(pageEvents[0].timeOnPage).toBeUndefined();
         expect(pageEvents[1].timeOnPage).toBeUndefined();
       });
+
+      it('strips query params from the captured pageUrl', async () => {
+        const originalLocation = window.location;
+        // Query params commonly carry PII (emails, tokens); they must not be captured.
+        Object.defineProperty(window, 'location', {
+          value: new URL('https://www.example.com/checkout?email=user@test.com&token=secret#section'),
+          writable: true,
+          configurable: true,
+        });
+
+        try {
+          await (window as any).mParticle.forwarder.init(
+            {
+              accountId: '123456',
+            },
+            reportService.cb,
+            true,
+            null,
+            {},
+          );
+
+          await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+          (window as any).mParticle._Store.localSessionAttributes = {};
+          (window as any).mParticle.forwarder.process({
+            EventName: 'Checkout',
+            EventCategory: EventType.Unknown,
+            EventDataType: MessageType.PageView,
+            SourceMessageId: 'source-message-id-14',
+            Timestamp: 1712345678000,
+            ActiveTimeOnSite: 4200,
+          });
+
+          await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+          const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+          expect(forwardedAttributes.page_events[0].pageUrl).toBe('https://www.example.com/checkout#section');
+        } finally {
+          Object.defineProperty(window, 'location', {
+            value: originalLocation,
+            writable: true,
+            configurable: true,
+          });
+        }
+      });
     });
   });
 

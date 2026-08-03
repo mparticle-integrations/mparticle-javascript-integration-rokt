@@ -269,6 +269,9 @@ const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 // JSON string). Distinct from PAGE_EVENTS_KEY, which is the flattened wire shape
 // sent to Rokt on selectPlacements.
 const LS_PAGE_VIEWS_KEY = 'mpPageViews';
+// Cap on the retained page-view history. Each entry stores a full URL (which can
+// be long) plus event attributes, so this strikes a balance between a useful
+// browsing history and not overloading local session storage.
 const MAX_PAGE_VIEWS = 25;
 const PAGE_EVENTS_KEY = 'page_events';
 const PAGE_EVENT_ATTR_PREFIX = 'attr_';
@@ -482,10 +485,17 @@ function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
 
-// Isolates page-view URL handling. Returns the URL verbatim for now; tightening
-// to strip query/fragment (which may carry PII) later is a one-line change here.
+// Strips the query string from a page-view URL before it is persisted and sent
+// to Rokt, since query params commonly carry PII (emails, tokens, order refs).
+// Returns the input unchanged if it can't be parsed as a URL.
 function sanitizeUrl(href: string): string {
-  return href;
+  try {
+    const url = new URL(href);
+    url.search = '';
+    return url.toString();
+  } catch {
+    return href;
+  }
 }
 
 function generateIntegrationName(customIntegrationName?: string): string {
@@ -959,7 +969,7 @@ class RoktKit implements KitInterface {
 
   private buildPageEvents(pageViews: StoredPageView[]): PageEvent[] {
     return pageViews.map((pageView, index) => {
-      const flat: PageEvent = {
+      const pageEvent: PageEvent = {
         event_name: pageView.event_name,
         pageUrl: pageView.pageUrl,
         sourceMessageId: pageView.sourceMessageId,
@@ -971,19 +981,19 @@ class RoktKit implements KitInterface {
           if (key === PAGE_TITLE_ATTRIBUTE) {
             continue;
           }
-          flat[`${PAGE_EVENT_ATTR_PREFIX}${key}`] = value;
+          pageEvent[`${PAGE_EVENT_ATTR_PREFIX}${key}`] = value;
         }
-        flat.page_name = pageView.eventAttributes[PAGE_TITLE_ATTRIBUTE];
+        pageEvent.page_name = pageView.eventAttributes[PAGE_TITLE_ATTRIBUTE];
       }
 
       const next = pageViews[index + 1];
-      if (next && typeof next.activeTimeOnSite === 'number' && typeof pageView.activeTimeOnSite === 'number') {
+      if (next) {
         const diff = next.activeTimeOnSite - pageView.activeTimeOnSite;
         if (diff >= 0) {
-          flat.timeOnPage = diff;
+          pageEvent.timeOnPage = diff;
         }
       }
-      return flat;
+      return pageEvent;
     });
   }
 
