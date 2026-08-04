@@ -65,9 +65,10 @@ interface PageEvent {
   pageUrl: string;
   sourceMessageId: string;
   timestamp: number;
-  activeTimeOnSite: number;
-  // Derived at transmission (see buildPageEvents), not at capture — it depends
-  // on the next page view's activeTimeOnSite, so it is absent on stored records.
+  activeTimeOnSite?: number;
+  // Derived at transmission not at capture based
+  // on the next page view's activeTimeOnSite,
+  // so it is absent on stored records.
   timeOnPage?: number;
 }
 
@@ -910,12 +911,17 @@ class RoktKit implements KitInterface {
 
       const pageViews = readPageViewsStorage();
 
-      pageViews.push({
+      const pageView: PageEvent = {
         pageUrl,
         sourceMessageId: event.SourceMessageId,
         timestamp: event.Timestamp,
-        activeTimeOnSite: Number.isFinite(event.ActiveTimeOnSite) ? event.ActiveTimeOnSite : 0,
-      });
+      };
+
+      if (Number.isFinite(event.ActiveTimeOnSite)) {
+        pageView.activeTimeOnSite = event.ActiveTimeOnSite;
+      }
+
+      pageViews.push(pageView);
 
       while (pageViews.length > PAGE_VIEWS_MAX_COUNT) {
         pageViews.shift();
@@ -962,12 +968,20 @@ class RoktKit implements KitInterface {
         pageUrl: pageView.pageUrl,
         sourceMessageId: pageView.sourceMessageId,
         timestamp: pageView.timestamp,
-        activeTimeOnSite: pageView.activeTimeOnSite,
       };
 
+      const activeTimeOnSite = pageView.activeTimeOnSite;
+      const hasActiveTime = activeTimeOnSite !== undefined && Number.isFinite(activeTimeOnSite);
+      if (hasActiveTime) {
+        pageEvent.activeTimeOnSite = activeTimeOnSite;
+      }
+
       const next = pageViews[index + 1];
-      if (next) {
-        const diff = next.activeTimeOnSite - pageView.activeTimeOnSite;
+      const nextActiveTimeOnSite = next?.activeTimeOnSite;
+      const hasNextActiveTimeOnSite = nextActiveTimeOnSite !== undefined && Number.isFinite(nextActiveTimeOnSite);
+
+      if (hasActiveTime && hasNextActiveTimeOnSite) {
+        const diff = nextActiveTimeOnSite - activeTimeOnSite;
         if (diff >= 0) {
           pageEvent.timeOnPage = diff;
         }
@@ -1200,6 +1214,19 @@ class RoktKit implements KitInterface {
 
     this.errorReportingService = errorReportingService;
     this.loggingService = loggingService;
+
+    if (this.isTargetingDisabled()) {
+      try {
+        clearPageViewsStorage();
+      } catch (err) {
+        this.errorReportingService?.report({
+          message: 'Rokt Kit: Failed to clear page views when targeting is disabled',
+          code: 'PAGE_VIEW_CAPTURE_FAILED',
+          severity: WSDKErrorSeverity.WARNING,
+          stackTrace: err instanceof Error ? err.stack : undefined,
+        });
+      }
+    }
 
     if (mp()._registerErrorReportingService) {
       mp()._registerErrorReportingService!(errorReportingService);

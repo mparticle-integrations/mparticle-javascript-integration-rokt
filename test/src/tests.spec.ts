@@ -5687,7 +5687,7 @@ describe('Rokt Forwarder', () => {
         ]);
       });
 
-      it('coerces a non-finite ActiveTimeOnSite to 0 at the write boundary', async () => {
+      it('omits activeTimeOnSite when the source value is non-finite', async () => {
         await (window as any).mParticle.forwarder.init(
           {
             accountId: '123456',
@@ -5701,8 +5701,10 @@ describe('Rokt Forwarder', () => {
         await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         // A NaN source would serialize to "null" (JSON.stringify(NaN) === 'null')
-        // and read back as a non-number, breaking the honest `number` stored type.
-        // Coercing at capture guarantees only finite numbers ever enter storage.
+        // and read back as a non-number. Rather than coerce to 0 — which would be
+        // indistinguishable from a genuine zero and get diffed against the next
+        // record, fabricating a dwell time — we omit the field so it stays
+        // "unknown". Only finite numbers ever enter storage.
         (window as any).mParticle.forwarder.process({
           EventName: 'Home Page',
           EventCategory: EventType.Unknown,
@@ -5717,7 +5719,6 @@ describe('Rokt Forwarder', () => {
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-nan',
             timestamp: 1712345678000,
-            activeTimeOnSite: 0,
           },
         ]);
       });
@@ -5867,48 +5868,6 @@ describe('Rokt Forwarder', () => {
         });
 
         expect(readStoredPageViews()).toBeNull();
-      });
-
-      it('does not clear stored page views on SessionEnd when targeting is disabled', async () => {
-        // Seed a stored page view from a period when targeting was permitted.
-        window.localStorage.setItem(
-          'mpPageViews',
-          JSON.stringify([
-            {
-              pageUrl: 'https://example.com/',
-              sourceMessageId: 'seeded',
-              timestamp: 1712345678000,
-              activeTimeOnSite: 4200,
-            },
-          ]),
-        );
-
-        (window as any).mParticle.Rokt.launcherOptions = {
-          noTargeting: true,
-        };
-
-        await (window as any).mParticle.forwarder.init(
-          {
-            accountId: '123456',
-          },
-          reportService.cb,
-          true,
-          null,
-          {},
-        );
-
-        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
-
-        (window as any).mParticle.forwarder.process({
-          EventName: 'Session End',
-          EventCategory: EventType.Unknown,
-          EventDataType: MessageType.SessionEnd,
-          SourceMessageId: 'source-message-id-session-end',
-          Timestamp: 1712345679000,
-          ActiveTimeOnSite: 4300,
-        });
-
-        expect(readStoredPageViews()).not.toBeNull();
       });
 
       it('does not throw and reports a warning when localStorage writes throw', async () => {
@@ -6191,6 +6150,94 @@ describe('Rokt Forwarder', () => {
         // 1000 - 5000 = -4000 → omitted rather than emitting a misleading value.
         expect(pageEvents[0].timeOnPage).toBeUndefined();
         expect(pageEvents[1].timeOnPage).toBeUndefined();
+      });
+
+      it('does not fabricate a timeOnPage when a record is missing activeTimeOnSite', async () => {
+        // Seed a record with no activeTimeOnSite (the non-finite-source case)
+        // followed by one that has it. A coerced-to-0 first record would diff
+        // against the next (300000 - 0) and invent a 5-minute dwell that never
+        // happened; "unknown" must stay distinguishable from a genuine zero.
+        window.localStorage.setItem(
+          'mpPageViews',
+          JSON.stringify([
+            {
+              pageUrl: 'https://example.com/a',
+              sourceMessageId: 'missing-ats',
+              timestamp: 1712345678000,
+            },
+            {
+              pageUrl: 'https://example.com/b',
+              sourceMessageId: 'has-ats',
+              timestamp: 1712345679000,
+              activeTimeOnSite: 300000,
+            },
+          ]),
+        );
+
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        const pageEvents = JSON.parse(forwardedAttributes.page_events);
+        // First record has no activeTimeOnSite and therefore no derived dwell time.
+        expect(pageEvents[0].activeTimeOnSite).toBeUndefined();
+        expect(pageEvents[0].timeOnPage).toBeUndefined();
+        // Second record keeps its finite value; still-open so no timeOnPage.
+        expect(pageEvents[1].activeTimeOnSite).toBe(300000);
+        expect(pageEvents[1].timeOnPage).toBeUndefined();
+      });
+
+      it('clears stored page views on init when targeting is disabled', async () => {
+        // Seed a stored page view from a period when targeting was permitted.
+        window.localStorage.setItem(
+          'mpPageViews',
+          JSON.stringify([
+            {
+              pageUrl: 'https://example.com/',
+              sourceMessageId: 'seeded',
+              timestamp: 1712345678000,
+              activeTimeOnSite: 4200,
+            },
+          ]),
+        );
+
+        (window as any).mParticle.Rokt.launcherOptions = {
+          noTargeting: true,
+        };
+
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        // Init clears leftover behavioral signals once, so a later re-enable
+        // starts fresh — nothing remains to surface.
+        expect(readStoredPageViews()).toBeNull();
+
+        (window as any).mParticle._Store.localSessionAttributes = {};
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        expect(forwardedAttributes.page_events).toBeUndefined();
       });
 
       it('strips query params from the captured pageUrl', async () => {
