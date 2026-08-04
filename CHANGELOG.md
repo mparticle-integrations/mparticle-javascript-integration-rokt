@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.29.0...v1.30.0) (2026-08-04)
+
+
+### Features
+
+* capture page views and surface as page_events in selectPlacements ([#109](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/109)) ([098aabe](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/098aabe86d13b5f9a83d46885d8ed83f09bf3122))
+
 # [1.29.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.28.3...v1.29.0) (2026-07-31)
 
 
