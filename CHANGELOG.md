@@ -1,3 +1,5 @@
+## [1.30.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.30.0...v1.30.1) (2026-08-05)
+
 # [1.30.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.29.0...v1.30.0) (2026-08-04)
 
 
