@@ -160,7 +160,7 @@ function _e(n) {
   }
 }
 function ye(n) {
-  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.30.0";
+  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.30.1";
   return n && (i += "_" + n), i;
 }
 function B(n) {
@@ -376,7 +376,7 @@ const f = class f {
       const u = e[i + 1]?.activeTimeOnSite, l = u !== void 0 && Number.isFinite(u);
       if (o && l) {
         const h = u - s;
-        h >= 0 && (r.timeOnPage = h);
+        h >= 0 && (r.activeTimeOnPage = h);
       }
       return r;
     });
