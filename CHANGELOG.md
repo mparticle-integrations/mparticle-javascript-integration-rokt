@@ -1,3 +1,10 @@
+## [1.30.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.30.1...v1.30.2) (2026-08-05)
+
+
+### Bug Fixes
+
+* lower PAGE_VIEW_CAPTURE_FAILED severity from WARNING to INFO ([#111](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/111)) ([12e179d](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/12e179d2ae13c58927917be4f7685217666a2a52))
+
 ## [1.30.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.30.0...v1.30.1) (2026-08-05)
 
 # [1.30.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.29.0...v1.30.0) (2026-08-04)
