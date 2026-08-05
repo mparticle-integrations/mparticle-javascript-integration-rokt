@@ -5905,9 +5905,9 @@ describe('Rokt Forwarder', () => {
 
         // Nothing is persisted, but the forwarder keeps running.
         expect(readStoredPageViews()).toBeNull();
-        // The write failure is surfaced as a WARNING.
+        // The write failure is surfaced as an INFO (rate-limited per severity).
         expect(reportSpy).toHaveBeenCalledWith(
-          expect.objectContaining({ code: 'PAGE_VIEW_CAPTURE_FAILED', severity: 'WARNING' }),
+          expect.objectContaining({ code: 'PAGE_VIEW_CAPTURE_FAILED', severity: 'INFO' }),
         );
         reportSpy.mockRestore();
       });

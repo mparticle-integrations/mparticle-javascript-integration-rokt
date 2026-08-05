@@ -932,7 +932,7 @@ class RoktKit implements KitInterface {
       this.errorReportingService?.report({
         message: `Rokt Kit: Failed to capture page view for ${pageUrl}`,
         code: 'PAGE_VIEW_CAPTURE_FAILED',
-        severity: WSDKErrorSeverity.WARNING,
+        severity: WSDKErrorSeverity.INFO,
         stackTrace: err instanceof Error ? err.stack : undefined,
       });
     }
@@ -1222,7 +1222,7 @@ class RoktKit implements KitInterface {
         this.errorReportingService?.report({
           message: 'Rokt Kit: Failed to clear page views when targeting is disabled',
           code: 'PAGE_VIEW_CAPTURE_FAILED',
-          severity: WSDKErrorSeverity.WARNING,
+          severity: WSDKErrorSeverity.INFO,
           stackTrace: err instanceof Error ? err.stack : undefined,
         });
       }
@@ -1311,7 +1311,7 @@ class RoktKit implements KitInterface {
           this.errorReportingService?.report({
             message: 'Rokt Kit: Failed to clear page views on session end',
             code: 'PAGE_VIEW_CAPTURE_FAILED',
-            severity: WSDKErrorSeverity.WARNING,
+            severity: WSDKErrorSeverity.INFO,
             stackTrace: err instanceof Error ? err.stack : undefined,
           });
         }
