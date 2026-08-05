@@ -69,7 +69,7 @@ interface PageEvent {
   // Derived at transmission not at capture based
   // on the next page view's activeTimeOnSite,
   // so it is absent on stored records.
-  timeOnPage?: number;
+  activeTimeOnPage?: number;
 }
 
 interface RoktSelection {
@@ -983,7 +983,7 @@ class RoktKit implements KitInterface {
       if (hasActiveTime && hasNextActiveTimeOnSite) {
         const diff = nextActiveTimeOnSite - activeTimeOnSite;
         if (diff >= 0) {
-          pageEvent.timeOnPage = diff;
+          pageEvent.activeTimeOnPage = diff;
         }
       }
       return pageEvent;

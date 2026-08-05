@@ -6011,7 +6011,7 @@ describe('Rokt Forwarder', () => {
         expect(forwardedAttributes.mpPageViews).toBeUndefined();
       });
 
-      it('surfaces timeOnPage as the active-time diff to the next page view', async () => {
+      it('surfaces activeTimeOnPage as the active-time diff to the next page view', async () => {
         await (window as any).mParticle.forwarder.init(
           {
             accountId: '123456',
@@ -6046,14 +6046,14 @@ describe('Rokt Forwarder', () => {
 
         const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
         // First page's time-on-page is how long it was viewed before the next page:
-        // 4200 - 1000 = 3200. The last (still-open) page has no timeOnPage.
+        // 4200 - 1000 = 3200. The last (still-open) page has no activeTimeOnPage.
         expect(JSON.parse(forwardedAttributes.page_events)).toEqual([
           {
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-7',
             timestamp: 1712345678000,
             activeTimeOnSite: 1000,
-            timeOnPage: 3200,
+            activeTimeOnPage: 3200,
           },
           {
             pageUrl: window.location.href,
@@ -6064,7 +6064,7 @@ describe('Rokt Forwarder', () => {
         ]);
       });
 
-      it('computes a consecutive timeOnPage diff for each non-last page view', async () => {
+      it('computes a consecutive activeTimeOnPage diff for each non-last page view', async () => {
         await (window as any).mParticle.forwarder.init(
           {
             accountId: '123456',
@@ -6107,12 +6107,12 @@ describe('Rokt Forwarder', () => {
 
         const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
         const pageEvents = JSON.parse(forwardedAttributes.page_events);
-        expect(pageEvents[0].timeOnPage).toBe(1500); // 2500 - 1000
-        expect(pageEvents[1].timeOnPage).toBe(6500); // 9000 - 2500
-        expect(pageEvents[2].timeOnPage).toBeUndefined(); // still open
+        expect(pageEvents[0].activeTimeOnPage).toBe(1500); // 2500 - 1000
+        expect(pageEvents[1].activeTimeOnPage).toBe(6500); // 9000 - 2500
+        expect(pageEvents[2].activeTimeOnPage).toBeUndefined(); // still open
       });
 
-      it('omits timeOnPage when the active-time diff would be negative', async () => {
+      it('omits activeTimeOnPage when the active-time diff would be negative', async () => {
         await (window as any).mParticle.forwarder.init(
           {
             accountId: '123456',
@@ -6148,11 +6148,11 @@ describe('Rokt Forwarder', () => {
         const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
         const pageEvents = JSON.parse(forwardedAttributes.page_events);
         // 1000 - 5000 = -4000 → omitted rather than emitting a misleading value.
-        expect(pageEvents[0].timeOnPage).toBeUndefined();
-        expect(pageEvents[1].timeOnPage).toBeUndefined();
+        expect(pageEvents[0].activeTimeOnPage).toBeUndefined();
+        expect(pageEvents[1].activeTimeOnPage).toBeUndefined();
       });
 
-      it('does not fabricate a timeOnPage when a record is missing activeTimeOnSite', async () => {
+      it('does not fabricate an activeTimeOnPage when a record is missing activeTimeOnSite', async () => {
         // Seed a record with no activeTimeOnSite (the non-finite-source case)
         // followed by one that has it. A coerced-to-0 first record would diff
         // against the next (300000 - 0) and invent a 5-minute dwell that never
@@ -6193,10 +6193,10 @@ describe('Rokt Forwarder', () => {
         const pageEvents = JSON.parse(forwardedAttributes.page_events);
         // First record has no activeTimeOnSite and therefore no derived dwell time.
         expect(pageEvents[0].activeTimeOnSite).toBeUndefined();
-        expect(pageEvents[0].timeOnPage).toBeUndefined();
-        // Second record keeps its finite value; still-open so no timeOnPage.
+        expect(pageEvents[0].activeTimeOnPage).toBeUndefined();
+        // Second record keeps its finite value; still-open so no activeTimeOnPage.
         expect(pageEvents[1].activeTimeOnSite).toBe(300000);
-        expect(pageEvents[1].timeOnPage).toBeUndefined();
+        expect(pageEvents[1].activeTimeOnPage).toBeUndefined();
       });
 
       it('clears stored page views on init when targeting is disabled', async () => {
