@@ -35,7 +35,7 @@ function R(n) {
   }
   return e;
 }
-const d = "Rokt", w = 181, ee = "selectPlacements", te = "apps.roktecommerce.com", ie = 0.1, ne = "ThankYouPageJourney", re = "rokt-launcher", se = "rokt-thank-you-element", oe = "userIdentifiedInWorkspace", ae = 3, ce = 2, O = "mpPageViews", le = 25, ue = "page_events", de = 500, P = {
+const d = "Rokt", w = 181, ee = "selectPlacements", te = "apps.roktecommerce.com", ie = 0.1, ne = "ThankYouPageJourney", re = "rokt-launcher", se = "rokt-thank-you-element", oe = "userIdentifiedInWorkspace", ae = 3, ce = 2, N = "mpPageViews", le = 25, ue = "page_events", de = 500, P = {
   UNKNOWN_ERROR: "UNKNOWN_ERROR",
   UNHANDLED_EXCEPTION: "UNHANDLED_EXCEPTION",
   IDENTITY_REQUEST: "IDENTITY_REQUEST",
@@ -50,7 +50,7 @@ function a() {
 }
 function K() {
   try {
-    const n = window.localStorage.getItem(O);
+    const n = window.localStorage.getItem(N);
     if (n === null)
       return [];
     const e = JSON.parse(n);
@@ -60,10 +60,10 @@ function K() {
   }
 }
 function me(n) {
-  window.localStorage.setItem(O, JSON.stringify(n));
+  window.localStorage.setItem(N, JSON.stringify(n));
 }
 function M() {
-  window.localStorage.removeItem(O);
+  window.localStorage.removeItem(N);
 }
 function D(n, e) {
   const i = [C(n), "/wsdk/integrations/launcher.js"].join("");
@@ -160,7 +160,7 @@ function _e(n) {
   }
 }
 function ye(n) {
-  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.30.1";
+  let i = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.30.2";
   return n && (i += "_" + n), i;
 }
 function B(n) {
@@ -169,7 +169,7 @@ function B(n) {
     e = (e << 5) + e + n.charCodeAt(t), e = e & e;
   return e;
 }
-function N(n) {
+function O(n) {
   const e = document.createElement("iframe");
   e.style.display = "none", e.setAttribute("sandbox", "allow-scripts allow-same-origin"), e.src = n, e.onload = function() {
     e.onload = null, e.parentNode && e.parentNode.removeChild(e);
@@ -185,7 +185,7 @@ function H(n, e) {
   if (!r)
     return;
   const s = window.location.href.split("?")[0].split("#")[0], o = "version=" + encodeURIComponent(e ?? "") + "&launcherInstanceGuid=" + encodeURIComponent(r) + "&pageUrl=" + encodeURIComponent(s);
-  N("https://" + (n || "apps.rokt.com") + "/v1/wsdk-init/index.html?" + o), N(
+  O("https://" + (n || "apps.rokt.com") + "/v1/wsdk-init/index.html?" + o), O(
     "https://" + te + "/v1/wsdk-init/index.html?" + o + "&isControl=true"
   );
 }
@@ -345,7 +345,7 @@ const f = class f {
       this.errorReportingService?.report({
         message: `Rokt Kit: Failed to capture page view for ${t}`,
         code: "PAGE_VIEW_CAPTURE_FAILED",
-        severity: m.WARNING,
+        severity: m.INFO,
         stackTrace: i instanceof Error ? i.stack : void 0
       });
     }
@@ -491,7 +491,7 @@ const f = class f {
         this.errorReportingService?.report({
           message: "Rokt Kit: Failed to clear page views when targeting is disabled",
           code: "PAGE_VIEW_CAPTURE_FAILED",
-          severity: m.WARNING,
+          severity: m.INFO,
           stackTrace: p instanceof Error ? p.stack : void 0
         });
       }
@@ -504,7 +504,7 @@ const f = class f {
       generateMappedEventLookup: G,
       generateMappedEventAttributeLookup: W,
       sendAdBlockMeasurementSignals: H,
-      createAutoRemovedIframe: N,
+      createAutoRemovedIframe: O,
       djb2: B,
       setAllowedOriginHashes: (p) => {
         f._allowedOriginHashes = p;
@@ -539,7 +539,7 @@ const f = class f {
         this.errorReportingService?.report({
           message: "Rokt Kit: Failed to clear page views on session end",
           code: "PAGE_VIEW_CAPTURE_FAILED",
-          severity: m.WARNING,
+          severity: m.INFO,
           stackTrace: t instanceof Error ? t.stack : void 0
         });
       }
