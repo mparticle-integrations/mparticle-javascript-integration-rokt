@@ -17,6 +17,8 @@ export interface PageEvent {
   pageUrl: string;
   sourceMessageId: string;
   timestamp: number;
+  pageTitle?: string;
+  canonicalUrl?: string;
   activeTimeOnSite?: number;
   activeTimeOnPage?: number;
 }

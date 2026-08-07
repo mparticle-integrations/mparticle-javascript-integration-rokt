@@ -5691,6 +5691,79 @@ describe('Rokt Forwarder', () => {
         ]);
       });
 
+      it('captures the page title and canonical URL when present', async () => {
+        document.title = 'Home Page Title';
+        const canonical = document.createElement('link');
+        canonical.setAttribute('rel', 'canonical');
+        canonical.setAttribute('href', 'https://example.com/canonical?tracking=abc#section');
+        document.head.appendChild(canonical);
+
+        try {
+          await (window as any).mParticle.forwarder.init(
+            {
+              accountId: '123456',
+            },
+            reportService.cb,
+            true,
+            null,
+            {},
+          );
+
+          await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+          (window as any).mParticle.forwarder.process({
+            EventName: 'Home Page',
+            EventCategory: EventType.Unknown,
+            EventDataType: MessageType.PageView,
+            SourceMessageId: 'source-message-id-title',
+            Timestamp: 1712345678000,
+          });
+
+          expect(readStoredPageViews()).toEqual([
+            {
+              pageUrl: window.location.href,
+              sourceMessageId: 'source-message-id-title',
+              timestamp: 1712345678000,
+              pageTitle: 'Home Page Title',
+              canonicalUrl: 'https://example.com/canonical#section',
+            },
+          ]);
+        } finally {
+          document.title = '';
+          document.head.removeChild(canonical);
+        }
+      });
+
+      it('omits pageTitle and canonicalUrl when neither is available', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Home Page',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'source-message-id-bare',
+          Timestamp: 1712345678000,
+        });
+
+        expect(readStoredPageViews()).toEqual([
+          {
+            pageUrl: window.location.href,
+            sourceMessageId: 'source-message-id-bare',
+            timestamp: 1712345678000,
+          },
+        ]);
+      });
+
       it('omits activeTimeOnSite when the source value is non-finite', async () => {
         await (window as any).mParticle.forwarder.init(
           {
@@ -6234,6 +6307,43 @@ describe('Rokt Forwarder', () => {
             sourceMessageId: 'source-message-id-4',
             timestamp: 1712345678000,
             activeTimeOnSite: 4200,
+          },
+        ]);
+      });
+
+      it('carries pageTitle and canonicalUrl through selectPlacements when stored', async () => {
+        seedStoredPageViews([
+          {
+            pageUrl: 'https://example.com/a',
+            sourceMessageId: 'source-message-id-a',
+            timestamp: 1712345678000,
+            pageTitle: 'Page A',
+            canonicalUrl: 'https://example.com/canonical-a',
+          },
+        ]);
+
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
+        expect(JSON.parse(forwardedAttributes.page_events)).toEqual([
+          {
+            pageUrl: 'https://example.com/a',
+            sourceMessageId: 'source-message-id-a',
+            timestamp: 1712345678000,
+            pageTitle: 'Page A',
+            canonicalUrl: 'https://example.com/canonical-a',
           },
         ]);
       });

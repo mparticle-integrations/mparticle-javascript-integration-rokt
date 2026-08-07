@@ -458,6 +458,15 @@ function sanitizeUrl(href: string): string {
   }
 }
 
+function readCanonicalUrl(): string | undefined {
+  const link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  const href = link?.href;
+  if (!href) {
+    return undefined;
+  }
+  return sanitizeUrl(href);
+}
+
 function generateIntegrationName(customIntegrationName?: string): string {
   const coreSdkVersion = mp().getVersion();
   const kitVersion = process.env.PACKAGE_VERSION;
@@ -867,6 +876,16 @@ class RoktKit implements KitInterface {
         timestamp: event.Timestamp,
       };
 
+      const pageTitle = document.title;
+      if (pageTitle) {
+        pageView.pageTitle = pageTitle;
+      }
+
+      const canonicalUrl = readCanonicalUrl();
+      if (canonicalUrl) {
+        pageView.canonicalUrl = canonicalUrl;
+      }
+
       if (Number.isFinite(event.ActiveTimeOnSite)) {
         pageView.activeTimeOnSite = event.ActiveTimeOnSite;
       }
@@ -920,6 +939,14 @@ class RoktKit implements KitInterface {
         sourceMessageId: pageView.sourceMessageId,
         timestamp: pageView.timestamp,
       };
+
+      if (pageView.pageTitle !== undefined) {
+        pageEvent.pageTitle = pageView.pageTitle;
+      }
+
+      if (pageView.canonicalUrl !== undefined) {
+        pageEvent.canonicalUrl = pageView.canonicalUrl;
+      }
 
       const activeTimeOnSite = pageView.activeTimeOnSite;
       const hasActiveTime = activeTimeOnSite !== undefined && Number.isFinite(activeTimeOnSite);
