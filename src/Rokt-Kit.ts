@@ -261,8 +261,15 @@ const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
 // string). The kit owns this storage directly — separate from mParticle's
 // cookie/localStorage — so page-view capture does not affect mParticle
 // persistence or cookie sync. Distinct from PAGE_EVENTS_KEY, which is the
-// flattened wire shape sent to Rokt on selectPlacements.
-const LS_PAGE_VIEWS_KEY = 'mpPageViews';
+// flattened wire shape sent to Rokt on selectPlacements. Namespaced under the
+// kit-owned `mp-rokt-kit.*` prefix; future kit-owned keys follow the same
+// `mp-rokt-kit.<name>` convention.
+const LS_PAGE_VIEWS_KEY = 'mp-rokt-kit.pageViews';
+// Legacy unprefixed key this feature originally shipped under. Read once and
+// swept by migrateLegacyPageViewStorage() so existing history survives the
+// rename.
+// TODO: remove after 2027-02-11 — one-time migration of the legacy key.
+const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
 // Fixed cap on the number of persisted page views (oldest evicted first). Code
 // constant, not a kit setting — change it here.
 const PAGE_VIEWS_MAX_COUNT = 25;
@@ -311,25 +318,72 @@ function mp(): MParticleExtended {
 // Module-level utility functions
 // ============================================================
 
-function readPageViewsStorage(): PageEvent[] {
+// Key-agnostic localStorage helpers. Page-view semantics (array shape, count
+// cap, migration) live in the callers below so these can be reused verbatim
+// for future `mp-rokt-kit.*` keys.
+function readJSON(key: string): unknown {
   try {
-    const stored = window.localStorage.getItem(LS_PAGE_VIEWS_KEY);
-    if (stored === null) {
-      return [];
-    }
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? (parsed as PageEvent[]) : [];
+    const stored = window.localStorage.getItem(key);
+    return stored === null ? null : JSON.parse(stored);
   } catch {
-    return [];
+    return null;
   }
 }
 
+// writeJSON/removeKey swallow storage failures (private mode, quota, access
+// denied) rather than throw: persisted page views are a best-effort cache, and
+// a failed write/remove must never break the caller. Failures are intentionally
+// not reported here — revisit if these keys ever hold must-persist data.
+function writeJSON(key: string, value: unknown): void {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // no-op
+  }
+}
+
+function removeKey(key: string): void {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // no-op
+  }
+}
+
+// TODO: remove after 2027-02-11 — one-time migration of the legacy 'mpPageViews'
+// key to the prefixed LS_PAGE_VIEWS_KEY. Everything migration-related is confined
+// to this function + LEGACY_PAGE_VIEWS_KEY so it can be deleted as a single unit.
+// Unconditional (no freshness gate): staleness is mParticle's job — a timed-out
+// prior session fires SessionEnd (→ clear) before selectPlacements runs.
+function migrateLegacyPageViewStorage(): void {
+  // The read + adopt work on the opaque stored string on purpose — no
+  // readJSON/writeJSON round-trip. That keeps the move byte-for-byte and lets
+  // us still sweep malformed legacy data (readJSON would collapse "absent" and
+  // "malformed" to null and leave garbage behind). The sweep uses removeKey.
+  const legacy = window.localStorage.getItem(LEGACY_PAGE_VIEWS_KEY);
+  if (legacy === null) {
+    return;
+  }
+  if (window.localStorage.getItem(LS_PAGE_VIEWS_KEY) === null) {
+    window.localStorage.setItem(LS_PAGE_VIEWS_KEY, legacy); // adopt-if-empty
+  }
+  removeKey(LEGACY_PAGE_VIEWS_KEY); // always sweep
+}
+
+// Single entry point for reading persisted page views. Runs the one-time legacy
+// migration first, then returns the stored array (or [] if absent/malformed).
+function loadPageViews(): PageEvent[] {
+  migrateLegacyPageViewStorage();
+  const parsed = readJSON(LS_PAGE_VIEWS_KEY);
+  return Array.isArray(parsed) ? (parsed as PageEvent[]) : [];
+}
+
 function writePageViewsStorage(pageViews: PageEvent[]): void {
-  window.localStorage.setItem(LS_PAGE_VIEWS_KEY, JSON.stringify(pageViews));
+  writeJSON(LS_PAGE_VIEWS_KEY, pageViews);
 }
 
 function clearPageViewsStorage(): void {
-  window.localStorage.removeItem(LS_PAGE_VIEWS_KEY);
+  removeKey(LS_PAGE_VIEWS_KEY);
 }
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
@@ -909,7 +963,7 @@ class RoktKit implements KitInterface {
     try {
       pageUrl = sanitizeUrl(window.location.href);
 
-      const pageViews = readPageViewsStorage();
+      const pageViews = loadPageViews();
 
       const pageView: PageEvent = {
         pageUrl,
@@ -1306,6 +1360,7 @@ class RoktKit implements KitInterface {
 
       if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
         try {
+          migrateLegacyPageViewStorage();
           clearPageViewsStorage();
         } catch (err) {
           this.errorReportingService?.report({
@@ -1533,7 +1588,22 @@ class RoktKit implements KitInterface {
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
     const sessionAttributes = this.returnLocalSessionAttributes();
-    const pageEvents = this.buildPageEvents(readPageViewsStorage());
+    // loadPageViews() runs the legacy migration, which touches localStorage
+    // directly and can throw (e.g. access denied, quota). A read failure must
+    // not break placement selection — fall back to no page events, matching the
+    // best-effort posture of the capture and clear paths.
+    let storedPageViews: PageEvent[] = [];
+    try {
+      storedPageViews = loadPageViews();
+    } catch (err) {
+      this.errorReportingService?.report({
+        message: 'Rokt Kit: Failed to load page views for selectPlacements',
+        code: 'PAGE_VIEW_CAPTURE_FAILED',
+        severity: WSDKErrorSeverity.INFO,
+        stackTrace: err instanceof Error ? err.stack : undefined,
+      });
+    }
+    const pageEvents = this.buildPageEvents(storedPageViews);
 
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),
