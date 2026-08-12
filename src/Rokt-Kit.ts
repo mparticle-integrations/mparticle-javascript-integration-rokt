@@ -316,17 +316,16 @@ function mp(): MParticleExtended {
 // Unconditional (no freshness gate): staleness is mParticle's job — a timed-out
 // prior session fires SessionEnd (→ clear) before selectPlacements runs.
 function migrateLegacyPageViewStorage(): void {
-  const legacy = window.localStorage.getItem(LEGACY_PAGE_VIEWS_KEY);
-  if (!legacy) {
+  const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
+  if (legacyViews === null) {
     return;
   }
-  if (readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) === undefined) {
-    const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
-    // A failed adopt must not sweep the legacy key — throw so the caller's
-    // diagnostic path handles it and the next read can retry.
-    if (Array.isArray(legacyViews) && !writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews)) {
-      throw new Error('Rokt Kit: Failed to migrate legacy page-view storage');
-    }
+  if (
+    readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) === undefined &&
+    Array.isArray(legacyViews) &&
+    !writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews)
+  ) {
+    throw new Error('Rokt Kit: Failed to migrate legacy page-view storage');
   }
   removeKey(LEGACY_PAGE_VIEWS_KEY);
 }
