@@ -25,6 +25,6 @@ export function removeKey(key: string): void {
   try {
     window.localStorage.removeItem(key);
   } catch {
-    // no-op
+    /* empty */
   }
 }

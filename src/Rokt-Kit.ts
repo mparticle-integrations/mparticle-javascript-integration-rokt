@@ -320,10 +320,6 @@ function mp(): MParticleExtended {
 // Module-level utility functions
 // ============================================================
 
-// Key-agnostic localStorage helpers (readJSON / writeJSON / removeKey) live in
-// ./storage. Page-view semantics (array shape, count cap, migration) stay here
-// in the callers below.
-
 // TODO: remove after 2027-02-11 — one-time migration of the legacy 'mpPageViews'
 // key to the prefixed LS_PAGE_VIEWS_KEY. Everything migration-related is confined
 // to this function + LEGACY_PAGE_VIEWS_KEY so it can be deleted as a single unit.
