@@ -315,23 +315,31 @@ function mp(): MParticleExtended {
 // can be deleted as a single unit.
 // Unconditional (no freshness gate): staleness is mParticle's job — a timed-out
 // prior session fires SessionEnd (→ clear) before selectPlacements runs.
-function migrateLegacyPageViewStorage(): void {
+function migrateLegacyPageViewStorage(loggingService: LoggingService | null): void {
   const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
   if (legacyViews === null) {
     return;
   }
-  if (
-    readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) === undefined &&
-    Array.isArray(legacyViews) &&
-    !writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews)
-  ) {
-    throw new Error('Rokt Kit: Failed to migrate legacy page-view storage');
+
+  const alreadyMigrated = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) !== undefined;
+  const needsAdoption = !alreadyMigrated && Array.isArray(legacyViews);
+
+  if (needsAdoption) {
+    const adopted = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
+    if (!adopted) {
+      loggingService?.log({
+        message: 'Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry',
+        code: 'PAGE_VIEW_CAPTURE_FAILED',
+      });
+      return;
+    }
   }
+
   removeKey(LEGACY_PAGE_VIEWS_KEY);
 }
 
-function loadPageViews(): PageEvent[] {
-  migrateLegacyPageViewStorage();
+function loadPageViews(loggingService: LoggingService | null): PageEvent[] {
+  migrateLegacyPageViewStorage(loggingService);
   const stored = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
   return Array.isArray(stored) ? (stored as PageEvent[]) : [];
 }
@@ -921,7 +929,7 @@ class RoktKit implements KitInterface {
     try {
       pageUrl = sanitizeUrl(window.location.href);
 
-      const pageViews = loadPageViews();
+      const pageViews = loadPageViews(this.loggingService);
 
       const pageView: PageEvent = {
         pageUrl,
@@ -1322,17 +1330,8 @@ class RoktKit implements KitInterface {
       }
 
       if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
-        try {
-          migrateLegacyPageViewStorage();
-          clearPageViewsStorage();
-        } catch (err) {
-          this.errorReportingService?.report({
-            message: 'Rokt Kit: Failed to clear page views on session end',
-            code: 'PAGE_VIEW_CAPTURE_FAILED',
-            severity: WSDKErrorSeverity.INFO,
-            stackTrace: err instanceof Error ? err.stack : undefined,
-          });
-        }
+        migrateLegacyPageViewStorage(this.loggingService);
+        clearPageViewsStorage();
       }
     }
 
@@ -1551,18 +1550,7 @@ class RoktKit implements KitInterface {
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
     const sessionAttributes = this.returnLocalSessionAttributes();
-    let storedPageViews: PageEvent[] = [];
-    try {
-      storedPageViews = loadPageViews();
-    } catch (err) {
-      this.loggingService?.log({
-        message: `Rokt Kit: Failed to load page views for selectPlacements: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-        code: 'PAGE_VIEW_CAPTURE_FAILED',
-      });
-    }
-    const pageEvents = this.buildPageEvents(storedPageViews);
+    const pageEvents = this.buildPageEvents(loadPageViews(this.loggingService));
 
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),
