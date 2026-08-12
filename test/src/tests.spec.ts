@@ -5639,8 +5639,10 @@ describe('Rokt Forwarder', () => {
 
     describe('page view capture', () => {
       const readStoredPageViews = () => {
-        const raw = window.localStorage.getItem('mp-rokt-kit.pageViews');
-        return raw === null ? null : JSON.parse(raw);
+        const raw = window.localStorage.getItem('mp-rokt-kit');
+        if (raw === null) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' && 'pageViews' in parsed ? parsed.pageViews : null;
       };
 
       beforeEach(() => {
@@ -5817,12 +5819,20 @@ describe('Rokt Forwarder', () => {
 
       describe('legacy storage migration', () => {
         const LEGACY_KEY = 'mpPageViews';
-        const NEW_KEY = 'mp-rokt-kit.pageViews';
+        const NS_KEY = 'mp-rokt-kit';
 
         const readRaw = (key: string) => {
           const raw = window.localStorage.getItem(key);
           return raw === null ? null : JSON.parse(raw);
         };
+
+        const readNamespacedPageViews = () => {
+          const blob = readRaw(NS_KEY);
+          return blob && typeof blob === 'object' && 'pageViews' in blob ? blob.pageViews : null;
+        };
+
+        const seedNamespacedPageViews = (views: unknown) =>
+          window.localStorage.setItem(NS_KEY, JSON.stringify({ pageViews: views }));
 
         const initKit = async () => {
           await (window as any).mParticle.forwarder.init(
@@ -5856,9 +5866,9 @@ describe('Rokt Forwarder', () => {
           await initKit();
           const attributes = await runSelectPlacements();
 
-          // Legacy history surfaces on read (adopted into the new key).
+          // Legacy history surfaces on read (adopted into the namespaced field).
           expect(JSON.parse(attributes.page_events)).toEqual(seeded);
-          expect(readRaw(NEW_KEY)).toEqual(seeded);
+          expect(readNamespacedPageViews()).toEqual(seeded);
           // Legacy key is always swept.
           expect(readRaw(LEGACY_KEY)).toBeNull();
         });
@@ -5879,14 +5889,14 @@ describe('Rokt Forwarder', () => {
             },
           ];
           window.localStorage.setItem(LEGACY_KEY, JSON.stringify(legacy));
-          window.localStorage.setItem(NEW_KEY, JSON.stringify(current));
+          seedNamespacedPageViews(current);
 
           await initKit();
           const attributes = await runSelectPlacements();
 
-          // New key wins — legacy value is discarded, not merged.
+          // Namespaced field wins — legacy value is discarded, not merged.
           expect(JSON.parse(attributes.page_events)).toEqual(current);
-          expect(readRaw(NEW_KEY)).toEqual(current);
+          expect(readNamespacedPageViews()).toEqual(current);
           expect(readRaw(LEGACY_KEY)).toBeNull();
         });
 
@@ -5898,13 +5908,13 @@ describe('Rokt Forwarder', () => {
               timestamp: 1712345679000,
             },
           ];
-          window.localStorage.setItem(NEW_KEY, JSON.stringify(current));
+          seedNamespacedPageViews(current);
 
           await initKit();
           const attributes = await runSelectPlacements();
 
           expect(JSON.parse(attributes.page_events)).toEqual(current);
-          expect(readRaw(NEW_KEY)).toEqual(current);
+          expect(readNamespacedPageViews()).toEqual(current);
           expect(readRaw(LEGACY_KEY)).toBeNull();
         });
 
@@ -5931,12 +5941,12 @@ describe('Rokt Forwarder', () => {
           });
 
           expect(readRaw(LEGACY_KEY)).toBeNull();
-          expect(readRaw(NEW_KEY)).toBeNull();
+          expect(readNamespacedPageViews()).toBeNull();
         });
 
         it('does not throw out of selectPlacements when the migration hits a storage error', async () => {
-          // Legacy present + new absent → migration attempts the adopt setItem,
-          // which throws here. The read path must swallow it (best-effort) so
+          // Legacy present + namespaced field absent → migration attempts the adopt
+          // write, which throws here. The read path must swallow it (best-effort) so
           // placement selection still proceeds without page events.
           window.localStorage.setItem(
             LEGACY_KEY,
@@ -5955,7 +5965,7 @@ describe('Rokt Forwarder', () => {
           // (loggingService.log), not an error report.
           const logSpy = vi.spyOn((window as any).mParticle.forwarder.loggingService, 'log');
           const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key: string) => {
-            if (key === NEW_KEY) {
+            if (key === NS_KEY) {
               throw new Error('QuotaExceededError');
             }
           });
@@ -6318,20 +6328,22 @@ describe('Rokt Forwarder', () => {
         // against the next (300000 - 0) and invent a 5-minute dwell that never
         // happened; "unknown" must stay distinguishable from a genuine zero.
         window.localStorage.setItem(
-          'mp-rokt-kit.pageViews',
-          JSON.stringify([
-            {
-              pageUrl: 'https://example.com/a',
-              sourceMessageId: 'missing-ats',
-              timestamp: 1712345678000,
-            },
-            {
-              pageUrl: 'https://example.com/b',
-              sourceMessageId: 'has-ats',
-              timestamp: 1712345679000,
-              activeTimeOnSite: 300000,
-            },
-          ]),
+          'mp-rokt-kit',
+          JSON.stringify({
+            pageViews: [
+              {
+                pageUrl: 'https://example.com/a',
+                sourceMessageId: 'missing-ats',
+                timestamp: 1712345678000,
+              },
+              {
+                pageUrl: 'https://example.com/b',
+                sourceMessageId: 'has-ats',
+                timestamp: 1712345679000,
+                activeTimeOnSite: 300000,
+              },
+            ],
+          }),
         );
 
         await (window as any).mParticle.forwarder.init(
@@ -6362,15 +6374,17 @@ describe('Rokt Forwarder', () => {
       it('clears stored page views on init when targeting is disabled', async () => {
         // Seed a stored page view from a period when targeting was permitted.
         window.localStorage.setItem(
-          'mp-rokt-kit.pageViews',
-          JSON.stringify([
-            {
-              pageUrl: 'https://example.com/',
-              sourceMessageId: 'seeded',
-              timestamp: 1712345678000,
-              activeTimeOnSite: 4200,
-            },
-          ]),
+          'mp-rokt-kit',
+          JSON.stringify({
+            pageViews: [
+              {
+                pageUrl: 'https://example.com/',
+                sourceMessageId: 'seeded',
+                timestamp: 1712345678000,
+                activeTimeOnSite: 4200,
+              },
+            ],
+          }),
         );
 
         (window as any).mParticle.Rokt.launcherOptions = {
@@ -6417,14 +6431,16 @@ describe('Rokt Forwarder', () => {
           ]),
         );
         window.localStorage.setItem(
-          'mp-rokt-kit.pageViews',
-          JSON.stringify([
-            {
-              pageUrl: 'https://example.com/',
-              sourceMessageId: 'seeded',
-              timestamp: 1712345678000,
-            },
-          ]),
+          'mp-rokt-kit',
+          JSON.stringify({
+            pageViews: [
+              {
+                pageUrl: 'https://example.com/',
+                sourceMessageId: 'seeded',
+                timestamp: 1712345678000,
+              },
+            ],
+          }),
         );
 
         (window as any).mParticle.Rokt.launcherOptions = {

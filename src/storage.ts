@@ -23,3 +23,33 @@ export function removeKey(key: string): void {
     /* empty */
   }
 }
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function readNamespacedField(namespaceKey: string, field: string): unknown {
+  const blob = readJSON(namespaceKey);
+  return isPlainObject(blob) ? blob[field] : undefined;
+}
+
+export function writeNamespacedField(namespaceKey: string, field: string, value: unknown): boolean {
+  const blob = readJSON(namespaceKey);
+  const next = isPlainObject(blob) ? { ...blob } : {};
+  next[field] = value;
+  return writeJSON(namespaceKey, next);
+}
+
+export function removeNamespacedField(namespaceKey: string, field: string): void {
+  const blob = readJSON(namespaceKey);
+  if (!isPlainObject(blob) || !(field in blob)) {
+    return;
+  }
+  const next = { ...blob };
+  delete next[field];
+  if (Object.keys(next).length === 0) {
+    removeKey(namespaceKey);
+  } else {
+    writeJSON(namespaceKey, next);
+  }
+}

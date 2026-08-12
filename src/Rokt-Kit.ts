@@ -24,7 +24,7 @@ import {
   removeSelectPlacementsAttributePersistenceDeniedAttributes,
 } from './selectPlacementsAttributePersistence';
 
-import { readJSON, writeJSON, removeKey } from './storage';
+import { readJSON, removeKey, readNamespacedField, writeNamespacedField, removeNamespacedField } from './storage';
 
 interface RoktKitSettings {
   accountId: string;
@@ -259,7 +259,8 @@ const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
-const LS_PAGE_VIEWS_KEY = 'mp-rokt-kit.pageViews';
+const LS_NAMESPACE_KEY = 'mp-rokt-kit';
+const LS_PAGE_VIEWS_FIELD = 'pageViews';
 // TODO: remove after 2027-02-11 — one-time migration of the legacy key.
 const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
 const PAGE_VIEWS_MAX_COUNT = 25;
@@ -309,8 +310,9 @@ function mp(): MParticleExtended {
 // ============================================================
 
 // TODO: remove after 2027-02-11 — one-time migration of the legacy 'mpPageViews'
-// key to the prefixed LS_PAGE_VIEWS_KEY. Everything migration-related is confined
-// to this function + LEGACY_PAGE_VIEWS_KEY so it can be deleted as a single unit.
+// key into the namespaced storage object's pageViews field. Everything
+// migration-related is confined to this function + LEGACY_PAGE_VIEWS_KEY so it
+// can be deleted as a single unit.
 // Unconditional (no freshness gate): staleness is mParticle's job — a timed-out
 // prior session fires SessionEnd (→ clear) before selectPlacements runs.
 function migrateLegacyPageViewStorage(): void {
@@ -318,24 +320,29 @@ function migrateLegacyPageViewStorage(): void {
   if (!legacy) {
     return;
   }
-  if (window.localStorage.getItem(LS_PAGE_VIEWS_KEY) === null) {
-    window.localStorage.setItem(LS_PAGE_VIEWS_KEY, legacy);
+  if (readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) === undefined) {
+    const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
+    // A failed adopt must not sweep the legacy key — throw so the caller's
+    // diagnostic path handles it and the next read can retry.
+    if (Array.isArray(legacyViews) && !writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews)) {
+      throw new Error('Rokt Kit: Failed to migrate legacy page-view storage');
+    }
   }
   removeKey(LEGACY_PAGE_VIEWS_KEY);
 }
 
 function loadPageViews(): PageEvent[] {
   migrateLegacyPageViewStorage();
-  const parsed = readJSON(LS_PAGE_VIEWS_KEY);
-  return Array.isArray(parsed) ? (parsed as PageEvent[]) : [];
+  const stored = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
+  return Array.isArray(stored) ? (stored as PageEvent[]) : [];
 }
 
 function writePageViewsStorage(pageViews: PageEvent[]): boolean {
-  return writeJSON(LS_PAGE_VIEWS_KEY, pageViews);
+  return writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, pageViews);
 }
 
 function clearPageViewsStorage(): void {
-  removeKey(LS_PAGE_VIEWS_KEY);
+  removeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
 }
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
