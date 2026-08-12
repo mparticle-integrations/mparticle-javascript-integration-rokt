@@ -32,6 +32,8 @@ import {
   clearPageViews,
 } from './pageViewStorage';
 
+import { isObject, isString, isEmpty } from './utils';
+
 interface RoktKitSettings {
   accountId: string;
   roktExtensions?: string;
@@ -352,10 +354,6 @@ function loadRoktScript(
   target.appendChild(script);
 }
 
-function isObject(val: unknown): val is Record<string, unknown> {
-  return val != null && typeof val === 'object' && Array.isArray(val) === false;
-}
-
 function parseSettingsString<T>(settingsString?: string): T[] {
   if (!settingsString) {
     return [];
@@ -445,21 +443,6 @@ function generateMappedEventAttributeLookup(
 
 function hashEventMessage(messageType: number, eventType: number, eventName: string): string | number {
   return mp().generateHash([messageType, eventType, eventName].join(''));
-}
-
-function isEmpty(value: unknown): boolean {
-  if (value == null) return true;
-  if (typeof value === 'object') {
-    return Object.keys(value as object).length === 0;
-  }
-  if (Array.isArray(value)) {
-    return (value as unknown[]).length === 0;
-  }
-  return false;
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
 }
 
 // Strips the query string from a page-view URL before it is persisted and sent
