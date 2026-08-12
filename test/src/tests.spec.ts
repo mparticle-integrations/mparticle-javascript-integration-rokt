@@ -5951,7 +5951,9 @@ describe('Rokt Forwarder', () => {
 
           await initKit();
 
-          const reportSpy = vi.spyOn((window as any).mParticle.forwarder.errorReportingService, 'report');
+          // A read/migration failure is surfaced as a diagnostic INFO log
+          // (loggingService.log), not an error report.
+          const logSpy = vi.spyOn((window as any).mParticle.forwarder.loggingService, 'log');
           const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key: string) => {
             if (key === NEW_KEY) {
               throw new Error('QuotaExceededError');
@@ -5966,10 +5968,8 @@ describe('Rokt Forwarder', () => {
             setItemSpy.mockRestore();
           }
 
-          expect(reportSpy).toHaveBeenCalledWith(
-            expect.objectContaining({ code: 'PAGE_VIEW_CAPTURE_FAILED', severity: 'INFO' }),
-          );
-          reportSpy.mockRestore();
+          expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'PAGE_VIEW_CAPTURE_FAILED' }));
+          logSpy.mockRestore();
         });
       });
 
@@ -6028,7 +6028,7 @@ describe('Rokt Forwarder', () => {
         expect(readStoredPageViews()).toBeNull();
       });
 
-      it('does not throw and silently drops the page view when localStorage writes throw', async () => {
+      it('does not throw and logs a diagnostic when localStorage writes throw', async () => {
         await (window as any).mParticle.forwarder.init(
           {
             accountId: '123456',
@@ -6042,6 +6042,7 @@ describe('Rokt Forwarder', () => {
         await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
         const reportSpy = vi.spyOn((window as any).mParticle.forwarder.errorReportingService, 'report');
+        const logSpy = vi.spyOn((window as any).mParticle.forwarder.loggingService, 'log');
         const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
           throw new Error('QuotaExceededError');
         });
@@ -6063,9 +6064,11 @@ describe('Rokt Forwarder', () => {
 
         // Nothing is persisted, but the forwarder keeps running.
         expect(readStoredPageViews()).toBeNull();
-        // The write is best-effort: writeJSON swallows the failure, so nothing
-        // is reported for it (see writeJSON/removeKey — swallow and forget).
+        // The failed write is best-effort: surfaced as a diagnostic INFO log
+        // (loggingService.log), never an error report.
+        expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ code: 'PAGE_VIEW_CAPTURE_FAILED' }));
         expect(reportSpy).not.toHaveBeenCalledWith(expect.objectContaining({ code: 'PAGE_VIEW_CAPTURE_FAILED' }));
+        logSpy.mockRestore();
         reportSpy.mockRestore();
       });
 
@@ -6395,6 +6398,54 @@ describe('Rokt Forwarder', () => {
 
         const forwardedAttributes = (window as any).mParticle.Rokt.selectPlacementsOptions.attributes;
         expect(forwardedAttributes.page_events).toBeUndefined();
+      });
+
+      it('does not sweep the legacy key on init when targeting is disabled', async () => {
+        // The targeting-disabled clear path (initForwarder) intentionally only
+        // clears the kit-owned new key; it does not run the legacy migration.
+        // A user with targeting off keeps an orphaned legacy `mpPageViews` until
+        // the shim's removal date — benign, and swept the moment targeting is
+        // re-enabled (loadPageViews) or a SessionEnd fires.
+        window.localStorage.setItem(
+          'mpPageViews',
+          JSON.stringify([
+            {
+              pageUrl: 'https://example.com/legacy',
+              sourceMessageId: 'legacy-seeded',
+              timestamp: 1712345678000,
+            },
+          ]),
+        );
+        window.localStorage.setItem(
+          'mp-rokt-kit.pageViews',
+          JSON.stringify([
+            {
+              pageUrl: 'https://example.com/',
+              sourceMessageId: 'seeded',
+              timestamp: 1712345678000,
+            },
+          ]),
+        );
+
+        (window as any).mParticle.Rokt.launcherOptions = {
+          noTargeting: true,
+        };
+
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        // New key is cleared; legacy key is left untouched (not swept on this path).
+        expect(readStoredPageViews()).toBeNull();
+        expect(window.localStorage.getItem('mpPageViews')).not.toBeNull();
       });
 
       it('strips query params from the captured pageUrl', async () => {

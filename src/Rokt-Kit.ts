@@ -330,15 +330,17 @@ function readJSON(key: string): unknown {
   }
 }
 
-// writeJSON/removeKey swallow storage failures (private mode, quota, access
-// denied) rather than throw: persisted page views are a best-effort cache, and
-// a failed write/remove must never break the caller. Failures are intentionally
-// not reported here — revisit if these keys ever hold must-persist data.
-function writeJSON(key: string, value: unknown): void {
+// writeJSON/removeKey never throw on storage failure (private mode, quota,
+// access denied): persisted page views are a best-effort cache, and a failed
+// write/remove must not break the caller. writeJSON returns whether the write
+// landed so callers can surface a diagnostic; removeKey is fire-and-forget (a
+// failed remove only risks orphaned data, resolved by the next write/clear).
+function writeJSON(key: string, value: unknown): boolean {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
-    // no-op
+    return false;
   }
 }
 
@@ -378,8 +380,8 @@ function loadPageViews(): PageEvent[] {
   return Array.isArray(parsed) ? (parsed as PageEvent[]) : [];
 }
 
-function writePageViewsStorage(pageViews: PageEvent[]): void {
-  writeJSON(LS_PAGE_VIEWS_KEY, pageViews);
+function writePageViewsStorage(pageViews: PageEvent[]): boolean {
+  return writeJSON(LS_PAGE_VIEWS_KEY, pageViews);
 }
 
 function clearPageViewsStorage(): void {
@@ -981,13 +983,22 @@ class RoktKit implements KitInterface {
         pageViews.shift();
       }
 
-      writePageViewsStorage(pageViews);
+      if (!writePageViewsStorage(pageViews)) {
+        // Best-effort cache: a failed persist only means fewer page events are
+        // forwarded later. Surface it as a diagnostic INFO log, not an error.
+        this.loggingService?.log({
+          message: `Rokt Kit: Failed to persist page view for ${pageUrl}`,
+          code: 'PAGE_VIEW_CAPTURE_FAILED',
+        });
+      }
     } catch (err) {
-      this.errorReportingService?.report({
-        message: `Rokt Kit: Failed to capture page view for ${pageUrl}`,
+      // sanitizeUrl / loadPageViews (legacy migration) failure — same best-effort
+      // posture: capture is skipped, no user-facing breakage. Diagnostic INFO log.
+      this.loggingService?.log({
+        message: `Rokt Kit: Failed to capture page view for ${pageUrl}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
         code: 'PAGE_VIEW_CAPTURE_FAILED',
-        severity: WSDKErrorSeverity.INFO,
-        stackTrace: err instanceof Error ? err.stack : undefined,
       });
     }
   }
@@ -1596,11 +1607,14 @@ class RoktKit implements KitInterface {
     try {
       storedPageViews = loadPageViews();
     } catch (err) {
-      this.errorReportingService?.report({
-        message: 'Rokt Kit: Failed to load page views for selectPlacements',
+      // A read/migration failure is a benign, best-effort miss (fall back to no
+      // page events) — not an SDK error. Surface it as a diagnostic INFO log
+      // rather than an error report.
+      this.loggingService?.log({
+        message: `Rokt Kit: Failed to load page views for selectPlacements: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
         code: 'PAGE_VIEW_CAPTURE_FAILED',
-        severity: WSDKErrorSeverity.INFO,
-        stackTrace: err instanceof Error ? err.stack : undefined,
       });
     }
     const pageEvents = this.buildPageEvents(storedPageViews);
