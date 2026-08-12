@@ -259,21 +259,9 @@ const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
-// localStorage key under which captured page views are persisted (as a JSON
-// string). The kit owns this storage directly — separate from mParticle's
-// cookie/localStorage — so page-view capture does not affect mParticle
-// persistence or cookie sync. Distinct from PAGE_EVENTS_KEY, which is the
-// flattened wire shape sent to Rokt on selectPlacements. Namespaced under the
-// kit-owned `mp-rokt-kit.*` prefix; future kit-owned keys follow the same
-// `mp-rokt-kit.<name>` convention.
 const LS_PAGE_VIEWS_KEY = 'mp-rokt-kit.pageViews';
-// Legacy unprefixed key this feature originally shipped under. Read once and
-// swept by migrateLegacyPageViewStorage() so existing history survives the
-// rename.
 // TODO: remove after 2027-02-11 — one-time migration of the legacy key.
 const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
-// Fixed cap on the number of persisted page views (oldest evicted first). Code
-// constant, not a kit setting — change it here.
 const PAGE_VIEWS_MAX_COUNT = 25;
 const PAGE_EVENTS_KEY = 'page_events';
 
@@ -326,22 +314,16 @@ function mp(): MParticleExtended {
 // Unconditional (no freshness gate): staleness is mParticle's job — a timed-out
 // prior session fires SessionEnd (→ clear) before selectPlacements runs.
 function migrateLegacyPageViewStorage(): void {
-  // The read + adopt work on the opaque stored string on purpose — no
-  // readJSON/writeJSON round-trip. That keeps the move byte-for-byte and lets
-  // us still sweep malformed legacy data (readJSON would collapse "absent" and
-  // "malformed" to null and leave garbage behind). The sweep uses removeKey.
   const legacy = window.localStorage.getItem(LEGACY_PAGE_VIEWS_KEY);
   if (legacy === null) {
     return;
   }
   if (window.localStorage.getItem(LS_PAGE_VIEWS_KEY) === null) {
-    window.localStorage.setItem(LS_PAGE_VIEWS_KEY, legacy); // adopt-if-empty
+    window.localStorage.setItem(LS_PAGE_VIEWS_KEY, legacy);
   }
-  removeKey(LEGACY_PAGE_VIEWS_KEY); // always sweep
+  removeKey(LEGACY_PAGE_VIEWS_KEY);
 }
 
-// Single entry point for reading persisted page views. Runs the one-time legacy
-// migration first, then returns the stored array (or [] if absent/malformed).
 function loadPageViews(): PageEvent[] {
   migrateLegacyPageViewStorage();
   const parsed = readJSON(LS_PAGE_VIEWS_KEY);
@@ -952,16 +934,12 @@ class RoktKit implements KitInterface {
       }
 
       if (!writePageViewsStorage(pageViews)) {
-        // Best-effort cache: a failed persist only means fewer page events are
-        // forwarded later. Surface it as a diagnostic INFO log, not an error.
         this.loggingService?.log({
           message: `Rokt Kit: Failed to persist page view for ${pageUrl}`,
           code: 'PAGE_VIEW_CAPTURE_FAILED',
         });
       }
     } catch (err) {
-      // sanitizeUrl / loadPageViews (legacy migration) failure — same best-effort
-      // posture: capture is skipped, no user-facing breakage. Diagnostic INFO log.
       this.loggingService?.log({
         message: `Rokt Kit: Failed to capture page view for ${pageUrl}: ${
           err instanceof Error ? err.message : String(err)
@@ -1567,17 +1545,10 @@ class RoktKit implements KitInterface {
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
     const sessionAttributes = this.returnLocalSessionAttributes();
-    // loadPageViews() runs the legacy migration, which touches localStorage
-    // directly and can throw (e.g. access denied, quota). A read failure must
-    // not break placement selection — fall back to no page events, matching the
-    // best-effort posture of the capture and clear paths.
     let storedPageViews: PageEvent[] = [];
     try {
       storedPageViews = loadPageViews();
     } catch (err) {
-      // A read/migration failure is a benign, best-effort miss (fall back to no
-      // page events) — not an SDK error. Surface it as a diagnostic INFO log
-      // rather than an error report.
       this.loggingService?.log({
         message: `Rokt Kit: Failed to load page views for selectPlacements: ${
           err instanceof Error ? err.message : String(err)
