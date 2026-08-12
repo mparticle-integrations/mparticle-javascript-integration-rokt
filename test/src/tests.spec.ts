@@ -5645,6 +5645,7 @@ describe('Rokt Forwarder', () => {
 
       const readStoredPageViews = () => readNamespacedField(NS_KEY, PAGE_VIEWS_FIELD) ?? null;
       const seedStoredPageViews = (views: unknown) => writeNamespacedField(NS_KEY, PAGE_VIEWS_FIELD, views);
+      const seedLegacyPageViews = (views: unknown) => window.localStorage.setItem(LEGACY_KEY, JSON.stringify(views));
 
       beforeEach(() => {
         window.localStorage.clear();
@@ -5846,7 +5847,7 @@ describe('Rokt Forwarder', () => {
               timestamp: 1712345678000,
             },
           ];
-          window.localStorage.setItem(LEGACY_KEY, JSON.stringify(seeded));
+          seedLegacyPageViews(seeded);
 
           await initKit();
           const attributes = await runSelectPlacements();
@@ -5873,7 +5874,7 @@ describe('Rokt Forwarder', () => {
               timestamp: 1712345679000,
             },
           ];
-          window.localStorage.setItem(LEGACY_KEY, JSON.stringify(legacy));
+          seedLegacyPageViews(legacy);
           seedStoredPageViews(current);
 
           await initKit();
@@ -5904,16 +5905,13 @@ describe('Rokt Forwarder', () => {
         });
 
         it('sweeps the legacy key on SessionEnd before clearing the new key', async () => {
-          window.localStorage.setItem(
-            LEGACY_KEY,
-            JSON.stringify([
-              {
-                pageUrl: 'https://example.com/legacy',
-                sourceMessageId: 'legacy-1',
-                timestamp: 1712345678000,
-              },
-            ]),
-          );
+          seedLegacyPageViews([
+            {
+              pageUrl: 'https://example.com/legacy',
+              sourceMessageId: 'legacy-1',
+              timestamp: 1712345678000,
+            },
+          ]);
 
           await initKit();
 
@@ -5933,16 +5931,13 @@ describe('Rokt Forwarder', () => {
           // Legacy present + namespaced field absent → migration attempts the adopt
           // write, which throws here. The read path must swallow it (best-effort) so
           // placement selection still proceeds without page events.
-          window.localStorage.setItem(
-            LEGACY_KEY,
-            JSON.stringify([
-              {
-                pageUrl: 'https://example.com/legacy',
-                sourceMessageId: 'legacy-1',
-                timestamp: 1712345678000,
-              },
-            ]),
-          );
+          seedLegacyPageViews([
+            {
+              pageUrl: 'https://example.com/legacy',
+              sourceMessageId: 'legacy-1',
+              timestamp: 1712345678000,
+            },
+          ]);
 
           await initKit();
 
@@ -6395,16 +6390,13 @@ describe('Rokt Forwarder', () => {
         // A user with targeting off keeps an orphaned legacy `mpPageViews` until
         // the shim's removal date — benign, and swept the moment targeting is
         // re-enabled (loadPageViews) or a SessionEnd fires.
-        window.localStorage.setItem(
-          LEGACY_KEY,
-          JSON.stringify([
-            {
-              pageUrl: 'https://example.com/legacy',
-              sourceMessageId: 'legacy-seeded',
-              timestamp: 1712345678000,
-            },
-          ]),
-        );
+        seedLegacyPageViews([
+          {
+            pageUrl: 'https://example.com/legacy',
+            sourceMessageId: 'legacy-seeded',
+            timestamp: 1712345678000,
+          },
+        ]);
         seedStoredPageViews([
           {
             pageUrl: 'https://example.com/',
