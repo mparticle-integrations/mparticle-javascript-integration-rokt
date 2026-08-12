@@ -24,6 +24,8 @@ import {
   removeSelectPlacementsAttributePersistenceDeniedAttributes,
 } from './selectPlacementsAttributePersistence';
 
+import { readJSON, writeJSON, removeKey } from './storage';
+
 interface RoktKitSettings {
   accountId: string;
   roktExtensions?: string;
@@ -318,39 +320,9 @@ function mp(): MParticleExtended {
 // Module-level utility functions
 // ============================================================
 
-// Key-agnostic localStorage helpers. Page-view semantics (array shape, count
-// cap, migration) live in the callers below so these can be reused verbatim
-// for future `mp-rokt-kit.*` keys.
-function readJSON(key: string): unknown {
-  try {
-    const stored = window.localStorage.getItem(key);
-    return stored === null ? null : JSON.parse(stored);
-  } catch {
-    return null;
-  }
-}
-
-// writeJSON/removeKey never throw on storage failure (private mode, quota,
-// access denied): persisted page views are a best-effort cache, and a failed
-// write/remove must not break the caller. writeJSON returns whether the write
-// landed so callers can surface a diagnostic; removeKey is fire-and-forget (a
-// failed remove only risks orphaned data, resolved by the next write/clear).
-function writeJSON(key: string, value: unknown): boolean {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function removeKey(key: string): void {
-  try {
-    window.localStorage.removeItem(key);
-  } catch {
-    // no-op
-  }
-}
+// Key-agnostic localStorage helpers (readJSON / writeJSON / removeKey) live in
+// ./storage. Page-view semantics (array shape, count cap, migration) stay here
+// in the callers below.
 
 // TODO: remove after 2027-02-11 — one-time migration of the legacy 'mpPageViews'
 // key to the prefixed LS_PAGE_VIEWS_KEY. Everything migration-related is confined
