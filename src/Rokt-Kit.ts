@@ -322,11 +322,11 @@ function migrateLegacyPageViewStorage(loggingService: LoggingService | null): vo
   }
 
   const alreadyMigrated = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) !== undefined;
-  const needsAdoption = !alreadyMigrated && Array.isArray(legacyViews);
+  const needsMigration = !alreadyMigrated && Array.isArray(legacyViews);
 
-  if (needsAdoption) {
-    const adopted = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
-    if (!adopted) {
+  if (needsMigration) {
+    const migrated = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
+    if (!migrated) {
       loggingService?.log({
         message: 'Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry',
         code: 'PAGE_VIEW_CAPTURE_FAILED',
