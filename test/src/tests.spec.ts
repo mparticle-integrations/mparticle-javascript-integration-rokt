@@ -5791,7 +5791,6 @@ describe('Rokt Forwarder', () => {
         });
 
         const stored = readStoredPageViews();
-        // Trimmed under budget, oldest evicted, newest always retained.
         expect(JSON.stringify(stored).length).toBeLessThanOrEqual(PAGE_VIEWS_MAX_BYTES);
         expect(stored.length).toBeLessThan(31);
         expect(stored[stored.length - 1].sourceMessageId).toBe('newest');
@@ -5811,7 +5810,6 @@ describe('Rokt Forwarder', () => {
 
         await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
-        // A single seed record larger than the entire budget.
         const hugeUrl = 'https://example.com/' + 'a'.repeat(PAGE_VIEWS_MAX_BYTES + 1);
         seedStoredPageViews([{ pageUrl: hugeUrl, sourceMessageId: 'seed-huge', timestamp: 1712345678000 }]);
 
@@ -5825,7 +5823,6 @@ describe('Rokt Forwarder', () => {
         });
 
         const stored = readStoredPageViews();
-        // The oversized older record is evicted; the newest is always kept.
         expect(stored.length).toBe(1);
         expect(stored[0].sourceMessageId).toBe('newest');
       });
@@ -6122,16 +6119,14 @@ describe('Rokt Forwarder', () => {
 
         await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
-        // Seed a small history so there are older records to evict.
         const seed = [];
         for (let i = 0; i < 5; i++) {
           seed.push({ pageUrl: 'https://example.com/', sourceMessageId: 'seed-' + i, timestamp: 1712345678000 + i });
         }
         seedStoredPageViews(seed);
 
-        // Fail the first 3 namespaced writes with a QuotaExceededError; the
-        // storage layer catches it and reports failure, driving writePageViews-
-        // Storage's evict-and-retry until the write succeeds.
+        // writeNamespacedField swallows the quota error and returns false, so
+        // failing the first 3 writes drives writePageViews's evict-and-retry.
         let calls = 0;
         const realSetItem = Storage.prototype.setItem;
         const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (

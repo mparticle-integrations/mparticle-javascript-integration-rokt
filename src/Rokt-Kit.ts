@@ -24,7 +24,13 @@ import {
   removeSelectPlacementsAttributePersistenceDeniedAttributes,
 } from './selectPlacementsAttributePersistence';
 
-import { readJSON, removeKey, readNamespacedField, writeNamespacedField, removeNamespacedField } from './storage';
+import {
+  PageEvent,
+  migrateLegacyPageViewStorage,
+  loadPageViews,
+  writePageViews,
+  clearPageViews,
+} from './pageViewStorage';
 
 interface RoktKitSettings {
   accountId: string;
@@ -61,17 +67,6 @@ interface PlacementEventMappingEntry {
 
 interface RoktExtensionEntry {
   value: string;
-}
-
-interface PageEvent {
-  pageUrl: string;
-  sourceMessageId: string;
-  timestamp: number;
-  activeTimeOnSite?: number;
-  // Derived at transmission not at capture based
-  // on the next page view's activeTimeOnSite,
-  // so it is absent on stored records.
-  activeTimeOnPage?: number;
 }
 
 interface RoktSelection {
@@ -259,18 +254,6 @@ const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
-const LS_NAMESPACE_KEY = 'mp-rokt-kit';
-const LS_PAGE_VIEWS_FIELD = 'pageViews';
-// TODO: remove after 2027-02-11 — one-time migration of the legacy key.
-const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
-// Self-imposed cap on our footprint in the shared origin localStorage, measured
-// as the JSON string length (UTF-16 code units) — the same unit browsers use
-// for the ~5MB origin quota, so this is roughly 2% of a typical quota. Oldest
-// page views are evicted first to stay under it. localStorage is shared across
-// the whole origin (the customer's app, mParticle, other tags), so we cap our
-// own usage rather than assuming the space is ours. Code constant, not a kit
-// setting — change it here.
-const PAGE_VIEWS_MAX_BYTES = 100 * 1024;
 const PAGE_EVENTS_KEY = 'page_events';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
@@ -315,75 +298,6 @@ function mp(): MParticleExtended {
 // ============================================================
 // Module-level utility functions
 // ============================================================
-
-// TODO: remove after 2027-02-11 — one-time migration of the legacy 'mpPageViews'
-// key into the namespaced storage object's pageViews field. Everything
-// migration-related is confined to this function + LEGACY_PAGE_VIEWS_KEY so it
-// can be deleted as a single unit.
-// Unconditional (no freshness gate): staleness is mParticle's job — a timed-out
-// prior session fires SessionEnd (→ clear) before selectPlacements runs.
-function migrateLegacyPageViewStorage(loggingService: LoggingService | null): void {
-  const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
-  if (legacyViews === null) {
-    return;
-  }
-
-  const alreadyMigrated = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) !== undefined;
-  const needsMigration = !alreadyMigrated && Array.isArray(legacyViews);
-
-  if (needsMigration) {
-    const migrated = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
-    if (!migrated) {
-      loggingService?.log({
-        message: 'Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry',
-        code: 'PAGE_VIEW_CAPTURE_FAILED',
-      });
-      return;
-    }
-  }
-
-  removeKey(LEGACY_PAGE_VIEWS_KEY);
-}
-
-function loadPageViews(loggingService: LoggingService | null): PageEvent[] {
-  migrateLegacyPageViewStorage(loggingService);
-  const stored = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
-  return Array.isArray(stored) ? (stored as PageEvent[]) : [];
-}
-
-// Persists as many recent page views as fit within our own byte budget and the
-// browser's actual quota. Evicts oldest first (mutates the passed array):
-//   1. Politeness cap — trim to PAGE_VIEWS_MAX_BYTES so we stay a good tenant in
-//      the shared origin storage regardless of how much free space exists. The
-//      budget measures the pageViews array only, not the whole namespace blob,
-//      so it caps our page-view footprint specifically.
-//   2. Quota safety net — if the namespaced write fails, evict oldest and retry
-//      until it succeeds or only the newest record remains. writeNamespacedField
-//      swallows the underlying error and returns false, so this retries on any
-//      write failure (typically a full quota; eviction can't help a disabled or
-//      broken localStorage, in which case we fall through to returning false).
-// Always keeps at least the newest page view. Returns false if even that cannot
-// be persisted, so the caller reports at INFO and nothing is thrown into the
-// host page.
-function writePageViewsStorage(pageViews: PageEvent[]): boolean {
-  while (pageViews.length > 1 && JSON.stringify(pageViews).length > PAGE_VIEWS_MAX_BYTES) {
-    pageViews.shift();
-  }
-
-  for (;;) {
-    if (writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, pageViews)) {
-      return true;
-    }
-    if (pageViews.length <= 1) {
-      return false;
-    }
-    pageViews.shift();
-  }
-}
-
-function clearPageViewsStorage(): void {
-  removeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
-}
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
   const launcherPath = '/wsdk/integrations/launcher.js';
@@ -976,9 +890,7 @@ class RoktKit implements KitInterface {
 
       pageViews.push(pageView);
 
-      // writePageViewsStorage trims to our byte budget (oldest first) and
-      // handles write failures, so no count-based cap is needed here.
-      if (!writePageViewsStorage(pageViews)) {
+      if (!writePageViews(pageViews)) {
         this.loggingService?.log({
           message: `Rokt Kit: Failed to persist page view for ${pageUrl}`,
           code: 'PAGE_VIEW_CAPTURE_FAILED',
@@ -1273,7 +1185,7 @@ class RoktKit implements KitInterface {
 
     if (this.isTargetingDisabled()) {
       try {
-        clearPageViewsStorage();
+        clearPageViews();
       } catch (err) {
         this.errorReportingService?.report({
           message: 'Rokt Kit: Failed to clear page views when targeting is disabled',
@@ -1362,7 +1274,7 @@ class RoktKit implements KitInterface {
 
       if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
         migrateLegacyPageViewStorage(this.loggingService);
-        clearPageViewsStorage();
+        clearPageViews();
       }
     }
 

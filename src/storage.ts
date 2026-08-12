@@ -53,3 +53,23 @@ export function removeNamespacedField(namespaceKey: string, field: string): void
     writeJSON(namespaceKey, next);
   }
 }
+
+export function writeNamespacedFieldWithinBudget(
+  namespaceKey: string,
+  field: string,
+  records: unknown[],
+  maxBytes: number,
+): boolean {
+  while (records.length > 1 && JSON.stringify(records).length > maxBytes) {
+    records.shift();
+  }
+
+  while (!writeNamespacedField(namespaceKey, field, records)) {
+    if (records.length <= 1) {
+      return false;
+    }
+    records.shift();
+  }
+
+  return true;
+}
