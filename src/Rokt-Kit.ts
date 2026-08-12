@@ -24,6 +24,8 @@ import {
   removeSelectPlacementsAttributePersistenceDeniedAttributes,
 } from './selectPlacementsAttributePersistence';
 
+import { readJSON, removeKey, readNamespacedField, writeNamespacedField, removeNamespacedField } from './storage';
+
 interface RoktKitSettings {
   accountId: string;
   roktExtensions?: string;
@@ -257,14 +259,10 @@ const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
-// localStorage key under which captured page views are persisted (as a JSON
-// string). The kit owns this storage directly — separate from mParticle's
-// cookie/localStorage — so page-view capture does not affect mParticle
-// persistence or cookie sync. Distinct from PAGE_EVENTS_KEY, which is the
-// flattened wire shape sent to Rokt on selectPlacements.
-const LS_PAGE_VIEWS_KEY = 'mpPageViews';
-// Fixed cap on the number of persisted page views (oldest evicted first). Code
-// constant, not a kit setting — change it here.
+const LS_NAMESPACE_KEY = 'mp-rokt-kit';
+const LS_PAGE_VIEWS_FIELD = 'pageViews';
+// TODO: remove after 2027-02-11 — one-time migration of the legacy key.
+const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
 const PAGE_VIEWS_MAX_COUNT = 25;
 const PAGE_EVENTS_KEY = 'page_events';
 
@@ -311,25 +309,47 @@ function mp(): MParticleExtended {
 // Module-level utility functions
 // ============================================================
 
-function readPageViewsStorage(): PageEvent[] {
-  try {
-    const stored = window.localStorage.getItem(LS_PAGE_VIEWS_KEY);
-    if (stored === null) {
-      return [];
-    }
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? (parsed as PageEvent[]) : [];
-  } catch {
-    return [];
+// TODO: remove after 2027-02-11 — one-time migration of the legacy 'mpPageViews'
+// key into the namespaced storage object's pageViews field. Everything
+// migration-related is confined to this function + LEGACY_PAGE_VIEWS_KEY so it
+// can be deleted as a single unit.
+// Unconditional (no freshness gate): staleness is mParticle's job — a timed-out
+// prior session fires SessionEnd (→ clear) before selectPlacements runs.
+function migrateLegacyPageViewStorage(loggingService: LoggingService | null): void {
+  const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
+  if (legacyViews === null) {
+    return;
   }
+
+  const alreadyMigrated = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) !== undefined;
+  const needsMigration = !alreadyMigrated && Array.isArray(legacyViews);
+
+  if (needsMigration) {
+    const migrated = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
+    if (!migrated) {
+      loggingService?.log({
+        message: 'Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry',
+        code: 'PAGE_VIEW_CAPTURE_FAILED',
+      });
+      return;
+    }
+  }
+
+  removeKey(LEGACY_PAGE_VIEWS_KEY);
 }
 
-function writePageViewsStorage(pageViews: PageEvent[]): void {
-  window.localStorage.setItem(LS_PAGE_VIEWS_KEY, JSON.stringify(pageViews));
+function loadPageViews(loggingService: LoggingService | null): PageEvent[] {
+  migrateLegacyPageViewStorage(loggingService);
+  const stored = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
+  return Array.isArray(stored) ? (stored as PageEvent[]) : [];
+}
+
+function writePageViewsStorage(pageViews: PageEvent[]): boolean {
+  return writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, pageViews);
 }
 
 function clearPageViewsStorage(): void {
-  window.localStorage.removeItem(LS_PAGE_VIEWS_KEY);
+  removeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
 }
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
@@ -909,7 +929,7 @@ class RoktKit implements KitInterface {
     try {
       pageUrl = sanitizeUrl(window.location.href);
 
-      const pageViews = readPageViewsStorage();
+      const pageViews = loadPageViews(this.loggingService);
 
       const pageView: PageEvent = {
         pageUrl,
@@ -927,13 +947,18 @@ class RoktKit implements KitInterface {
         pageViews.shift();
       }
 
-      writePageViewsStorage(pageViews);
+      if (!writePageViewsStorage(pageViews)) {
+        this.loggingService?.log({
+          message: `Rokt Kit: Failed to persist page view for ${pageUrl}`,
+          code: 'PAGE_VIEW_CAPTURE_FAILED',
+        });
+      }
     } catch (err) {
-      this.errorReportingService?.report({
-        message: `Rokt Kit: Failed to capture page view for ${pageUrl}`,
+      this.loggingService?.log({
+        message: `Rokt Kit: Failed to capture page view for ${pageUrl}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
         code: 'PAGE_VIEW_CAPTURE_FAILED',
-        severity: WSDKErrorSeverity.INFO,
-        stackTrace: err instanceof Error ? err.stack : undefined,
       });
     }
   }
@@ -1305,16 +1330,8 @@ class RoktKit implements KitInterface {
       }
 
       if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
-        try {
-          clearPageViewsStorage();
-        } catch (err) {
-          this.errorReportingService?.report({
-            message: 'Rokt Kit: Failed to clear page views on session end',
-            code: 'PAGE_VIEW_CAPTURE_FAILED',
-            severity: WSDKErrorSeverity.INFO,
-            stackTrace: err instanceof Error ? err.stack : undefined,
-          });
-        }
+        migrateLegacyPageViewStorage(this.loggingService);
+        clearPageViewsStorage();
       }
     }
 
@@ -1533,7 +1550,7 @@ class RoktKit implements KitInterface {
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
     const sessionAttributes = this.returnLocalSessionAttributes();
-    const pageEvents = this.buildPageEvents(readPageViewsStorage());
+    const pageEvents = this.buildPageEvents(loadPageViews(this.loggingService));
 
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),

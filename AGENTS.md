@@ -22,14 +22,17 @@ The Rokt web kit (`@mparticle/web-rokt-kit`) is an mParticle integration kit (fo
 ```
 /
   src/
-    Rokt-Kit.ts           # Single monolithic source file
+    Rokt-Kit.ts           # Main kit source (forwarder class + registration)
+    storage.ts            # Key-agnostic localStorage helpers (readJSON/writeJSON/removeKey)
+    selectPlacementsAttributePersistence.ts  # Attribute persistence deny-list
   dist/
     Rokt-Kit.iife.js      # Browser bundle (IIFE)
     Rokt-Kit.common.js    # npm bundle (CommonJS)
     Rokt-Kit.d.ts         # Type definitions
   test/
     src/
-      tests.spec.ts       # Vitest test suite
+      tests.spec.ts       # Main Vitest test suite (Rokt-Kit.ts)
+      storage.spec.ts     # Unit tests for storage.ts helpers
     vitest.setup.ts       # Global test setup / mParticle mock
     lib/                  # Test utilities
     end-to-end-testapp/   # E2E test app
@@ -58,11 +61,12 @@ The `dist/` folder, `CHANGELOG.md`, and version bumps in `package.json`/`package
 
 ## Code Conventions
 
-- **Single source file**: All kit logic lives in `src/Rokt-Kit.ts`
+- **Prefer small, focused modules**: `src/Rokt-Kit.ts` is the entry point (forwarder class + registration), but favor extracting cohesive concerns into sibling modules (as with `storage.ts`, `selectPlacementsAttributePersistence.ts`) rather than growing `Rokt-Kit.ts`. Vite/Rollup bundles all source files into the single `dist/` output, so extraction is free — it doesn't change the shipped bundle shape. When you add or touch a self-contained concern (storage, serialization, a deny-list, event mapping, etc.), pull it into its own module with a clear name and a co-located `*.spec.ts`. Keep only orchestration and kit lifecycle in `Rokt-Kit.ts`.
 - **TypeScript class pattern**: `class RoktKit { ... }` with typed public/private members
 - **const/let**: Use `const` for values that don't change, `let` for reassignable variables
 - **Strict TypeScript**: `strict: true` — all values must be typed, no implicit `any`
 - **Module registration**: Kit self-registers via `window.mParticle.addForwarder()` at load time
+- **No unnecessary comments**: Don't restate what the code already says. Reserve comments for non-obvious *why* — rationale, invariants, gotchas (e.g. why storage writes swallow errors, why a migration is byte-for-byte). Delete comments that a reader could infer from the code itself.
 
 ## Architecture
 
@@ -81,7 +85,7 @@ The `dist/` folder, `CHANGELOG.md`, and version bumps in `package.json`/`package
 
 ## Common Gotchas
 
-1. **Single file**: All changes go in `src/Rokt-Kit.ts` — there are no imports/modules
+1. **Favor modular extraction**: `src/Rokt-Kit.ts` is the entry point, but prefer splitting self-contained concerns into sibling modules (e.g. `storage.ts`, `selectPlacementsAttributePersistence.ts`) rather than growing the entry file. Co-located `*.spec.ts` under `src/` are picked up by Vitest (see `vite.config.ts` `test.include`), so each extracted module can carry its own unit tests
 2. **Browser-only**: Code runs in browser context, `window` is always available
 3. **Async launcher**: Rokt launcher loads asynchronously — events must be queued until ready
 4. **Window extensions**: `window.Rokt` and `window.mParticle.Rokt` are typed via `declare global`
