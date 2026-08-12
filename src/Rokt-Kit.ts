@@ -315,7 +315,7 @@ function mp(): MParticleExtended {
 // prior session fires SessionEnd (→ clear) before selectPlacements runs.
 function migrateLegacyPageViewStorage(): void {
   const legacy = window.localStorage.getItem(LEGACY_PAGE_VIEWS_KEY);
-  if (legacy === null) {
+  if (!legacy) {
     return;
   }
   if (window.localStorage.getItem(LS_PAGE_VIEWS_KEY) === null) {
