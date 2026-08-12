@@ -61,7 +61,7 @@ The `dist/` folder, `CHANGELOG.md`, and version bumps in `package.json`/`package
 
 ## Code Conventions
 
-- **Mostly one source file**: The bulk of kit logic lives in `src/Rokt-Kit.ts`. A few cohesive, reusable concerns are extracted into sibling modules (`storage.ts`, `selectPlacementsAttributePersistence.ts`) and imported. Vite/Rollup bundles all source files into the single `dist/` output, so extraction doesn't change the shipped bundle shape. Prefer keeping new logic in `Rokt-Kit.ts` unless it's a self-contained, independently-testable concern.
+- **Prefer small, focused modules**: `src/Rokt-Kit.ts` is the entry point (forwarder class + registration), but favor extracting cohesive concerns into sibling modules (as with `storage.ts`, `selectPlacementsAttributePersistence.ts`) rather than growing `Rokt-Kit.ts`. Vite/Rollup bundles all source files into the single `dist/` output, so extraction is free — it doesn't change the shipped bundle shape. When you add or touch a self-contained concern (storage, serialization, a deny-list, event mapping, etc.), pull it into its own module with a clear name and a co-located `*.spec.ts`. Keep only orchestration and kit lifecycle in `Rokt-Kit.ts`.
 - **TypeScript class pattern**: `class RoktKit { ... }` with typed public/private members
 - **const/let**: Use `const` for values that don't change, `let` for reassignable variables
 - **Strict TypeScript**: `strict: true` — all values must be typed, no implicit `any`
@@ -85,7 +85,7 @@ The `dist/` folder, `CHANGELOG.md`, and version bumps in `package.json`/`package
 
 ## Common Gotchas
 
-1. **Mostly one file**: Most changes go in `src/Rokt-Kit.ts`, which imports a few sibling modules (`storage.ts`, `selectPlacementsAttributePersistence.ts`). Co-located `*.spec.ts` under `src/` are also picked up by Vitest (see `vite.config.ts` `test.include`)
+1. **Favor modular extraction**: `src/Rokt-Kit.ts` is the entry point, but prefer splitting self-contained concerns into sibling modules (e.g. `storage.ts`, `selectPlacementsAttributePersistence.ts`) rather than growing the entry file. Co-located `*.spec.ts` under `src/` are picked up by Vitest (see `vite.config.ts` `test.include`), so each extracted module can carry its own unit tests
 2. **Browser-only**: Code runs in browser context, `window` is always available
 3. **Async launcher**: Rokt launcher loads asynchronously — events must be queued until ready
 4. **Window extensions**: `window.Rokt` and `window.mParticle.Rokt` are typed via `declare global`
