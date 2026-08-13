@@ -5686,6 +5686,7 @@ describe('Rokt Forwarder', () => {
             pageUrl: window.location.href,
             sourceMessageId: 'source-message-id-1',
             timestamp: 1712345678000,
+            pageTitle: 'Home',
             activeTimeOnSite: 4200,
           },
         ]);
@@ -5731,6 +5732,46 @@ describe('Rokt Forwarder', () => {
         } finally {
           document.title = '';
           document.head.removeChild(canonical);
+        }
+      });
+
+      it('prefers the event title over document.title when both are present', async () => {
+        document.title = 'Document Title';
+
+        try {
+          await (window as any).mParticle.forwarder.init(
+            {
+              accountId: '123456',
+            },
+            reportService.cb,
+            true,
+            null,
+            {},
+          );
+
+          await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+          (window as any).mParticle.forwarder.process({
+            EventName: 'Home Page',
+            EventCategory: EventType.Unknown,
+            EventDataType: MessageType.PageView,
+            SourceMessageId: 'source-message-id-event-title',
+            Timestamp: 1712345678000,
+            EventAttributes: {
+              title: 'Event Title',
+            },
+          });
+
+          expect(readStoredPageViews()).toEqual([
+            {
+              pageUrl: window.location.href,
+              sourceMessageId: 'source-message-id-event-title',
+              timestamp: 1712345678000,
+              pageTitle: 'Event Title',
+            },
+          ]);
+        } finally {
+          document.title = '';
         }
       });
 

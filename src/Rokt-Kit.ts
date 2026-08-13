@@ -876,7 +876,7 @@ class RoktKit implements KitInterface {
         timestamp: event.Timestamp,
       };
 
-      const pageTitle = document.title;
+      const pageTitle = event.EventAttributes?.title || document.title;
       if (pageTitle) {
         pageView.pageTitle = pageTitle;
       }
