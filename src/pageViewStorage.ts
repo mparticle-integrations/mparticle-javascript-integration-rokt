@@ -11,7 +11,6 @@ import {
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
 const LS_PAGE_VIEWS_FIELD = 'pageViews';
 const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
-// UTF-16 code units (string.length), matching how browsers meter localStorage.
 const PAGE_VIEWS_MAX_LENGTH = 100 * 1024;
 
 export interface PageEvent {
