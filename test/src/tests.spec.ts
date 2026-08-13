@@ -4117,6 +4117,24 @@ describe('Rokt Forwarder', () => {
       );
     });
 
+    it('should use a chrome-extension origin verbatim so the launcher loads from the bundled extension', () => {
+      expect(
+        (window as any).mParticle.forwarder.testHelpers.generateLauncherScript('chrome-extension://abcdef123/rokt'),
+      ).toBe('chrome-extension://abcdef123/rokt/wsdk/integrations/launcher.js');
+    });
+
+    it('should trim a trailing slash from a full origin so the path join stays clean', () => {
+      expect(
+        (window as any).mParticle.forwarder.testHelpers.generateLauncherScript('chrome-extension://abcdef123/rokt/'),
+      ).toBe('chrome-extension://abcdef123/rokt/wsdk/integrations/launcher.js');
+    });
+
+    it('should preserve an http origin for local development', () => {
+      expect((window as any).mParticle.forwarder.testHelpers.generateLauncherScript('http://localhost:8001')).toBe(
+        'http://localhost:8001/wsdk/integrations/launcher.js',
+      );
+    });
+
     it('should return base URL when no extensions are provided', () => {
       const url = (window as any).mParticle.forwarder.testHelpers.generateLauncherScript();
       expect(url).toBe(baseUrl);
@@ -4164,6 +4182,13 @@ describe('Rokt Forwarder', () => {
     it('should return an updated base URL with CNAME when domain is passed', () => {
       const url = (window as any).mParticle.forwarder.testHelpers.generateThankYouElementScript('cname.rokt.com');
       expect(url).toBe('https://cname.rokt.com/rokt-elements/rokt-element-thank-you.js');
+    });
+
+    it('should use a full custom origin verbatim', () => {
+      const url = (window as any).mParticle.forwarder.testHelpers.generateThankYouElementScript(
+        'chrome-extension://abcdef123/rokt',
+      );
+      expect(url).toBe('chrome-extension://abcdef123/rokt/rokt-elements/rokt-element-thank-you.js');
     });
   });
 

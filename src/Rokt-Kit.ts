@@ -318,6 +318,11 @@ function generateThankYouElementScript(domain: string | undefined) {
 
 function generateBaseUrl(domain: string | undefined) {
   const resolvedDomain = typeof domain !== 'undefined' ? domain : DEFAULT_ROKT_DOMAIN;
+
+  if (resolvedDomain.includes('://')) {
+    return resolvedDomain.replace(/\/+$/, '');
+  }
+
   const protocol = 'https://';
 
   return [protocol, resolvedDomain].join('');
@@ -508,6 +513,10 @@ function sendAdBlockMeasurementSignals(domain: string | undefined, version: stri
 
   const guid = window.__rokt_li_guid__;
   if (!guid) {
+    return;
+  }
+
+  if (domain && domain.includes('://')) {
     return;
   }
 
