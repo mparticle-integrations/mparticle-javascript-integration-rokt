@@ -10,7 +10,8 @@ import {
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
 const LS_PAGE_VIEWS_FIELD = 'pageViews';
 const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
-const PAGE_VIEWS_MAX_BYTES = 100 * 1024;
+// UTF-16 code units (string.length), matching how browsers meter localStorage.
+const PAGE_VIEWS_MAX_LENGTH = 100 * 1024;
 
 export interface PageEvent {
   pageUrl: string;
@@ -54,7 +55,7 @@ export function loadPageViews(logger: PageViewLogger | null): PageEvent[] {
 }
 
 export function writePageViews(pageViews: PageEvent[]): boolean {
-  return writeNamespacedFieldWithinBudget(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, pageViews, PAGE_VIEWS_MAX_BYTES);
+  return writeNamespacedFieldWithinBudget(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, pageViews, PAGE_VIEWS_MAX_LENGTH);
 }
 
 export function clearPageViews(): void {

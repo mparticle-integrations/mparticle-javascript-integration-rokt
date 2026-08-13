@@ -214,7 +214,7 @@ describe('storage: key-agnostic localStorage helpers', () => {
       });
       const records = [{ id: 'a' }, { id: 'b' }];
       expect(writeNamespacedFieldWithinBudget(NAMESPACE_KEY, 'pageViews', records, BUDGET)).toBe(false);
-      expect(records).toHaveLength(1);
+      expect(records).toEqual([{ id: 'a' }, { id: 'b' }]);
     });
   });
 });

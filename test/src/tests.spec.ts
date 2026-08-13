@@ -5752,10 +5752,10 @@ describe('Rokt Forwarder', () => {
         expect(readStoredPageViews()).toBeNull();
       });
 
-      // The byte budget is a code constant (PAGE_VIEWS_MAX_BYTES = 100 * 1024),
+      // The budget is a code constant (PAGE_VIEWS_MAX_LENGTH = 100 * 1024),
       // measured as JSON string length. Not exported, so tests reference the
       // literal value.
-      const PAGE_VIEWS_MAX_BYTES = 100 * 1024;
+      const PAGE_VIEWS_MAX_LENGTH = 100 * 1024;
 
       it('caps the stored history by byte budget, evicting oldest first', async () => {
         await (window as any).mParticle.forwarder.init(
@@ -5791,7 +5791,7 @@ describe('Rokt Forwarder', () => {
         });
 
         const stored = readStoredPageViews();
-        expect(JSON.stringify(stored).length).toBeLessThanOrEqual(PAGE_VIEWS_MAX_BYTES);
+        expect(JSON.stringify(stored).length).toBeLessThanOrEqual(PAGE_VIEWS_MAX_LENGTH);
         expect(stored.length).toBeLessThan(31);
         expect(stored[stored.length - 1].sourceMessageId).toBe('newest');
         expect(stored[0].sourceMessageId).not.toBe('seed-0');
@@ -5810,7 +5810,7 @@ describe('Rokt Forwarder', () => {
 
         await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
-        const hugeUrl = 'https://example.com/' + 'a'.repeat(PAGE_VIEWS_MAX_BYTES + 1);
+        const hugeUrl = 'https://example.com/' + 'a'.repeat(PAGE_VIEWS_MAX_LENGTH + 1);
         seedStoredPageViews([{ pageUrl: hugeUrl, sourceMessageId: 'seed-huge', timestamp: 1712345678000 }]);
 
         (window as any).mParticle.forwarder.process({
