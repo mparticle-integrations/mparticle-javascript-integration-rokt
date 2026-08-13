@@ -1,3 +1,5 @@
+import { isObject } from './utils';
+
 export function readJSON(key: string): unknown {
   try {
     const stored = window.localStorage.getItem(key);
@@ -24,25 +26,21 @@ export function removeKey(key: string): void {
   }
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 export function readNamespacedField(namespaceKey: string, field: string): unknown {
   const blob = readJSON(namespaceKey);
-  return isPlainObject(blob) ? blob[field] : undefined;
+  return isObject(blob) ? blob[field] : undefined;
 }
 
 export function writeNamespacedField(namespaceKey: string, field: string, value: unknown): boolean {
   const blob = readJSON(namespaceKey);
-  const next = isPlainObject(blob) ? { ...blob } : {};
+  const next = isObject(blob) ? { ...blob } : {};
   next[field] = value;
   return writeJSON(namespaceKey, next);
 }
 
 export function removeNamespacedField(namespaceKey: string, field: string): void {
   const blob = readJSON(namespaceKey);
-  if (!isPlainObject(blob) || !(field in blob)) {
+  if (!isObject(blob) || !(field in blob)) {
     return;
   }
   const next = { ...blob };
@@ -52,4 +50,36 @@ export function removeNamespacedField(namespaceKey: string, field: string): void
   } else {
     writeJSON(namespaceKey, next);
   }
+}
+
+export function writeNamespacedFieldWithinBudget(
+  namespaceKey: string,
+  field: string,
+  records: unknown[],
+  maxLength: number,
+): boolean {
+  // Operate on a copy so the caller's array isn't trimmed as a side effect.
+  const remaining = records.slice();
+
+  const evictOldest = (): boolean => {
+    if (remaining.length <= 1) {
+      return false;
+    }
+    remaining.shift();
+    return true;
+  };
+
+  // Two limits: our own soft cap (maxLength), then the browser's hard quota,
+  // which is shared across the origin and only surfaces when setItem throws.
+  let overBudget = JSON.stringify(remaining).length > maxLength;
+  while (overBudget && evictOldest()) {
+    overBudget = JSON.stringify(remaining).length > maxLength;
+  }
+
+  let written = writeNamespacedField(namespaceKey, field, remaining);
+  while (!written && evictOldest()) {
+    written = writeNamespacedField(namespaceKey, field, remaining);
+  }
+
+  return written;
 }

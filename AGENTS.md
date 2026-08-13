@@ -17,32 +17,6 @@ The Rokt web kit (`@mparticle/web-rokt-kit`) is an mParticle integration kit (fo
 - **Code Quality**: ESLint v9 flat config + `@typescript-eslint/recommended`
 - **Formatting**: Prettier (120 chars, single quotes, trailing commas)
 
-## Project Structure
-
-```
-/
-  src/
-    Rokt-Kit.ts           # Main kit source (forwarder class + registration)
-    storage.ts            # Key-agnostic localStorage helpers (readJSON/writeJSON/removeKey)
-    selectPlacementsAttributePersistence.ts  # Attribute persistence deny-list
-  dist/
-    Rokt-Kit.iife.js      # Browser bundle (IIFE)
-    Rokt-Kit.common.js    # npm bundle (CommonJS)
-    Rokt-Kit.d.ts         # Type definitions
-  test/
-    src/
-      tests.spec.ts       # Main Vitest test suite (Rokt-Kit.ts)
-      storage.spec.ts     # Unit tests for storage.ts helpers
-    vitest.setup.ts       # Global test setup / mParticle mock
-    lib/                  # Test utilities
-    end-to-end-testapp/   # E2E test app
-  vite.config.ts          # Build + test configuration
-  tsconfig.json           # TypeScript config (src only)
-  tsconfig.test.json      # TypeScript config (src + test)
-  eslint.config.mjs       # ESLint v9 flat config
-  package.json
-```
-
 ## Key Commands
 
 ```bash

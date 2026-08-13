@@ -24,7 +24,15 @@ import {
   removeSelectPlacementsAttributePersistenceDeniedAttributes,
 } from './selectPlacementsAttributePersistence';
 
-import { readJSON, removeKey, readNamespacedField, writeNamespacedField, removeNamespacedField } from './storage';
+import {
+  PageEvent,
+  migrateLegacyPageViewStorage,
+  loadPageViews,
+  writePageViews,
+  clearPageViews,
+} from './pageViewStorage';
+
+import { isObject, isString, isEmpty } from './utils';
 
 interface RoktKitSettings {
   accountId: string;
@@ -61,17 +69,6 @@ interface PlacementEventMappingEntry {
 
 interface RoktExtensionEntry {
   value: string;
-}
-
-interface PageEvent {
-  pageUrl: string;
-  sourceMessageId: string;
-  timestamp: number;
-  activeTimeOnSite?: number;
-  // Derived at transmission not at capture based
-  // on the next page view's activeTimeOnSite,
-  // so it is absent on stored records.
-  activeTimeOnPage?: number;
 }
 
 interface RoktSelection {
@@ -259,11 +256,6 @@ const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
-const LS_NAMESPACE_KEY = 'mp-rokt-kit';
-const LS_PAGE_VIEWS_FIELD = 'pageViews';
-// TODO: remove after 2027-02-11 — one-time migration of the legacy key.
-const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
-const PAGE_VIEWS_MAX_COUNT = 25;
 const PAGE_EVENTS_KEY = 'page_events';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
@@ -308,49 +300,6 @@ function mp(): MParticleExtended {
 // ============================================================
 // Module-level utility functions
 // ============================================================
-
-// TODO: remove after 2027-02-11 — one-time migration of the legacy 'mpPageViews'
-// key into the namespaced storage object's pageViews field. Everything
-// migration-related is confined to this function + LEGACY_PAGE_VIEWS_KEY so it
-// can be deleted as a single unit.
-// Unconditional (no freshness gate): staleness is mParticle's job — a timed-out
-// prior session fires SessionEnd (→ clear) before selectPlacements runs.
-function migrateLegacyPageViewStorage(loggingService: LoggingService | null): void {
-  const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
-  if (legacyViews === null) {
-    return;
-  }
-
-  const alreadyMigrated = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) !== undefined;
-  const needsMigration = !alreadyMigrated && Array.isArray(legacyViews);
-
-  if (needsMigration) {
-    const migrated = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
-    if (!migrated) {
-      loggingService?.log({
-        message: 'Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry',
-        code: 'PAGE_VIEW_CAPTURE_FAILED',
-      });
-      return;
-    }
-  }
-
-  removeKey(LEGACY_PAGE_VIEWS_KEY);
-}
-
-function loadPageViews(loggingService: LoggingService | null): PageEvent[] {
-  migrateLegacyPageViewStorage(loggingService);
-  const stored = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
-  return Array.isArray(stored) ? (stored as PageEvent[]) : [];
-}
-
-function writePageViewsStorage(pageViews: PageEvent[]): boolean {
-  return writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, pageViews);
-}
-
-function clearPageViewsStorage(): void {
-  removeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
-}
 
 function generateLauncherScript(domain: string | undefined, extensions: string[]): string {
   const launcherPath = '/wsdk/integrations/launcher.js';
@@ -403,10 +352,6 @@ function loadRoktScript(
   if (handlers?.onLoad) script.onload = handlers.onLoad;
   if (handlers?.onError) script.onerror = handlers.onError;
   target.appendChild(script);
-}
-
-function isObject(val: unknown): val is Record<string, unknown> {
-  return val != null && typeof val === 'object' && Array.isArray(val) === false;
 }
 
 function parseSettingsString<T>(settingsString?: string): T[] {
@@ -498,21 +443,6 @@ function generateMappedEventAttributeLookup(
 
 function hashEventMessage(messageType: number, eventType: number, eventName: string): string | number {
   return mp().generateHash([messageType, eventType, eventName].join(''));
-}
-
-function isEmpty(value: unknown): boolean {
-  if (value == null) return true;
-  if (typeof value === 'object') {
-    return Object.keys(value as object).length === 0;
-  }
-  if (Array.isArray(value)) {
-    return (value as unknown[]).length === 0;
-  }
-  return false;
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
 }
 
 // Strips the query string from a page-view URL before it is persisted and sent
@@ -943,11 +873,7 @@ class RoktKit implements KitInterface {
 
       pageViews.push(pageView);
 
-      while (pageViews.length > PAGE_VIEWS_MAX_COUNT) {
-        pageViews.shift();
-      }
-
-      if (!writePageViewsStorage(pageViews)) {
+      if (!writePageViews(pageViews)) {
         this.loggingService?.log({
           message: `Rokt Kit: Failed to persist page view for ${pageUrl}`,
           code: 'PAGE_VIEW_CAPTURE_FAILED',
@@ -1242,7 +1168,7 @@ class RoktKit implements KitInterface {
 
     if (this.isTargetingDisabled()) {
       try {
-        clearPageViewsStorage();
+        clearPageViews();
       } catch (err) {
         this.errorReportingService?.report({
           message: 'Rokt Kit: Failed to clear page views when targeting is disabled',
@@ -1331,7 +1257,7 @@ class RoktKit implements KitInterface {
 
       if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
         migrateLegacyPageViewStorage(this.loggingService);
-        clearPageViewsStorage();
+        clearPageViews();
       }
     }
 
@@ -1656,3 +1582,4 @@ if (typeof window !== 'undefined' && window.mParticle && mp().addForwarder) {
 }
 
 export { register };
+export type { LoggingService };

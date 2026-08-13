@@ -5752,7 +5752,12 @@ describe('Rokt Forwarder', () => {
         expect(readStoredPageViews()).toBeNull();
       });
 
-      it('caps the stored history at 25 records, evicting oldest first', async () => {
+      // The budget is a code constant (PAGE_VIEWS_MAX_LENGTH = 100 * 1024),
+      // measured as JSON string length. Not exported, so tests reference the
+      // literal value.
+      const PAGE_VIEWS_MAX_LENGTH = 100 * 1024;
+
+      it('caps the stored history by byte budget, evicting oldest first', async () => {
         await (window as any).mParticle.forwarder.init(
           {
             accountId: '123456',
@@ -5765,22 +5770,61 @@ describe('Rokt Forwarder', () => {
 
         await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
 
+        // Pre-seed a history that already exceeds the byte budget, using long
+        // synthetic URLs so a handful of records is enough (~5KB each × 30 ≈
+        // 150KB). Seeding directly avoids ~1000 process() calls to reach 100KB.
+        const bigUrl = 'https://example.com/' + 'a'.repeat(5000);
+        const seed = [];
         for (let i = 0; i < 30; i++) {
-          (window as any).mParticle.forwarder.process({
-            EventName: 'Page ' + i,
-            EventCategory: EventType.Unknown,
-            EventDataType: MessageType.PageView,
-            SourceMessageId: 'source-message-id-' + i,
-            Timestamp: 1712345678000 + i,
-            ActiveTimeOnSite: i,
-          });
+          seed.push({ pageUrl: bigUrl, sourceMessageId: 'seed-' + i, timestamp: 1712345678000 + i });
         }
+        seedStoredPageViews(seed);
+
+        // One more capture triggers byte-budget eviction on write.
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Newest',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'newest',
+          Timestamp: 1712345678999,
+          ActiveTimeOnSite: 1,
+        });
 
         const stored = readStoredPageViews();
-        // 30 written, capped at 25 — the 5 oldest evicted, newest always retained.
-        expect(stored.length).toBe(25);
-        expect(stored[0].sourceMessageId).toBe('source-message-id-5');
-        expect(stored[stored.length - 1].sourceMessageId).toBe('source-message-id-29');
+        expect(JSON.stringify(stored).length).toBeLessThanOrEqual(PAGE_VIEWS_MAX_LENGTH);
+        expect(stored.length).toBeLessThan(31);
+        expect(stored[stored.length - 1].sourceMessageId).toBe('newest');
+        expect(stored[0].sourceMessageId).not.toBe('seed-0');
+      });
+
+      it('retains at least the newest page view even if an older record alone exceeds the budget', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        const hugeUrl = 'https://example.com/' + 'a'.repeat(PAGE_VIEWS_MAX_LENGTH + 1);
+        seedStoredPageViews([{ pageUrl: hugeUrl, sourceMessageId: 'seed-huge', timestamp: 1712345678000 }]);
+
+        (window as any).mParticle.forwarder.process({
+          EventName: 'Newest',
+          EventCategory: EventType.Unknown,
+          EventDataType: MessageType.PageView,
+          SourceMessageId: 'newest',
+          Timestamp: 1712345678999,
+          ActiveTimeOnSite: 1,
+        });
+
+        const stored = readStoredPageViews();
+        expect(stored.length).toBe(1);
+        expect(stored[0].sourceMessageId).toBe('newest');
       });
 
       it('clears the stored page-view history on a SessionEnd event', async () => {
@@ -6060,6 +6104,61 @@ describe('Rokt Forwarder', () => {
         expect(reportSpy).not.toHaveBeenCalledWith(expect.objectContaining({ code: 'PAGE_VIEW_CAPTURE_FAILED' }));
         logSpy.mockRestore();
         reportSpy.mockRestore();
+      });
+
+      it('evicts oldest and retries when the browser quota is exceeded, then persists', async () => {
+        await (window as any).mParticle.forwarder.init(
+          {
+            accountId: '123456',
+          },
+          reportService.cb,
+          true,
+          null,
+          {},
+        );
+
+        await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+        const seed = [];
+        for (let i = 0; i < 5; i++) {
+          seed.push({ pageUrl: 'https://example.com/', sourceMessageId: 'seed-' + i, timestamp: 1712345678000 + i });
+        }
+        seedStoredPageViews(seed);
+
+        // writeNamespacedField swallows the quota error and returns false, so
+        // failing the first 3 writes drives writePageViews's evict-and-retry.
+        let calls = 0;
+        const realSetItem = Storage.prototype.setItem;
+        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+          this: Storage,
+          key: string,
+          value: string,
+        ) {
+          calls += 1;
+          if (calls <= 3) {
+            throw new DOMException('quota', 'QuotaExceededError');
+          }
+          return realSetItem.call(this, key, value);
+        });
+
+        try {
+          (window as any).mParticle.forwarder.process({
+            EventName: 'Newest',
+            EventCategory: EventType.Unknown,
+            EventDataType: MessageType.PageView,
+            SourceMessageId: 'newest',
+            Timestamp: 1712345678999,
+            ActiveTimeOnSite: 1,
+          });
+        } finally {
+          setItemSpy.mockRestore();
+        }
+
+        const stored = readStoredPageViews();
+        // 5 seed + 1 newest = 6, minus 3 evicted across the 3 failed retries = 3.
+        expect(stored.length).toBe(3);
+        expect(stored[stored.length - 1].sourceMessageId).toBe('newest');
+        expect(stored[0].sourceMessageId).toBe('seed-3');
       });
 
       it('captures page views independently of setLocalSessionAttribute availability', async () => {
