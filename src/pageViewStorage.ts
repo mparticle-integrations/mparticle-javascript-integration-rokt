@@ -1,3 +1,4 @@
+import type { LoggingService } from './Rokt-Kit';
 import {
   readJSON,
   removeKey,
@@ -21,11 +22,7 @@ export interface PageEvent {
   activeTimeOnPage?: number;
 }
 
-export interface PageViewLogger {
-  log(entry: { message: string; code?: string }): void;
-}
-
-export function migrateLegacyPageViewStorage(logger: PageViewLogger | null): void {
+export function migrateLegacyPageViewStorage(loggingService: LoggingService | null): void {
   const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
   if (legacyViews === null) {
     return;
@@ -37,7 +34,7 @@ export function migrateLegacyPageViewStorage(logger: PageViewLogger | null): voi
   if (needsMigration) {
     const migrated = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
     if (!migrated) {
-      logger?.log({
+      loggingService?.log({
         message: 'Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry',
         code: 'PAGE_VIEW_CAPTURE_FAILED',
       });
@@ -48,8 +45,8 @@ export function migrateLegacyPageViewStorage(logger: PageViewLogger | null): voi
   removeKey(LEGACY_PAGE_VIEWS_KEY);
 }
 
-export function loadPageViews(logger: PageViewLogger | null): PageEvent[] {
-  migrateLegacyPageViewStorage(logger);
+export function loadPageViews(loggingService: LoggingService | null): PageEvent[] {
+  migrateLegacyPageViewStorage(loggingService);
   const stored = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
   return Array.isArray(stored) ? (stored as PageEvent[]) : [];
 }

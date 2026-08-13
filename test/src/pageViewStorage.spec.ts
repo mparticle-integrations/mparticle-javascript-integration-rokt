@@ -1,12 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readJSON, writeNamespacedField } from '../../src/storage';
-import {
-  PageViewLogger,
-  migrateLegacyPageViewStorage,
-  loadPageViews,
-  writePageViews,
-  clearPageViews,
-} from '../../src/pageViewStorage';
+import { migrateLegacyPageViewStorage, loadPageViews, writePageViews, clearPageViews } from '../../src/pageViewStorage';
+import type { LoggingService } from '../../src/Rokt-Kit';
 
 const NAMESPACE_KEY = 'mp-rokt-kit';
 const PAGE_VIEWS_FIELD = 'pageViews';
@@ -50,7 +45,7 @@ describe('pageViewStorage', () => {
 
     it('retains the legacy key and logs when the migrating write fails', () => {
       window.localStorage.setItem(LEGACY_PAGE_VIEWS_KEY, JSON.stringify([pageView('home')]));
-      const logger: PageViewLogger = { log: vi.fn() };
+      const logger = { log: vi.fn() } as unknown as LoggingService;
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new DOMException('quota', 'QuotaExceededError');
       });

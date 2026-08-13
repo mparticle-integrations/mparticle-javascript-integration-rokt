@@ -1582,3 +1582,4 @@ if (typeof window !== 'undefined' && window.mParticle && mp().addForwarder) {
 }
 
 export { register };
+export type { LoggingService };
