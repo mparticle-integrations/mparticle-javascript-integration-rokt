@@ -31,10 +31,10 @@ describe('pageViewStorage', () => {
     });
 
     it('moves a legacy array into the namespaced field and removes the legacy key', () => {
-      window.localStorage.setItem(LEGACY_PAGE_VIEWS_KEY, JSON.stringify([pageView('a')]));
+      window.localStorage.setItem(LEGACY_PAGE_VIEWS_KEY, JSON.stringify([pageView('home')]));
       migrateLegacyPageViewStorage(null);
 
-      expect(readJSON(NAMESPACE_KEY)).toEqual({ [PAGE_VIEWS_FIELD]: [pageView('a')] });
+      expect(readJSON(NAMESPACE_KEY)).toEqual({ [PAGE_VIEWS_FIELD]: [pageView('home')] });
       expect(window.localStorage.getItem(LEGACY_PAGE_VIEWS_KEY)).toBeNull();
     });
 
@@ -49,7 +49,7 @@ describe('pageViewStorage', () => {
     });
 
     it('retains the legacy key and logs when the migrating write fails', () => {
-      window.localStorage.setItem(LEGACY_PAGE_VIEWS_KEY, JSON.stringify([pageView('a')]));
+      window.localStorage.setItem(LEGACY_PAGE_VIEWS_KEY, JSON.stringify([pageView('home')]));
       const logger: PageViewLogger = { log: vi.fn() };
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new DOMException('quota', 'QuotaExceededError');
@@ -68,8 +68,8 @@ describe('pageViewStorage', () => {
     });
 
     it('returns the stored page views', () => {
-      writeNamespacedField(NAMESPACE_KEY, PAGE_VIEWS_FIELD, [pageView('a'), pageView('b')]);
-      expect(loadPageViews(null)).toEqual([pageView('a'), pageView('b')]);
+      writeNamespacedField(NAMESPACE_KEY, PAGE_VIEWS_FIELD, [pageView('home'), pageView('about')]);
+      expect(loadPageViews(null)).toEqual([pageView('home'), pageView('about')]);
     });
 
     it('returns an empty array when the stored value is not an array', () => {
@@ -86,8 +86,8 @@ describe('pageViewStorage', () => {
 
   describe('writePageViews', () => {
     it('persists the page views and returns true', () => {
-      expect(writePageViews([pageView('a')])).toBe(true);
-      expect(loadPageViews(null)).toEqual([pageView('a')]);
+      expect(writePageViews([pageView('home')])).toBe(true);
+      expect(loadPageViews(null)).toEqual([pageView('home')]);
     });
 
     it('evicts oldest-first to stay within the byte budget', () => {
@@ -109,9 +109,13 @@ describe('pageViewStorage', () => {
 
   describe('clearPageViews', () => {
     it('removes the page-view field', () => {
-      writeNamespacedField(NAMESPACE_KEY, PAGE_VIEWS_FIELD, [pageView('a')]);
+      writeNamespacedField(NAMESPACE_KEY, PAGE_VIEWS_FIELD, [pageView('home')]);
+      writeNamespacedField(NAMESPACE_KEY, 'unrelatedField', 'keep-me');
       clearPageViews();
-      expect(loadPageViews(null)).toEqual([]);
+
+      const blob = readJSON(NAMESPACE_KEY);
+      expect(blob).not.toHaveProperty(PAGE_VIEWS_FIELD);
+      expect(blob).toHaveProperty('unrelatedField', 'keep-me');
     });
   });
 });
