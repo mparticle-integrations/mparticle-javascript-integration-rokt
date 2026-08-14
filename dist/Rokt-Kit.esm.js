@@ -30,8 +30,8 @@ function X(i) {
 function b(i) {
   const e = {}, t = i || {}, n = Object.keys(t);
   for (let r = 0; r < n.length; r++) {
-    const o = n[r];
-    X(o) || (e[o] = t[o]);
+    const s = n[r];
+    X(s) || (e[s] = t[s]);
   }
   return e;
 }
@@ -41,10 +41,10 @@ function y(i) {
 function m(i) {
   return typeof i == "string";
 }
-function P(i) {
+function U(i) {
   return i == null ? !0 : typeof i == "object" ? Object.keys(i).length === 0 : !1;
 }
-function M(i) {
+function K(i) {
   try {
     const e = new URL(i);
     return e.search = "", e.toString();
@@ -77,7 +77,7 @@ function te(i, e) {
   const t = N(i);
   return y(t) ? t[e] : void 0;
 }
-function U(i, e, t) {
+function C(i, e, t) {
   const n = N(i), r = y(n) ? { ...n } : {};
   return r[e] = t, Z(i, r);
 }
@@ -89,13 +89,13 @@ function le(i, e) {
   delete n[e], Object.keys(n).length === 0 ? ee(i) : Z(i, n);
 }
 function ue(i, e, t, n) {
-  const r = t.slice(), o = () => r.length <= 1 ? !1 : (r.shift(), !0);
-  let s = JSON.stringify(r).length > n;
-  for (; s && o(); )
-    s = JSON.stringify(r).length > n;
-  let c = U(i, e, r);
-  for (; !c && o(); )
-    c = U(i, e, r);
+  const r = t.slice(), s = () => r.length <= 1 ? !1 : (r.shift(), !0);
+  let o = JSON.stringify(r).length > n;
+  for (; o && s(); )
+    o = JSON.stringify(r).length > n;
+  let c = C(i, e, r);
+  for (; !c && s(); )
+    c = C(i, e, r);
   return c;
 }
 const S = "mp-rokt-kit", k = "pageViews", x = "mpPageViews", de = 100 * 1024;
@@ -103,7 +103,7 @@ function ie(i) {
   const e = N(x);
   if (e === null)
     return;
-  if (!(te(S, k) !== void 0) && Array.isArray(e) && !U(S, k, e)) {
+  if (!(te(S, k) !== void 0) && Array.isArray(e) && !C(S, k, e)) {
     i?.log({
       message: "Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry",
       code: "PAGE_VIEW_CAPTURE_FAILED"
@@ -125,7 +125,7 @@ function G() {
 }
 function ge(i) {
   return i.map((e, t) => {
-    const n = e.activeTimeOnSite, r = n !== void 0 && Number.isFinite(n), s = i[t + 1]?.activeTimeOnSite, c = s !== void 0 && Number.isFinite(s), u = r && c ? s - n : void 0;
+    const n = e.activeTimeOnSite, r = n !== void 0 && Number.isFinite(n), o = i[t + 1]?.activeTimeOnSite, c = o !== void 0 && Number.isFinite(o), u = r && c ? o - n : void 0;
     return {
       pageUrl: e.pageUrl,
       sourceMessageId: e.sourceMessageId,
@@ -140,9 +140,9 @@ function ge(i) {
 function pe() {
   const e = document.querySelector('link[rel="canonical"]')?.href;
   if (e)
-    return M(e);
+    return K(e);
 }
-const d = "Rokt", L = 181, fe = "selectPlacements", me = "apps.roktecommerce.com", Ee = 0.1, _e = "ThankYouPageJourney", ye = "rokt-launcher", Ie = "rokt-thank-you-element", Se = "userIdentifiedInWorkspace", ke = 3, Ae = 2, Re = "page_events", ve = 500, K = {
+const d = "Rokt", L = 181, fe = "selectPlacements", me = "apps.roktecommerce.com", Ee = 0.1, _e = "ThankYouPageJourney", ye = "rokt-launcher", Ie = "rokt-thank-you-element", Se = "userIdentifiedInWorkspace", ke = 3, Ae = 2, Re = "page_events", ve = 500, D = {
   UNKNOWN_ERROR: "UNKNOWN_ERROR",
   UNHANDLED_EXCEPTION: "UNHANDLED_EXCEPTION",
   IDENTITY_REQUEST: "IDENTITY_REQUEST",
@@ -156,17 +156,21 @@ function a() {
   return window.mParticle;
 }
 function W(i, e) {
-  const n = [D(i), "/wsdk/integrations/launcher.js"].join("");
+  const n = [O(i), "/wsdk/integrations/launcher.js"].join("");
   return !e || e.length === 0 ? n : n + "?extensions=" + e.join(",");
 }
 function j(i) {
-  return [D(i), "/rokt-elements/rokt-element-thank-you.js"].join("");
+  return [O(i), "/rokt-elements/rokt-element-thank-you.js"].join("");
 }
-function D(i) {
-  return ["https://", typeof i < "u" ? i : we].join("");
+function O(i) {
+  const e = typeof i < "u" ? i : we;
+  return e.includes("://") ? e.replace(/\/+$/, "") : ["https://", e].join("");
 }
 function ne(i, e, t) {
-  return i ? i.startsWith("http://") || i.startsWith("https://") ? i : "https://" + i : D(e) + t;
+  if (i)
+    return i.startsWith("http://") || i.startsWith("https://") ? i : "https://" + i;
+  const r = e?.includes("://") && !/^https?:\/\//i.test(e) ? void 0 : e;
+  return O(r) + t;
 }
 function H(i, e, t) {
   if (document.getElementById(i)) return;
@@ -186,9 +190,9 @@ function T(i) {
 function V(i) {
   const e = i ? T(i) : [], t = [], n = [];
   let r = !1;
-  for (let o = 0; o < e.length; o++) {
-    const s = e[o].value;
-    s === "thank-you-journey" ? (r = !0, n.push(_e)) : t.push(s);
+  for (let s = 0; s < e.length; s++) {
+    const o = e[s].value;
+    o === "thank-you-journey" ? (r = !0, n.push(_e)) : t.push(o);
   }
   return {
     roktExtensionsQueryParams: t,
@@ -221,9 +225,9 @@ function J(i) {
     const n = i[t];
     if (!n || !m(n.value) || !m(n.map))
       continue;
-    const r = n.value, o = n.map;
+    const r = n.value, s = n.map;
     e[r] || (e[r] = []), e[r].push({
-      eventAttributeKey: o,
+      eventAttributeKey: s,
       conditions: Array.isArray(n.conditions) ? n.conditions : []
     });
   }
@@ -233,7 +237,7 @@ function B(i, e, t) {
   return a().generateHash([i, e, t].join(""));
 }
 function Oe(i) {
-  let n = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.31.0";
+  let n = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.32.0";
   return i && (n += "_" + i), n;
 }
 function re(i) {
@@ -242,7 +246,7 @@ function re(i) {
     e = (e << 5) + e + i.charCodeAt(t), e = e & e;
   return e;
 }
-function C(i) {
+function M(i) {
   const e = document.createElement("iframe");
   e.style.display = "none", e.setAttribute("sandbox", "allow-scripts allow-same-origin"), e.src = i, e.onload = function() {
     e.onload = null, e.parentNode && e.parentNode.removeChild(e);
@@ -255,11 +259,11 @@ function q(i, e) {
   if (I._allowedOriginHashes.indexOf(t) === -1 || Math.random() >= Ee)
     return;
   const r = window.__rokt_li_guid__;
-  if (!r)
+  if (!r || i && i.includes("://") && !/^https:\/\//i.test(i))
     return;
-  const o = window.location.href.split("?")[0].split("#")[0], s = "version=" + encodeURIComponent(e ?? "") + "&launcherInstanceGuid=" + encodeURIComponent(r) + "&pageUrl=" + encodeURIComponent(o);
-  C("https://" + (i || "apps.rokt.com") + "/v1/wsdk-init/index.html?" + s), C(
-    "https://" + me + "/v1/wsdk-init/index.html?" + s + "&isControl=true"
+  const s = window.location.href.split("?")[0].split("#")[0], o = "version=" + encodeURIComponent(e ?? "") + "&launcherInstanceGuid=" + encodeURIComponent(r) + "&pageUrl=" + encodeURIComponent(s), c = i ? O(i) : "https://apps.rokt.com";
+  M(c + "/v1/wsdk-init/index.html?" + o), M(
+    "https://" + me + "/v1/wsdk-init/index.html?" + o + "&isControl=true"
   );
 }
 function Pe() {
@@ -271,7 +275,7 @@ function Ue() {
 function Ce() {
   return typeof window < "u" ? window.navigator?.userAgent : void 0;
 }
-class oe {
+class se {
   constructor() {
     this._logCount = {};
   }
@@ -281,12 +285,12 @@ class oe {
   }
 }
 class F {
-  constructor(e, t, n, r, o) {
+  constructor(e, t, n, r, s) {
     this._reporter = "mp-wsdk";
-    const s = e.isLoggingEnabled;
-    this._integrationName = t || "", this._launcherInstanceGuid = n, this._accountId = r || null, this._rateLimiter = o || new oe(), this._isEnabled = Pe() || s;
+    const o = e.isLoggingEnabled;
+    this._integrationName = t || "", this._launcherInstanceGuid = n, this._accountId = r || null, this._rateLimiter = s || new se(), this._isEnabled = Pe() || o;
   }
-  send(e, t, n, r, o, s) {
+  send(e, t, n, r, s, o) {
     if (!(!this._isEnabled || this._rateLimiter.incrementAndCheck(t)))
       try {
         const c = {
@@ -295,10 +299,10 @@ class F {
             version: this._integrationName
           },
           severity: t,
-          code: r || K.UNKNOWN_ERROR,
+          code: r || D.UNKNOWN_ERROR,
           url: Ue(),
           deviceInfo: Ce(),
-          stackTrace: o,
+          stackTrace: s,
           reporter: this._reporter,
           integration: this._integrationName
         }, u = {
@@ -317,16 +321,16 @@ class F {
             throw g.statusCode = l.status, g;
           }
         }).catch((l) => {
-          console.error("ReportingTransport: Failed to send log", l), s && s(l);
+          console.error("ReportingTransport: Failed to send log", l), o && o(l);
         });
       } catch (c) {
-        console.error("ReportingTransport: Failed to send log", c), s && s(c);
+        console.error("ReportingTransport: Failed to send log", c), o && o(c);
       }
   }
 }
-class Q {
-  constructor(e, t, n, r, o) {
-    this._transport = new F(e, t, n, r, o), this._errorUrl = ne(e?.errorUrl, e?.integrationDomain, Le);
+class $ {
+  constructor(e, t, n, r, s) {
+    this._transport = new F(e, t, n, r, s), this._errorUrl = ne(e?.errorUrl, e?.integrationDomain, Le);
   }
   report(e) {
     if (!e) return;
@@ -334,9 +338,9 @@ class Q {
     this._transport.send(this._errorUrl, t, e.message, e.code, e.stackTrace);
   }
 }
-class $ {
-  constructor(e, t, n, r, o, s) {
-    this._transport = new F(e, n, r, o, s), this._loggingUrl = ne(e?.loggingUrl, e?.integrationDomain, be), this._errorReportingService = t;
+class Q {
+  constructor(e, t, n, r, s, o) {
+    this._transport = new F(e, n, r, s, o), this._loggingUrl = ne(e?.loggingUrl, e?.integrationDomain, be), this._errorReportingService = t;
   }
   log(e) {
     e && this._transport.send(
@@ -350,7 +354,7 @@ class $ {
           const n = typeof t.statusCode == "number";
           this._errorReportingService.report({
             message: "LoggingService: Failed to send log: " + t.message,
-            code: K.LOG_DELIVERY_FAILURE,
+            code: D.LOG_DELIVERY_FAILURE,
             severity: n ? _.ERROR : _.WARNING
           });
         }
@@ -359,7 +363,7 @@ class $ {
   }
 }
 function Me(i) {
-  const e = M(window.location.href), t = i.EventAttributes?.title || document.title, n = pe(), r = i.ActiveTimeOnSite;
+  const e = K(window.location.href), t = i.EventAttributes?.title || document.title, n = pe(), r = i.ActiveTimeOnSite;
   return {
     pageUrl: e,
     sourceMessageId: i.SourceMessageId,
@@ -393,30 +397,30 @@ const f = class f {
     const r = this.getEventAttributeValue(e, t.eventAttributeKey);
     if (n.length === 0)
       return r !== null;
-    for (let o = 0; o < n.length; o++)
-      if (!this.doesEventAttributeConditionMatch(n[o], r))
+    for (let s = 0; s < n.length; s++)
+      if (!this.doesEventAttributeConditionMatch(n[s], r))
         return !1;
     return !0;
   }
   applyPlacementEventAttributeMapping(e) {
     const t = Object.keys(this.placementEventAttributeMappingLookup);
     for (let n = 0; n < t.length; n++) {
-      const r = t[n], o = this.placementEventAttributeMappingLookup[r];
-      if (P(o))
+      const r = t[n], s = this.placementEventAttributeMappingLookup[r];
+      if (U(s))
         continue;
-      let s = !0;
-      for (let c = 0; c < o.length; c++)
-        if (!this.doesEventMatchRule(e, o[c])) {
-          s = !1;
+      let o = !0;
+      for (let c = 0; c < s.length; c++)
+        if (!this.doesEventMatchRule(e, s[c])) {
+          o = !1;
           break;
         }
-      s && a().Rokt.setLocalSessionAttribute?.(r, !0);
+      o && a().Rokt.setLocalSessionAttribute?.(r, !0);
     }
   }
   capturePageView(e) {
     let t;
     try {
-      t = M(window.location.href);
+      t = K(window.location.href);
       const n = Y(this.loggingService), r = Me(e);
       n.push(r), he(n) || this.loggingService?.log({
         message: `Rokt Kit: Failed to persist page view for ${t}`,
@@ -465,13 +469,13 @@ const f = class f {
       }
   }
   attachLauncher(e, t, n = []) {
-    const r = a() && a().sessionManager && typeof a().sessionManager.getSession == "function" ? a().sessionManager.getSession() : void 0, o = {
+    const r = a() && a().sessionManager && typeof a().sessionManager.getSession == "function" ? a().sessionManager.getSession() : void 0, s = {
       accountId: e,
       ...t || {},
       ...r ? { mpSessionId: r } : {}
     };
-    let s;
-    this.isPartnerInLocalLauncherTestGroup() ? s = Promise.resolve(window.Rokt.createLocalLauncher(o)) : s = window.Rokt.createLauncher(o), s.then(async (c) => {
+    let o;
+    this.isPartnerInLocalLauncherTestGroup() ? o = Promise.resolve(window.Rokt.createLocalLauncher(s)) : o = window.Rokt.createLauncher(s), o.then(async (c) => {
       await Ne(n, c), this.initRoktLauncher(c);
     }).catch((c) => {
       console.error("Error creating Rokt launcher:", c);
@@ -487,7 +491,7 @@ const f = class f {
     try {
       if (e.length > 0 && window.optimizely) {
         const t = window.optimizely.get("state");
-        return !t || !t.getActiveExperimentIds ? {} : t.getActiveExperimentIds().reduce((o, s) => (o["rokt.custom.optimizely.experiment." + s + ".variationId"] = t.getVariationMap()[s].id, o), {});
+        return !t || !t.getActiveExperimentIds ? {} : t.getActiveExperimentIds().reduce((s, o) => (s["rokt.custom.optimizely.experiment." + o + ".variationId"] = t.getVariationMap()[o].id, s), {});
       }
     } catch (t) {
       console.error("Error fetching Optimizely attributes:", t);
@@ -515,37 +519,37 @@ const f = class f {
   /**
    * Initializes the Rokt forwarder with settings from the mParticle server.
    */
-  init(e, t, n, r, o) {
-    const s = e, c = s.accountId;
-    this.userAttributes = b(o), this._onboardingExpProvider = s.onboardingExpProvider;
-    const u = T(s.placementEventMapping);
+  init(e, t, n, r, s) {
+    const o = e, c = o.accountId;
+    this.userAttributes = b(s), this._onboardingExpProvider = o.onboardingExpProvider;
+    const u = T(o.placementEventMapping);
     this.placementEventMappingLookup = z(u);
     const l = T(
-      s.placementEventAttributeMapping
+      o.placementEventAttributeMapping
     );
-    this.placementEventAttributeMappingLookup = J(l), s.hashedEmailUserIdentityType && (this._mappedEmailSha256Key = s.hashedEmailUserIdentityType.toLowerCase()), this._workspaceIdSyncApiKey = m(s.workspaceIdSyncApiKey) ? s.workspaceIdSyncApiKey : void 0;
-    const g = a().Rokt?.domain, { roktExtensionsQueryParams: O, legacyRoktExtensions: A, loadThankYouElement: R } = V(
-      s.roktExtensions
+    this.placementEventAttributeMappingLookup = J(l), o.hashedEmailUserIdentityType && (this._mappedEmailSha256Key = o.hashedEmailUserIdentityType.toLowerCase()), this._workspaceIdSyncApiKey = m(o.workspaceIdSyncApiKey) ? o.workspaceIdSyncApiKey : void 0;
+    const g = a().Rokt?.domain, { roktExtensionsQueryParams: P, legacyRoktExtensions: A, loadThankYouElement: R } = V(
+      o.roktExtensions
     ), p = {
       ...a().Rokt?.launcherOptions || {}
     };
     this.integrationName = Oe(p.integrationName), p.integrationName = this.integrationName, this.domain = g;
     const v = {
-      loggingUrl: s.loggingUrl,
-      errorUrl: s.errorUrl,
+      loggingUrl: o.loggingUrl,
+      errorUrl: o.errorUrl,
       integrationDomain: g,
       isLoggingEnabled: a().config?.isLoggingEnabled === !0
-    }, E = new Q(
+    }, E = new $(
       v,
       this.integrationName,
       window.__rokt_li_guid__,
-      s.accountId
-    ), w = new $(
+      o.accountId
+    ), w = new Q(
       v,
       E,
       this.integrationName,
       window.__rokt_li_guid__,
-      s.accountId
+      o.accountId
     );
     if (this.errorReportingService = E, this.loggingService = w, this.isTargetingDisabled())
       try {
@@ -567,16 +571,16 @@ const f = class f {
       generateMappedEventLookup: z,
       generateMappedEventAttributeLookup: J,
       sendAdBlockMeasurementSignals: q,
-      createAutoRemovedIframe: C,
+      createAutoRemovedIframe: M,
       djb2: re,
       setAllowedOriginHashes: (h) => {
         f._allowedOriginHashes = h;
       },
       ReportingTransport: F,
-      ErrorReportingService: Q,
-      LoggingService: $,
-      RateLimiter: oe,
-      ErrorCodes: K,
+      ErrorReportingService: $,
+      LoggingService: Q,
+      RateLimiter: se,
+      ErrorCodes: D,
       WSDKErrorSeverity: _
     }, this.attachLauncher(c, p), "Successfully initialized: " + d) : (R && (a().Rokt.flushOnShoppableAdsReadyMessageQueue?.(this), H(Ie, j(g), {
       onLoad: () => {
@@ -585,7 +589,7 @@ const f = class f {
       onError: (h) => {
         console.error("Error loading Rokt Thank You Element script:", h);
       }
-    })), this.isLauncherReadyToAttach() ? this.attachLauncher(c, p, A) : (H(ye, W(g, O), {
+    })), this.isLauncherReadyToAttach() ? this.attachLauncher(c, p, A) : (H(ye, W(g, P), {
       onLoad: () => {
         this.isLauncherReadyToAttach() ? this.attachLauncher(c, p, A) : console.error("Rokt object is not available after script load.");
       },
@@ -597,7 +601,7 @@ const f = class f {
   process(e) {
     if (this.isTargetingDisabled() || (e.EventDataType === ke && this.capturePageView(e), e.EventDataType === Ae && (ie(this.loggingService), G())), !this.isKitReady())
       return "Kit not ready for forwarder: " + d;
-    if (typeof a().Rokt?.setLocalSessionAttribute == "function" && (P(this.placementEventAttributeMappingLookup) || this.applyPlacementEventAttributeMapping(e), !P(this.placementEventMappingLookup))) {
+    if (typeof a().Rokt?.setLocalSessionAttribute == "function" && (U(this.placementEventAttributeMappingLookup) || this.applyPlacementEventAttributeMapping(e), !U(this.placementEventMappingLookup))) {
       const t = B(e.EventDataType, e.EventCategory, e.EventName ?? "");
       this.placementEventMappingLookup[String(t)] && a().Rokt.setLocalSessionAttribute?.(this.placementEventMappingLookup[String(t)], !0);
     }
@@ -630,19 +634,19 @@ const f = class f {
     const n = a().Identity?.search;
     if (typeof n != "function")
       return this.userIdentifiedInWorkspace = !1, this._workspaceLastSearchedIdentitiesKey = void 0, Promise.resolve();
-    const r = e.getUserIdentities ? e.getUserIdentities().userIdentities : null, o = {};
+    const r = e.getUserIdentities ? e.getUserIdentities().userIdentities : null, s = {};
     if (r)
       for (const u of Object.keys(r)) {
         const l = r[u];
-        m(l) && l.length > 0 && (o[u] = l);
+        m(l) && l.length > 0 && (s[u] = l);
       }
-    const s = Object.keys(o);
-    if (s.length === 0)
+    const o = Object.keys(s);
+    if (o.length === 0)
       return this.userIdentifiedInWorkspace = !1, this._workspaceLastSearchedIdentitiesKey = void 0, Promise.resolve();
-    const c = s.sort().map((u) => `${u}=${o[u]}`).join("&");
+    const c = o.sort().map((u) => `${u}=${s[u]}`).join("&");
     return c === this._workspaceLastSearchedIdentitiesKey ? this._workspaceSearchInFlightPromise || Promise.resolve() : (this.userIdentifiedInWorkspace = !1, this._workspaceLastSearchedIdentitiesKey = c, new Promise((u) => {
       try {
-        n(t, o, (l) => {
+        n(t, s, (l) => {
           l?.httpCode === 200 && (this.userIdentifiedInWorkspace = !0), u();
         });
       } catch (l) {
@@ -693,11 +697,11 @@ const f = class f {
     return this._dispatchPlacements(e);
   }
   _dispatchPlacements(e) {
-    const t = e && e.attributes || {}, r = { ...b(this.userAttributes), ...t }, o = this.filters || {}, s = o.userAttributeFilters || [], c = o.filteredUser || null, u = c ? c.getMPID() : null;
+    const t = e && e.attributes || {}, r = { ...b(this.userAttributes), ...t }, s = this.filters || {}, o = s.userAttributeFilters || [], c = s.filteredUser || null, u = c ? c.getMPID() : null;
     let l;
-    o ? o.filterUserAttributes ? l = o.filterUserAttributes(r, s) : l = r : (console.warn("Rokt Kit: No filters available, using user attributes"), l = r), this.userAttributes = b(l);
-    const g = this._onboardingExpProvider === "Optimizely" ? this.fetchOptimizely() : {}, O = this.returnUserIdentities(c), A = this.returnLocalSessionAttributes(), R = ge(Y(this.loggingService)), p = {
-      ...O,
+    s ? s.filterUserAttributes ? l = s.filterUserAttributes(r, o) : l = r : (console.warn("Rokt Kit: No filters available, using user attributes"), l = r), this.userAttributes = b(l);
+    const g = this._onboardingExpProvider === "Optimizely" ? this.fetchOptimizely() : {}, P = this.returnUserIdentities(c), A = this.returnLocalSessionAttributes(), R = ge(Y(this.loggingService)), p = {
+      ...P,
       ...l,
       ...g,
       ...A,
@@ -705,7 +709,7 @@ const f = class f {
       ...this.userIdentifiedInWorkspace ? { [Se]: !0 } : {},
       mpid: u
     }, v = { ...e, attributes: p }, E = this.launcher.selectPlacements(v), w = () => this.logSelectPlacementsEvent(p);
-    return Promise.resolve(E).then((h) => h?.context?.sessionId?.then((se) => this.setRoktSessionId(se))).catch(() => {
+    return Promise.resolve(E).then((h) => h?.context?.sessionId?.then((oe) => this.setRoktSessionId(oe))).catch(() => {
     }).finally(w), E;
   }
   /**
