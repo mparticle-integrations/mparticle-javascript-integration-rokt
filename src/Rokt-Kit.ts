@@ -336,7 +336,10 @@ function generateReportingUrl(configuredUrl: string | undefined, domain: string 
     return 'https://' + configuredUrl;
   }
 
-  return generateBaseUrl(domain) + endpoint;
+  const hasNonHttpScheme = domain?.includes('://') && !/^https?:\/\//i.test(domain);
+  const reportingDomain = hasNonHttpScheme ? undefined : domain;
+
+  return generateBaseUrl(reportingDomain) + endpoint;
 }
 
 function loadRoktScript(
@@ -516,7 +519,7 @@ function sendAdBlockMeasurementSignals(domain: string | undefined, version: stri
     return;
   }
 
-  if (domain && domain.includes('://')) {
+  if (domain && domain.includes('://') && !/^https:\/\//i.test(domain)) {
     return;
   }
 
@@ -529,8 +532,8 @@ function sendAdBlockMeasurementSignals(domain: string | undefined, version: stri
     '&pageUrl=' +
     encodeURIComponent(pageUrl);
 
-  const existingDomain = domain || 'apps.rokt.com';
-  createAutoRemovedIframe('https://' + existingDomain + '/v1/wsdk-init/index.html?' + params);
+  const existingBaseUrl = domain ? generateBaseUrl(domain) : 'https://apps.rokt.com';
+  createAutoRemovedIframe(existingBaseUrl + '/v1/wsdk-init/index.html?' + params);
 
   createAutoRemovedIframe(
     'https://' + ADBLOCK_CONTROL_DOMAIN + '/v1/wsdk-init/index.html?' + params + '&isControl=true',

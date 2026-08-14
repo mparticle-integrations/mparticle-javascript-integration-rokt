@@ -6998,6 +6998,42 @@ describe('Rokt Forwarder', () => {
       expect(defaultDomainIframe).toBeTruthy();
     });
 
+    it('should still create the probe for a full https origin', () => {
+      Math.random = () => 0.05;
+      (window as any).__rokt_li_guid__ = 'test-guid-123';
+
+      (window as any).mParticle.forwarder.testHelpers.sendAdBlockMeasurementSignals(
+        'https://custom.rokt.com',
+        'test-version',
+      );
+
+      const iframes = document.querySelectorAll('iframe');
+      const srcs = Array.prototype.map.call(iframes, (iframe: any) => iframe.src) as string[];
+
+      const httpsDomainIframe = srcs.find(
+        (src) => src.indexOf('https://custom.rokt.com/v1/wsdk-init/index.html') !== -1,
+      );
+
+      expect(httpsDomainIframe).toBeTruthy();
+    });
+
+    it('should not create the probe for a chrome-extension origin', () => {
+      Math.random = () => 0.05;
+      (window as any).__rokt_li_guid__ = 'test-guid-123';
+
+      (window as any).mParticle.forwarder.testHelpers.sendAdBlockMeasurementSignals(
+        'chrome-extension://abcdef123/rokt',
+        'test-version',
+      );
+
+      const iframes = document.querySelectorAll('iframe');
+      const srcs = Array.prototype.map.call(iframes, (iframe: any) => iframe.src) as string[];
+
+      const anyProbe = srcs.find((src) => src.indexOf('/v1/wsdk-init/index.html') !== -1);
+
+      expect(anyProbe).toBeUndefined();
+    });
+
     it('should not create iframes when sampled out', () => {
       Math.random = () => 0.5; // Above 0.1 threshold
       (window as any).__rokt_li_guid__ = 'test-guid-123';
@@ -7283,6 +7319,26 @@ describe('Rokt Forwarder', () => {
 
     it('should use default Rokt error URL when not configured', () => {
       const service = new ErrorReportingServiceClass({ isLoggingEnabled: true }, '1.0.0', 'test-guid');
+      service.report({ message: 'test error', severity: WSDKErrorSeverityConst.ERROR });
+      expect(fetchCalls[0].url).toBe('https://apps.rokt-api.com/v1/errors');
+    });
+
+    it('should use a full https integration domain for the error URL', () => {
+      const service = new ErrorReportingServiceClass(
+        { isLoggingEnabled: true, integrationDomain: 'https://custom.rokt.com' },
+        '1.0.0',
+        'test-guid',
+      );
+      service.report({ message: 'test error', severity: WSDKErrorSeverityConst.ERROR });
+      expect(fetchCalls[0].url).toBe('https://custom.rokt.com/v1/errors');
+    });
+
+    it('should fall back to the default error URL for a chrome-extension integration domain', () => {
+      const service = new ErrorReportingServiceClass(
+        { isLoggingEnabled: true, integrationDomain: 'chrome-extension://abcdef123/rokt' },
+        '1.0.0',
+        'test-guid',
+      );
       service.report({ message: 'test error', severity: WSDKErrorSeverityConst.ERROR });
       expect(fetchCalls[0].url).toBe('https://apps.rokt-api.com/v1/errors');
     });
