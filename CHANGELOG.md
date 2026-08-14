@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.31.0...v1.32.0) (2026-08-14)
+
+
+### Features
+
+* allow a full origin in domain so the launcher can load from a bundled extension ([#115](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/115)) ([c13e719](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/c13e719f051587a9e1a83e1f4a4c4c63bb37c743))
+
 # [1.31.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.30.2...v1.31.0) (2026-08-14)
 
 
