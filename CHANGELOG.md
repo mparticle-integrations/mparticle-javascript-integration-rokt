@@ -1,3 +1,12 @@
+# [1.31.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.30.2...v1.31.0) (2026-08-14)
+
+
+### Features
+
+* cap page-view storage by byte budget instead of fixed count ([#114](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/114)) ([4b041a5](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/4b041a5065a74c589640ec147fcd6b4d3a48b78f))
+* capture page title and canonical URL in page view events ([#112](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/112)) ([7b65606](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/7b6560624832e99f2e8f894a1257cd58df587e5a))
+* namespace page-view localStorage key and migrate legacy key ([#113](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/113)) ([b428b15](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/b428b15c101786885d462f3c27125113c558f534))
+
 ## [1.30.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.30.1...v1.30.2) (2026-08-05)
 
 
