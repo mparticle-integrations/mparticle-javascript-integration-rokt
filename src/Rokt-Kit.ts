@@ -26,13 +26,15 @@ import {
 
 import {
   PageEvent,
+  buildPageEvents,
   migrateLegacyPageViewStorage,
   loadPageViews,
   writePageViews,
   clearPageViews,
+  readCanonicalUrl,
 } from './pageViewStorage';
 
-import { isObject, isString, isEmpty } from './utils';
+import { isObject, isString, isEmpty, sanitizeUrl } from './utils';
 
 interface RoktKitSettings {
   accountId: string;
@@ -445,28 +447,6 @@ function hashEventMessage(messageType: number, eventType: number, eventName: str
   return mp().generateHash([messageType, eventType, eventName].join(''));
 }
 
-// Strips the query string from a page-view URL before it is persisted and sent
-// to Rokt, since query params commonly carry PII (emails, tokens, order refs).
-// Returns the input unchanged if it can't be parsed as a URL.
-function sanitizeUrl(href: string): string {
-  try {
-    const url = new URL(href);
-    url.search = '';
-    return url.toString();
-  } catch {
-    return href;
-  }
-}
-
-function readCanonicalUrl(): string | undefined {
-  const link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-  const href = link?.href;
-  if (!href) {
-    return undefined;
-  }
-  return sanitizeUrl(href);
-}
-
 function generateIntegrationName(customIntegrationName?: string): string {
   const coreSdkVersion = mp().getVersion();
   const kitVersion = process.env.PACKAGE_VERSION;
@@ -718,6 +698,22 @@ class LoggingService {
   }
 }
 
+function buildPageEvent(event: SDKEvent): PageEvent {
+  const pageUrl = sanitizeUrl(window.location.href);
+  const pageTitle = event.EventAttributes?.title || document.title;
+  const canonicalUrl = readCanonicalUrl();
+  const activeTimeOnSite = event.ActiveTimeOnSite;
+
+  return {
+    pageUrl,
+    sourceMessageId: event.SourceMessageId,
+    timestamp: event.Timestamp,
+    ...(pageTitle ? { pageTitle } : {}),
+    ...(canonicalUrl !== undefined ? { canonicalUrl } : {}),
+    ...(Number.isFinite(activeTimeOnSite) ? { activeTimeOnSite } : {}),
+  };
+}
+
 // ============================================================
 // RoktKit class
 // ============================================================
@@ -869,27 +865,7 @@ class RoktKit implements KitInterface {
       pageUrl = sanitizeUrl(window.location.href);
 
       const pageViews = loadPageViews(this.loggingService);
-
-      const pageView: PageEvent = {
-        pageUrl,
-        sourceMessageId: event.SourceMessageId,
-        timestamp: event.Timestamp,
-      };
-
-      const pageTitle = event.EventAttributes?.title || document.title;
-      if (pageTitle) {
-        pageView.pageTitle = pageTitle;
-      }
-
-      const canonicalUrl = readCanonicalUrl();
-      if (canonicalUrl) {
-        pageView.canonicalUrl = canonicalUrl;
-      }
-
-      if (Number.isFinite(event.ActiveTimeOnSite)) {
-        pageView.activeTimeOnSite = event.ActiveTimeOnSite;
-      }
-
+      const pageView = buildPageEvent(event);
       pageViews.push(pageView);
 
       if (!writePageViews(pageViews)) {
@@ -930,42 +906,6 @@ class RoktKit implements KitInterface {
       return {};
     }
     return mp().Rokt.getLocalSessionAttributes!();
-  }
-
-  private buildPageEvents(pageViews: PageEvent[]): PageEvent[] {
-    return pageViews.map((pageView, index) => {
-      const pageEvent: PageEvent = {
-        pageUrl: pageView.pageUrl,
-        sourceMessageId: pageView.sourceMessageId,
-        timestamp: pageView.timestamp,
-      };
-
-      if (pageView.pageTitle !== undefined) {
-        pageEvent.pageTitle = pageView.pageTitle;
-      }
-
-      if (pageView.canonicalUrl !== undefined) {
-        pageEvent.canonicalUrl = pageView.canonicalUrl;
-      }
-
-      const activeTimeOnSite = pageView.activeTimeOnSite;
-      const hasActiveTime = activeTimeOnSite !== undefined && Number.isFinite(activeTimeOnSite);
-      if (hasActiveTime) {
-        pageEvent.activeTimeOnSite = activeTimeOnSite;
-      }
-
-      const next = pageViews[index + 1];
-      const nextActiveTimeOnSite = next?.activeTimeOnSite;
-      const hasNextActiveTimeOnSite = nextActiveTimeOnSite !== undefined && Number.isFinite(nextActiveTimeOnSite);
-
-      if (hasActiveTime && hasNextActiveTimeOnSite) {
-        const diff = nextActiveTimeOnSite - activeTimeOnSite;
-        if (diff >= 0) {
-          pageEvent.activeTimeOnPage = diff;
-        }
-      }
-      return pageEvent;
-    });
   }
 
   private replaceOtherIdentityWithEmailsha256(userIdentities: IUserIdentities): Record<string, string> {
@@ -1503,7 +1443,7 @@ class RoktKit implements KitInterface {
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
     const sessionAttributes = this.returnLocalSessionAttributes();
-    const pageEvents = this.buildPageEvents(loadPageViews(this.loggingService));
+    const pageEvents = buildPageEvents(loadPageViews(this.loggingService));
 
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),
