@@ -161,7 +161,7 @@ interface MParticleExtended {
   logEvent(name: string, type: number, attrs?: Record<string, unknown>): void;
   EventType: { Other: number };
   getInstance(): MParticleInstance;
-  sessionManager?: { getSession(): string };
+  sessionManager?: { getSession?(): string; getSessionId?(): string };
   _getActiveForwarders(): Array<{ name: string }>;
   config?: { isLocalLauncherEnabled?: boolean; isLoggingEnabled?: boolean };
   captureTiming?(metricName: string): void;
@@ -259,6 +259,7 @@ const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
 const PAGE_EVENTS_KEY = 'page_events';
+const MPARTICLE_SESSION_ID_KEY = 'mparticle_session_id';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
 // IDSync search before proceeding without the userIdentifiedInWorkspace flag.
@@ -963,20 +964,31 @@ class RoktKit implements KitInterface {
     }
   }
 
+  private readMpSessionId(): string | undefined {
+    const sessionManager = mp() && mp().sessionManager;
+    if (!sessionManager) {
+      return undefined;
+    }
+
+    if (typeof sessionManager.getSessionId === 'function') {
+      return sessionManager.getSessionId() || undefined;
+    }
+
+    if (typeof sessionManager.getSession === 'function') {
+      return sessionManager.getSession() || undefined;
+    }
+
+    return undefined;
+  }
+
   private attachLauncher(
     accountId: string,
     launcherOptions: Record<string, unknown>,
     legacyRoktExtensions: string[] = [],
   ): void {
-    const mpSessionId =
-      mp() && mp().sessionManager && typeof mp().sessionManager!.getSession === 'function'
-        ? mp().sessionManager!.getSession()
-        : undefined;
-
     const options: Record<string, unknown> = {
       accountId,
       ...(launcherOptions || {}),
-      ...(mpSessionId ? { mpSessionId } : {}),
     };
 
     let launcherPromise: Promise<RoktLauncher>;
@@ -1456,6 +1468,7 @@ class RoktKit implements KitInterface {
 
     const sessionAttributes = this.returnLocalSessionAttributes();
     const pageEvents = buildPageEvents(loadPageViews(this.loggingService));
+    const mpSessionId = this.readMpSessionId();
 
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),
@@ -1464,6 +1477,7 @@ class RoktKit implements KitInterface {
       ...sessionAttributes,
       ...(pageEvents.length ? { [PAGE_EVENTS_KEY]: JSON.stringify(pageEvents) } : {}),
       ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
+      ...(mpSessionId ? { [MPARTICLE_SESSION_ID_KEY]: mpSessionId } : {}),
       mpid,
     };
 
