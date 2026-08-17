@@ -965,7 +965,7 @@ class RoktKit implements KitInterface {
   }
 
   private readMpSessionId(): string | undefined {
-    const sessionManager = mp() && mp().sessionManager;
+    const sessionManager = mp()?.sessionManager;
     if (!sessionManager) {
       return undefined;
     }
