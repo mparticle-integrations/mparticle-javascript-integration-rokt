@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isObject, isString, isEmpty } from '../../src/utils';
+import { isObject, isString, isEmpty, isFunction } from '../../src/utils';
 
 describe('utils: type guards', () => {
   describe('isObject', () => {
@@ -37,6 +37,37 @@ describe('utils: type guards', () => {
       expect(isString(undefined)).toBe(false);
       expect(isString({})).toBe(false);
       expect(isString(['a'])).toBe(false);
+    });
+  });
+
+  describe('isFunction', () => {
+    it('is true for function declarations and expressions', () => {
+      expect(isFunction(function named() {})).toBe(true);
+      expect(isFunction(() => undefined)).toBe(true);
+      expect(isFunction(async () => undefined)).toBe(true);
+    });
+
+    it('is true for methods read off an object', () => {
+      const sessionManager = { getSessionId: () => 'session-id' };
+      expect(isFunction(sessionManager.getSessionId)).toBe(true);
+    });
+
+    it('is false for a missing method', () => {
+      const sessionManager = {} as { getSessionId?: () => string };
+      expect(isFunction(sessionManager.getSessionId)).toBe(false);
+    });
+
+    it('is false for null and undefined', () => {
+      expect(isFunction(null)).toBe(false);
+      expect(isFunction(undefined)).toBe(false);
+    });
+
+    it('is false for non-callable values', () => {
+      expect(isFunction({})).toBe(false);
+      expect(isFunction([])).toBe(false);
+      expect(isFunction('getSessionId')).toBe(false);
+      expect(isFunction(1)).toBe(false);
+      expect(isFunction(true)).toBe(false);
     });
   });
 
