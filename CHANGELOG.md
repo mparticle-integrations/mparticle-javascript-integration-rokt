@@ -1,3 +1,10 @@
+## [1.33.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.0...v1.33.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* read the mParticle session id from the public sessionManager facade ([#117](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/117)) ([ae19fd6](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/ae19fd690feafdfd7240ec296588008274370d9c))
+
 # [1.33.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.32.0...v1.33.0) (2026-08-17)
 
 
