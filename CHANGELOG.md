@@ -1,3 +1,10 @@
+# [1.33.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.32.0...v1.33.0) (2026-08-17)
+
+
+### Features
+
+* send the current mParticle session id as a selectPlacements attribute ([#116](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/116)) ([b96ef4a](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/b96ef4a8474c4eb5cddfb9046c469cc666d6b648))
+
 # [1.32.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.31.0...v1.32.0) (2026-08-14)
 
 
