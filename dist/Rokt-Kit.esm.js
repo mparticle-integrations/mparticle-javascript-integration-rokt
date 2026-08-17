@@ -240,7 +240,7 @@ function q(i, e, t) {
   return a().generateHash([i, e, t].join(""));
 }
 function Ce(i) {
-  let n = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.33.0";
+  let n = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.33.1";
   return i && (n += "_" + i), n;
 }
 function se(i) {
@@ -472,9 +472,9 @@ const f = class f {
       }
   }
   readMpSessionId() {
-    const e = a()?.sessionManager;
-    if (!(!e || !L(e.getSessionId)))
-      return e.getSessionId() || void 0;
+    const e = a()?.sessionManager, t = e?.getSessionId ?? e?.getSession;
+    if (L(t))
+      return t.call(e) || void 0;
   }
   attachLauncher(e, t, n = []) {
     const r = {
