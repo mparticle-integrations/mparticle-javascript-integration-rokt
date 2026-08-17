@@ -6,6 +6,10 @@ export function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
 
+export function isFunction(value: unknown): value is (...args: Array<unknown>) => unknown {
+  return typeof value === 'function';
+}
+
 export function isEmpty(value: unknown): boolean {
   if (value == null) return true;
   if (typeof value === 'object') {

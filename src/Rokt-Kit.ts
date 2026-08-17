@@ -34,7 +34,7 @@ import {
   readCanonicalUrl,
 } from './pageViewStorage';
 
-import { isObject, isString, isEmpty, sanitizeUrl } from './utils';
+import { isObject, isString, isEmpty, isFunction, sanitizeUrl } from './utils';
 
 interface RoktKitSettings {
   accountId: string;
@@ -161,7 +161,7 @@ interface MParticleExtended {
   logEvent(name: string, type: number, attrs?: Record<string, unknown>): void;
   EventType: { Other: number };
   getInstance(): MParticleInstance;
-  sessionManager?: { getSession?(): string; getSessionId?(): string };
+  sessionManager?: { getSessionId?(): string };
   _getActiveForwarders(): Array<{ name: string }>;
   config?: { isLocalLauncherEnabled?: boolean; isLoggingEnabled?: boolean };
   captureTiming?(metricName: string): void;
@@ -898,7 +898,7 @@ class RoktKit implements KitInterface {
   }
 
   private isLauncherReadyToAttach(): boolean {
-    return !!window.Rokt && typeof window.Rokt.createLauncher === 'function';
+    return !!window.Rokt && isFunction(window.Rokt.createLauncher);
   }
 
   /**
@@ -954,7 +954,7 @@ class RoktKit implements KitInterface {
     }
     try {
       const mpInstance = mp().getInstance();
-      if (mpInstance && typeof mpInstance.setIntegrationAttribute === 'function') {
+      if (mpInstance && isFunction(mpInstance.setIntegrationAttribute)) {
         mpInstance.setIntegrationAttribute(moduleId, {
           roktSessionId: sessionId,
         });
@@ -966,19 +966,11 @@ class RoktKit implements KitInterface {
 
   private readMpSessionId(): string | undefined {
     const sessionManager = mp()?.sessionManager;
-    if (!sessionManager) {
+    if (!sessionManager || !isFunction(sessionManager.getSessionId)) {
       return undefined;
     }
 
-    if (typeof sessionManager.getSessionId === 'function') {
-      return sessionManager.getSessionId() || undefined;
-    }
-
-    if (typeof sessionManager.getSession === 'function') {
-      return sessionManager.getSession() || undefined;
-    }
-
-    return undefined;
+    return sessionManager.getSessionId() || undefined;
   }
 
   private attachLauncher(
@@ -1258,7 +1250,7 @@ class RoktKit implements KitInterface {
       return 'Kit not ready for forwarder: ' + name;
     }
 
-    if (typeof mp().Rokt?.setLocalSessionAttribute === 'function') {
+    if (isFunction(mp().Rokt?.setLocalSessionAttribute)) {
       if (!isEmpty(this.placementEventAttributeMappingLookup)) {
         this.applyPlacementEventAttributeMapping(event);
       }
