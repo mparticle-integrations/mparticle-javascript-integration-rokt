@@ -6,7 +6,10 @@ import {
   writeNamespacedField,
   removeNamespacedField,
   writeNamespacedFieldWithinBudget,
+  isLocalStorageAvailable,
 } from './storage';
+
+export { isLocalStorageAvailable };
 import { sanitizeUrl } from './utils';
 
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
@@ -37,7 +40,8 @@ export function migrateLegacyPageViewStorage(loggingService: LoggingService | nu
     const migrated = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
     if (!migrated) {
       loggingService?.log({
-        message: 'Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry',
+        message:
+          'Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry [reason: migration_retry]',
         code: 'PAGE_VIEW_CAPTURE_FAILED',
       });
       return;

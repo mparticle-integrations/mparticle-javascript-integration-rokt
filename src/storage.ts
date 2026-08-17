@@ -1,5 +1,16 @@
 import { isObject } from './utils';
 
+export function isLocalStorageAvailable(): boolean {
+  try {
+    const probe = '__rokt_ls_probe__';
+    window.localStorage.setItem(probe, '1');
+    window.localStorage.removeItem(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function readJSON(key: string): unknown {
   try {
     const stored = window.localStorage.getItem(key);
