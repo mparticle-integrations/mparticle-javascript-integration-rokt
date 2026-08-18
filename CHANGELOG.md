@@ -1,3 +1,10 @@
+## [1.33.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.1...v1.33.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* add reason codes to PAGE_VIEW_CAPTURE_FAILED logs ([#119](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/119)) ([a4e5255](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/a4e5255ce5b749b406f0938cb8ad7acb5fc1bacc))
+
 ## [1.33.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.0...v1.33.1) (2026-08-17)
 
 
