@@ -1,3 +1,10 @@
+## [1.33.4](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.3...v1.33.4) (2026-08-18)
+
+
+### Bug Fixes
+
+* stop retrying legacy page-view migration on every page load ([#118](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/118)) ([c4772f8](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/c4772f8c6b490acaf81f211ad369474bf683fc0b))
+
 ## [1.33.3](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.2...v1.33.3) (2026-08-18)
 
 
