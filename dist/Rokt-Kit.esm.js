@@ -55,10 +55,10 @@ function K(i) {
     return i;
   }
 }
-const x = "__rokt_ls_probe__";
-function Y() {
+const Y = "__rokt_ls_probe__";
+function x() {
   try {
-    return window.localStorage.setItem(x, "1"), window.localStorage.removeItem(x), !0;
+    return window.localStorage.setItem(Y, "1"), window.localStorage.removeItem(Y), !0;
   } catch {
     return !1;
   }
@@ -99,30 +99,29 @@ function pe(i, e) {
   const n = { ...t };
   delete n[e], Object.keys(n).length === 0 ? ie(i) : te(i, n);
 }
-const A = "mp-rokt-kit", R = "pageViews", G = "mpPageViews";
+const k = "mp-rokt-kit", R = "pageViews", G = "mpPageViews";
 function se(i) {
   const e = P(G);
   if (e === null)
     return;
-  if (!(ne(A, R) !== void 0) && Array.isArray(e) && !re(A, R, e)) {
-    i?.log({
-      message: "Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry [reason: migration_retry]",
-      code: "PAGE_VIEW_CAPTURE_FAILED"
-    });
-    return;
-  }
-  ie(G);
+  !(ne(k, R) !== void 0) && Array.isArray(e) && (i?.log({
+    message: "Rokt Kit: Migrating legacy page-view storage",
+    code: "PAGE_VIEW_LEGACY_MIGRATION"
+  }), re(k, R, e) || i?.log({
+    message: "Rokt Kit: Failed to migrate legacy page-view storage [reason: migration_retry]",
+    code: "PAGE_VIEW_CAPTURE_FAILED"
+  })), ie(G);
 }
 function W(i) {
   se(i);
-  const e = ne(A, R);
+  const e = ne(k, R);
   return Array.isArray(e) ? e : [];
 }
 function ge(i) {
-  return re(A, R, i.slice(-25));
+  return re(k, R, i.slice(-25));
 }
 function j() {
-  pe(A, R);
+  pe(k, R);
 }
 function fe(i) {
   const e = i.slice(-25);
@@ -144,7 +143,7 @@ function me() {
   if (e)
     return K(e);
 }
-const d = "Rokt", T = 181, Ee = "selectPlacements", _e = "apps.roktecommerce.com", Ie = 0.1, ye = "ThankYouPageJourney", Se = "rokt-launcher", ke = "rokt-thank-you-element", Ae = "userIdentifiedInWorkspace", Re = 3, ve = 2, we = "page_events", be = "mparticle_session_id", Le = 500, D = {
+const d = "Rokt", T = 181, Ee = "selectPlacements", _e = "apps.roktecommerce.com", Ie = 0.1, Se = "ThankYouPageJourney", ye = "rokt-launcher", Ae = "rokt-thank-you-element", ke = "userIdentifiedInWorkspace", Re = 3, ve = 2, we = "page_events", be = "mparticle_session_id", Le = 500, D = {
   UNKNOWN_ERROR: "UNKNOWN_ERROR",
   UNHANDLED_EXCEPTION: "UNHANDLED_EXCEPTION",
   IDENTITY_REQUEST: "IDENTITY_REQUEST",
@@ -194,7 +193,7 @@ function J(i) {
   let r = !1;
   for (let s = 0; s < e.length; s++) {
     const o = e[s].value;
-    o === "thank-you-journey" ? (r = !0, n.push(ye)) : t.push(o);
+    o === "thank-you-journey" ? (r = !0, n.push(Se)) : t.push(o);
   }
   return {
     roktExtensionsQueryParams: t,
@@ -239,7 +238,7 @@ function $(i, e, t) {
   return a().generateHash([i, e, t].join(""));
 }
 function Ce(i) {
-  let n = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.33.3";
+  let n = "mParticle_wsdkv_" + a().getVersion() + "_kitv_" + "1.33.4";
   return i && (n += "_" + i), n;
 }
 function ae(i) {
@@ -425,14 +424,14 @@ const f = class f {
       t = K(window.location.href);
       const n = W(this.loggingService), r = Fe(e);
       if (n.push(r), !ge(n)) {
-        const s = Y() ? "quota" : "ls_unavailable";
+        const s = x() ? "quota" : "ls_unavailable";
         this.loggingService?.log({
           message: `Rokt Kit: Failed to persist page view for ${t} [reason: ${s}]`,
           code: "PAGE_VIEW_CAPTURE_FAILED"
         });
       }
     } catch (n) {
-      const r = Y() ? "exception" : "ls_unavailable", s = n instanceof Error ? n.message : String(n);
+      const r = x() ? "exception" : "ls_unavailable", s = n instanceof Error ? n.message : String(n);
       this.loggingService?.log({
         message: `Rokt Kit: Failed to capture page view for ${t}: ${s} [reason: ${r}]`,
         code: "PAGE_VIEW_CAPTURE_FAILED"
@@ -544,24 +543,24 @@ const f = class f {
       ...a().Rokt?.launcherOptions || {}
     };
     this.integrationName = Ce(g.integrationName), g.integrationName = this.integrationName, this.domain = p;
-    const y = {
+    const S = {
       loggingUrl: o.loggingUrl,
       errorUrl: o.errorUrl,
       integrationDomain: p,
       isLoggingEnabled: a().config?.isLoggingEnabled === !0
-    }, S = new X(
-      y,
-      this.integrationName,
-      window.__rokt_li_guid__,
-      o.accountId
-    ), k = new Z(
-      y,
+    }, y = new X(
       S,
       this.integrationName,
       window.__rokt_li_guid__,
       o.accountId
+    ), A = new Z(
+      S,
+      y,
+      this.integrationName,
+      window.__rokt_li_guid__,
+      o.accountId
     );
-    if (this.errorReportingService = S, this.loggingService = k, this.isTargetingDisabled())
+    if (this.errorReportingService = y, this.loggingService = A, this.isTargetingDisabled())
       try {
         j();
       } catch (h) {
@@ -572,7 +571,7 @@ const f = class f {
           stackTrace: h instanceof Error ? h.stack : void 0
         });
       }
-    return a()._registerErrorReportingService && a()._registerErrorReportingService(S), a()._registerLoggingService && a()._registerLoggingService(k), n ? (this.testHelpers = {
+    return a()._registerErrorReportingService && a()._registerErrorReportingService(y), a()._registerLoggingService && a()._registerLoggingService(A), n ? (this.testHelpers = {
       generateLauncherScript: H,
       generateThankYouElementScript: V,
       extractRoktExtensionConfig: J,
@@ -592,14 +591,14 @@ const f = class f {
       RateLimiter: ce,
       ErrorCodes: D,
       WSDKErrorSeverity: E
-    }, this.attachLauncher(l, g), "Successfully initialized: " + d) : (w && (a().Rokt.flushOnShoppableAdsReadyMessageQueue?.(this), z(ke, V(p), {
+    }, this.attachLauncher(l, g), "Successfully initialized: " + d) : (w && (a().Rokt.flushOnShoppableAdsReadyMessageQueue?.(this), z(Ae, V(p), {
       onLoad: () => {
         this._isThankYouElementLoaded = !0, this._thankYouElementOnLoadCallback && this._thankYouElementOnLoadCallback();
       },
       onError: (h) => {
         console.error("Error loading Rokt Thank You Element script:", h);
       }
-    })), this.isLauncherReadyToAttach() ? this.attachLauncher(l, g, v) : (z(Se, H(p, U), {
+    })), this.isLauncherReadyToAttach() ? this.attachLauncher(l, g, v) : (z(ye, H(p, U), {
       onLoad: () => {
         this.isLauncherReadyToAttach() ? this.attachLauncher(l, g, v) : console.error("Rokt object is not available after script load.");
       },
@@ -710,18 +709,18 @@ const f = class f {
     const t = e && e.attributes || {}, r = { ...b(this.userAttributes), ...t }, s = this.filters || {}, o = s.userAttributeFilters || [], l = s.filteredUser || null, u = l ? l.getMPID() : null;
     let c;
     s ? s.filterUserAttributes ? c = s.filterUserAttributes(r, o) : c = r : (console.warn("Rokt Kit: No filters available, using user attributes"), c = r), this.userAttributes = b(c);
-    const p = this._onboardingExpProvider === "Optimizely" ? this.fetchOptimizely() : {}, U = this.returnUserIdentities(l), v = this.returnLocalSessionAttributes(), w = fe(W(this.loggingService)), g = this.readMpSessionId(), y = {
+    const p = this._onboardingExpProvider === "Optimizely" ? this.fetchOptimizely() : {}, U = this.returnUserIdentities(l), v = this.returnLocalSessionAttributes(), w = fe(W(this.loggingService)), g = this.readMpSessionId(), S = {
       ...U,
       ...c,
       ...p,
       ...v,
       ...w.length ? { [we]: JSON.stringify(w) } : {},
-      ...this.userIdentifiedInWorkspace ? { [Ae]: !0 } : {},
+      ...this.userIdentifiedInWorkspace ? { [ke]: !0 } : {},
       ...g ? { [be]: g } : {},
       mpid: u
-    }, S = { ...e, attributes: y }, k = this.launcher.selectPlacements(S), h = () => this.logSelectPlacementsEvent(y);
-    return Promise.resolve(k).then((le) => le?.context?.sessionId?.then((ue) => this.setRoktSessionId(ue))).catch(() => {
-    }).finally(h), k;
+    }, y = { ...e, attributes: S }, A = this.launcher.selectPlacements(y), h = () => this.logSelectPlacementsEvent(S);
+    return Promise.resolve(A).then((le) => le?.context?.sessionId?.then((ue) => this.setRoktSessionId(ue))).catch(() => {
+    }).finally(h), A;
   }
   /**
    * Passes attributes to the Rokt Web SDK for client-side hashing.
@@ -748,10 +747,10 @@ f._allowedOriginHashes = [-553112570, 549508659], f.PERFORMANCE_MARKS = {
   RoktScriptAppended: "mp:RoktScriptAppended"
 }, f.EMAIL_SHA256_KEY = "emailsha256";
 let I = f;
-function xe() {
+function Ye() {
   return T;
 }
-function Ye(i) {
+function xe(i) {
   if (!i) {
     window.console.log("You must pass a config object to register the kit " + d);
     return;
@@ -769,9 +768,9 @@ function Ye(i) {
 typeof window < "u" && window.mParticle && a().addForwarder && a().addForwarder({
   name: d,
   constructor: I,
-  getId: xe
+  getId: Ye
 });
 export {
-  Ye as register
+  xe as register
 };
 //# sourceMappingURL=Rokt-Kit.esm.js.map
