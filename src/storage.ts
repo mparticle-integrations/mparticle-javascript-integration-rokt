@@ -1,10 +1,11 @@
 import { isObject } from './utils';
 
+const LS_PROBE_KEY = '__rokt_ls_probe__';
+
 export function isLocalStorageAvailable(): boolean {
   try {
-    const probe = '__rokt_ls_probe__';
-    window.localStorage.setItem(probe, '1');
-    window.localStorage.removeItem(probe);
+    window.localStorage.setItem(LS_PROBE_KEY, '1');
+    window.localStorage.removeItem(LS_PROBE_KEY);
     return true;
   } catch {
     return false;
