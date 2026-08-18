@@ -104,6 +104,9 @@ describe('Rokt Forwarder', () => {
       return 'test-mp-session-id';
     },
   };
+  mParticle.getDeviceId = function () {
+    return 'test-mp-device-id';
+  };
   mParticle._getActiveForwarders = function () {
     return [];
   };
@@ -848,6 +851,9 @@ describe('Rokt Forwarder', () => {
           return 'test-mp-session-id';
         },
       };
+      (window as any).mParticle.getDeviceId = function () {
+        return 'test-mp-device-id';
+      };
       (window as any).mParticle.Rokt.setLocalSessionAttribute = function (key: any, value: any) {
         mParticle._Store.localSessionAttributes[key] = value;
       };
@@ -900,6 +906,7 @@ describe('Rokt Forwarder', () => {
           attributes: {
             test: 'test',
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
           },
         });
@@ -983,6 +990,70 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).not.toHaveProperty('mparticle_session_id');
       });
 
+      it('should keep sending the same device id after the session id rotates', async () => {
+        let currentSessionId = 'first-mp-session';
+        (window as any).mParticle.sessionManager = {
+          getSession: function () {
+            return currentSessionId;
+          },
+        };
+
+        await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        expect((window as any).Rokt.selectPlacementsOptions.attributes.mparticle_session_id).toBe('first-mp-session');
+        expect((window as any).Rokt.selectPlacementsOptions.attributes.mparticle_device_id).toBe('test-mp-device-id');
+
+        currentSessionId = 'second-mp-session';
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        expect((window as any).Rokt.selectPlacementsOptions.attributes.mparticle_session_id).toBe('second-mp-session');
+        expect((window as any).Rokt.selectPlacementsOptions.attributes.mparticle_device_id).toBe('test-mp-device-id');
+      });
+
+      it('should send the device id current at the time of each call', async () => {
+        let currentDeviceId = 'first-mp-device';
+        (window as any).mParticle.getDeviceId = function () {
+          return currentDeviceId;
+        };
+
+        await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        expect((window as any).Rokt.selectPlacementsOptions.attributes.mparticle_device_id).toBe('first-mp-device');
+
+        currentDeviceId = 'second-mp-device';
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        expect((window as any).Rokt.selectPlacementsOptions.attributes.mparticle_device_id).toBe('second-mp-device');
+      });
+
+      it('should omit the device id when getDeviceId is unavailable', async () => {
+        delete (window as any).mParticle.getDeviceId;
+
+        await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        expect((window as any).Rokt.selectPlacementsOptions.attributes).not.toHaveProperty('mparticle_device_id');
+      });
+
+      it('should omit the device id when getDeviceId returns nothing', async () => {
+        (window as any).mParticle.getDeviceId = function () {
+          return undefined;
+        };
+
+        await (window as any).mParticle.forwarder.init({ accountId: '123456' }, reportService.cb, true, null, {});
+
+        await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+        expect((window as any).Rokt.selectPlacementsOptions.attributes).not.toHaveProperty('mparticle_device_id');
+      });
+
       it('should collect mpid and send to launcher.selectPlacements', async () => {
         await (window as any).mParticle.forwarder.init(
           {
@@ -1009,6 +1080,7 @@ describe('Rokt Forwarder', () => {
           attributes: {
             'user-attribute': 'user-attribute-value',
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
           },
         });
@@ -1048,6 +1120,7 @@ describe('Rokt Forwarder', () => {
           identifier: 'test-placement',
           attributes: {
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
             'test-attribute': 'test-value',
             'custom-local-attribute': true,
@@ -1123,6 +1196,7 @@ describe('Rokt Forwarder', () => {
             'user-attribute': 'user-attribute-value',
             'unfiltered-attribute': 'unfiltered-value',
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
           },
         });
@@ -1178,6 +1252,7 @@ describe('Rokt Forwarder', () => {
             'unfiltered-attribute': 'unfiltered-value',
             'changed-attribute': 'new-value',
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
           },
         });
@@ -1216,6 +1291,7 @@ describe('Rokt Forwarder', () => {
             loyaltyTier: 'gold',
             page: 'checkout',
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
           },
         });
@@ -1264,6 +1340,7 @@ describe('Rokt Forwarder', () => {
             shippingMethod: 'ground',
             page: 'checkout',
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
           },
         });
@@ -1302,6 +1379,7 @@ describe('Rokt Forwarder', () => {
             active_time_on_site_ms: 12345,
             page: 'checkout',
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
           },
         });
@@ -1341,6 +1419,7 @@ describe('Rokt Forwarder', () => {
           attributes: {
             active_time_on_site_ms: 67890,
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
           },
         });
@@ -1372,6 +1451,7 @@ describe('Rokt Forwarder', () => {
           attributes: {
             favoriteStore: 'test-store',
             mparticle_session_id: 'test-mp-session-id',
+            mparticle_device_id: 'test-mp-device-id',
             mpid: '123',
           },
         });
@@ -1454,6 +1534,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).toEqual({
           'test-attribute': 'test-value',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: 'abc',
         });
       });
@@ -1509,6 +1590,7 @@ describe('Rokt Forwarder', () => {
           customerid: 'customer123',
           email: 'test@example.com',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '234',
         });
       });
@@ -1569,6 +1651,7 @@ describe('Rokt Forwarder', () => {
           customerid: 'customer123',
           email: 'test@example.com',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '123',
         });
       });
@@ -1615,6 +1698,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).toEqual({
           'test-attribute': 'test-value',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: null,
         });
       });
@@ -1665,6 +1749,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).toEqual({
           'test-attribute': 'test-value',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '123',
         });
       });
@@ -1721,6 +1806,7 @@ describe('Rokt Forwarder', () => {
           customerid: 'customer123',
           emailsha256: 'sha256-test@gmail.com',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '234',
         });
       });
@@ -1778,6 +1864,7 @@ describe('Rokt Forwarder', () => {
         expect(attrs).toEqual({
           customerid: 'customer123',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '234',
         });
         expect(attrs).not.toHaveProperty('emailsha256');
@@ -1841,6 +1928,7 @@ describe('Rokt Forwarder', () => {
           customerid: 'customer123',
           other: 'other-attribute',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '123',
         });
       });
@@ -1904,6 +1992,7 @@ describe('Rokt Forwarder', () => {
           other: 'continues-to-exist',
           emailsha256: 'other-id',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '123',
         });
       });
@@ -1965,6 +2054,7 @@ describe('Rokt Forwarder', () => {
           'test-attribute': 'test-value',
           emailsha256: 'hashed-customer-id-value', // mapped from customerid in userIdentities
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '789',
         });
       });
@@ -2026,6 +2116,7 @@ describe('Rokt Forwarder', () => {
           'test-attr': 'test-value',
           other: 'hashed-custom-identity-value',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '999',
         });
       });
@@ -2085,6 +2176,7 @@ describe('Rokt Forwarder', () => {
           email: 'test@example.com',
           emailsha256: 'hashed-email-value',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '456',
         });
       });
@@ -2145,6 +2237,7 @@ describe('Rokt Forwarder', () => {
           email: 'developer-email@example.com',
           emailsha256: 'hashed-email-value',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '789',
         });
       });
@@ -2206,6 +2299,7 @@ describe('Rokt Forwarder', () => {
           customerid: 'customer456',
           someAttribute: 'someValue',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '901',
         });
       });
@@ -2267,6 +2361,7 @@ describe('Rokt Forwarder', () => {
           emailsha256: 'hashed-from-other',
           customerid: 'customer789',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '912',
         });
       });
@@ -2326,6 +2421,7 @@ describe('Rokt Forwarder', () => {
           email: 'developer-email@example.com',
           customerid: 'customer202',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '934',
         });
       });
@@ -2382,6 +2478,7 @@ describe('Rokt Forwarder', () => {
           emailsha256: 'developer-hashed-email',
           customerid: 'customer303',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '945',
         });
       });
@@ -2435,6 +2532,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).toEqual({
           customerid: 'customer505',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '967',
         });
       });
@@ -2491,6 +2589,7 @@ describe('Rokt Forwarder', () => {
           emailsha256: 'hashed-from-useridentities',
           customerid: 'customer606',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '978',
         });
       });
@@ -2553,6 +2652,7 @@ describe('Rokt Forwarder', () => {
           emailsha256: 'developer-hashed-email',
           customerid: 'customer909',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '992',
         });
       });
@@ -2609,6 +2709,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).toEqual({
           email: 'test@gmail.com',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '234',
         });
       });
@@ -2665,6 +2766,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).toEqual({
           email: 'test@gmail.com',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '345',
         });
       });
@@ -2721,6 +2823,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).toEqual({
           email: 'test@gmail.com',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '456',
         });
       });
@@ -2777,6 +2880,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).toEqual({
           email: 'test@gmail.com',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '567',
         });
       });
@@ -2833,6 +2937,7 @@ describe('Rokt Forwarder', () => {
         expect((window as any).Rokt.selectPlacementsOptions.attributes).toEqual({
           email: 'test@gmail.com',
           mparticle_session_id: 'test-mp-session-id',
+          mparticle_device_id: 'test-mp-device-id',
           mpid: '678',
         });
       });
