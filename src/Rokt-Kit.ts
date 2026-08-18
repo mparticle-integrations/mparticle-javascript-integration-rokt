@@ -86,6 +86,7 @@ interface RoktLauncher {
   selectPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection>;
   hashAttributes(attributes: Record<string, unknown>): Promise<Record<string, unknown>>;
   use(extensionName: string): Promise<unknown>;
+  terminate(): Promise<void>;
 }
 
 interface RoktGlobal {
@@ -1519,6 +1520,24 @@ class RoktKit implements KitInterface {
       return Promise.reject(new Error('Rokt Kit: Invalid extension name'));
     }
     return this.launcher!.use(extensionName);
+  }
+
+  /**
+   * Tears down the Rokt launcher and the placements it rendered.
+   *
+   * The launcher reference is deliberately left in place. The Rokt Web SDK
+   * memoizes a single launcher per page, so clearing it here could not buy the
+   * caller a fresh one — it would only flip the kit to not-ready and leave
+   * later calls queued forever. Leaving state untouched makes this exactly
+   * equivalent to the `window.Rokt.currentLauncher.terminate()` call partners
+   * use today, just reachable through a supported API.
+   */
+  public terminate(): Promise<void> {
+    if (!this.isKitReady()) {
+      console.error('Rokt Kit: Not initialized');
+      return Promise.resolve();
+    }
+    return this.launcher!.terminate();
   }
 
   /**
