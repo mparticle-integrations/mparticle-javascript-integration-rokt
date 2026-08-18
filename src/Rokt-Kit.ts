@@ -32,8 +32,8 @@ import {
   writePageViews,
   clearPageViews,
   readCanonicalUrl,
-  isLocalStorageAvailable,
 } from './pageViewStorage';
+import { isLocalStorageAvailable } from './storage';
 
 import { isObject, isString, isEmpty, isFunction, sanitizeUrl } from './utils';
 

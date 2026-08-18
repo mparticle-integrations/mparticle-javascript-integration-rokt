@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
+  isLocalStorageAvailable,
   readJSON,
   writeJSON,
   removeKey,
@@ -216,5 +217,22 @@ describe('storage: key-agnostic localStorage helpers', () => {
       expect(writeNamespacedFieldWithinBudget(NAMESPACE_KEY, 'pageViews', records, BUDGET)).toBe(false);
       expect(records).toEqual([{ id: 'a' }, { id: 'b' }]);
     });
+  });
+});
+
+describe('isLocalStorageAvailable', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns true when localStorage is accessible', () => {
+    expect(isLocalStorageAvailable()).toBe(true);
+  });
+
+  it('returns false when setItem throws', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('SecurityError');
+    });
+    expect(isLocalStorageAvailable()).toBe(false);
   });
 });

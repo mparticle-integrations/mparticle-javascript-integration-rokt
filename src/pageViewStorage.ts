@@ -6,10 +6,7 @@ import {
   writeNamespacedField,
   removeNamespacedField,
   writeNamespacedFieldWithinBudget,
-  isLocalStorageAvailable,
 } from './storage';
-
-export { isLocalStorageAvailable };
 import { sanitizeUrl } from './utils';
 
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
