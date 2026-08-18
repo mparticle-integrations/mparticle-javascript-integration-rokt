@@ -891,10 +891,9 @@ class RoktKit implements KitInterface {
       }
     } catch (err) {
       const reason = isLocalStorageAvailable() ? 'exception' : 'ls_unavailable';
+      const errMessage = err instanceof Error ? err.message : String(err);
       this.loggingService?.log({
-        message: `Rokt Kit: Failed to capture page view for ${pageUrl}: ${
-          err instanceof Error ? err.message : String(err)
-        } [reason: ${reason}]`,
+        message: `Rokt Kit: Failed to capture page view for ${pageUrl}: ${errMessage} [reason: ${reason}]`,
         code: 'PAGE_VIEW_CAPTURE_FAILED',
       });
     }
