@@ -1,18 +1,11 @@
 import type { LoggingService } from './Rokt-Kit';
-import {
-  readJSON,
-  removeKey,
-  readNamespacedField,
-  writeNamespacedField,
-  removeNamespacedField,
-  writeNamespacedFieldWithinBudget,
-} from './storage';
+import { readJSON, removeKey, readNamespacedField, writeNamespacedField, removeNamespacedField } from './storage';
 import { sanitizeUrl } from './utils';
 
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
 const LS_PAGE_VIEWS_FIELD = 'pageViews';
 const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
-const PAGE_VIEWS_MAX_LENGTH = 100 * 1024;
+const PAGE_VIEWS_MAX_COUNT = 25;
 
 export interface PageEvent {
   pageUrl: string;
@@ -55,7 +48,7 @@ export function loadPageViews(loggingService: LoggingService | null): PageEvent[
 }
 
 export function writePageViews(pageViews: PageEvent[]): boolean {
-  return writeNamespacedFieldWithinBudget(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, pageViews, PAGE_VIEWS_MAX_LENGTH);
+  return writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, pageViews.slice(-PAGE_VIEWS_MAX_COUNT));
 }
 
 export function clearPageViews(): void {
@@ -63,11 +56,12 @@ export function clearPageViews(): void {
 }
 
 export function buildPageEvents(pageViews: PageEvent[]): PageEvent[] {
-  return pageViews.map((pageView, index) => {
+  const views = pageViews.slice(-PAGE_VIEWS_MAX_COUNT);
+  return views.map((pageView, index) => {
     const activeTimeOnSite = pageView.activeTimeOnSite;
     const hasActiveTime = activeTimeOnSite !== undefined && Number.isFinite(activeTimeOnSite);
 
-    const next = pageViews[index + 1];
+    const next = views[index + 1];
     const nextActiveTimeOnSite = next?.activeTimeOnSite;
     const hasNextActiveTimeOnSite = nextActiveTimeOnSite !== undefined && Number.isFinite(nextActiveTimeOnSite);
 
