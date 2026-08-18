@@ -137,6 +137,8 @@ describe('Rokt Forwarder', () => {
       self.noFunctional = options.noFunctional;
       self.noTargeting = options.noTargeting;
       self.mpSessionId = options.mpSessionId;
+      self.sessionId = options.sessionId;
+      self.sessionToken = options.sessionToken;
       self.createLauncherCalled = true;
       self.isInitialized = true;
       self.sandbox = options.sandbox;
@@ -162,6 +164,8 @@ describe('Rokt Forwarder', () => {
       self.noFunctional = options.noFunctional;
       self.noTargeting = options.noTargeting;
       self.mpSessionId = options.mpSessionId;
+      self.sessionId = options.sessionId;
+      self.sessionToken = options.sessionToken;
       self.createLocalLauncherCalled = true;
       self.isInitialized = true;
       self.sandbox = options.sandbox;
@@ -319,6 +323,32 @@ describe('Rokt Forwarder', () => {
       expect((window as any).Rokt.integrationName).toBe(expectedIntegrationName);
       expect((window as any).Rokt.noFunctional).toBe(true);
       expect((window as any).Rokt.noTargeting).toBe(true);
+    });
+
+    it('should forward sessionId and sessionToken from launcherOptions to createLauncher', async () => {
+      const sessionId = '0198c1a2-3b4c-7d5e-8f90-1a2b3c4d5e6f';
+      const sessionToken = 'header.payload.signature';
+      (window as any).mParticle.Rokt.launcherOptions = {
+        sessionId,
+        sessionToken,
+      };
+
+      await mParticle.forwarder.init(
+        {
+          accountId: '123456',
+        },
+        reportService.cb,
+        true,
+        null,
+        {},
+        null,
+        null,
+        null,
+      );
+
+      expect((window as any).Rokt.createLauncherCalled).toBe(true);
+      expect((window as any).Rokt.sessionId).toBe(sessionId);
+      expect((window as any).Rokt.sessionToken).toBe(sessionToken);
     });
 
     it('should set the filters on the forwarder', async () => {
