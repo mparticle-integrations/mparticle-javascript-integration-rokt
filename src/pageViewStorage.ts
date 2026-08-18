@@ -27,14 +27,16 @@ export function migrateLegacyPageViewStorage(loggingService: LoggingService | nu
   const needsMigration = !alreadyMigrated && Array.isArray(legacyViews);
 
   if (needsMigration) {
+    loggingService?.log({
+      message: 'Rokt Kit: Migrating legacy page-view storage',
+      code: 'PAGE_VIEW_LEGACY_MIGRATION',
+    });
     const migrated = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
     if (!migrated) {
       loggingService?.log({
-        message:
-          'Rokt Kit: Failed to migrate legacy page-view storage; retaining legacy key for retry [reason: migration_retry]',
+        message: 'Rokt Kit: Failed to migrate legacy page-view storage [reason: migration_retry]',
         code: 'PAGE_VIEW_CAPTURE_FAILED',
       });
-      return;
     }
   }
 

@@ -49,7 +49,16 @@ describe('pageViewStorage', () => {
       expect(window.localStorage.getItem(LEGACY_PAGE_VIEWS_KEY)).toBeNull();
     });
 
-    it('retains the legacy key and logs when the migrating write fails', () => {
+    it('logs PAGE_VIEW_LEGACY_MIGRATION when the migration path is taken', () => {
+      window.localStorage.setItem(LEGACY_PAGE_VIEWS_KEY, JSON.stringify([pageView('home')]));
+      const logger = { log: vi.fn() } as unknown as LoggingService;
+
+      migrateLegacyPageViewStorage(logger);
+
+      expect(logger.log).toHaveBeenCalledWith(expect.objectContaining({ code: 'PAGE_VIEW_LEGACY_MIGRATION' }));
+    });
+
+    it('removes the legacy key and logs when the migrating write fails', () => {
       window.localStorage.setItem(LEGACY_PAGE_VIEWS_KEY, JSON.stringify([pageView('home')]));
       const logger = { log: vi.fn() } as unknown as LoggingService;
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -58,8 +67,25 @@ describe('pageViewStorage', () => {
 
       migrateLegacyPageViewStorage(logger);
 
-      expect(window.localStorage.getItem(LEGACY_PAGE_VIEWS_KEY)).not.toBeNull();
+      // Legacy key is removed even on failure — prevents the infinite retry loop.
+      expect(window.localStorage.getItem(LEGACY_PAGE_VIEWS_KEY)).toBeNull();
       expect(logger.log).toHaveBeenCalledWith(expect.objectContaining({ code: 'PAGE_VIEW_CAPTURE_FAILED' }));
+    });
+
+    it('does not log PAGE_VIEW_CAPTURE_FAILED on a second call after a failed migration', () => {
+      window.localStorage.setItem(LEGACY_PAGE_VIEWS_KEY, JSON.stringify([pageView('home')]));
+      const logger = { log: vi.fn() } as unknown as LoggingService;
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('quota', 'QuotaExceededError');
+      });
+
+      migrateLegacyPageViewStorage(logger); // first call: fails, legacy key removed
+      vi.restoreAllMocks();
+      logger.log.mockClear();
+
+      migrateLegacyPageViewStorage(logger); // second call: legacy key gone, no-op
+
+      expect(logger.log).not.toHaveBeenCalled();
     });
   });
 
