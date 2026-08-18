@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readJSON, writeNamespacedField } from '../../src/storage';
-import { migrateLegacyPageViewStorage, loadPageViews, writePageViews, clearPageViews } from '../../src/pageViewStorage';
+import {
+  migrateLegacyPageViewStorage,
+  loadPageViews,
+  writePageViews,
+  clearPageViews,
+  buildPageEvents,
+} from '../../src/pageViewStorage';
 import type { LoggingService } from '../../src/Rokt-Kit';
 
 const NAMESPACE_KEY = 'mp-rokt-kit';
@@ -85,20 +91,47 @@ describe('pageViewStorage', () => {
       expect(loadPageViews(null)).toEqual([pageView('home')]);
     });
 
-    it('evicts oldest-first to stay within the byte budget', () => {
-      const oversizedUrl = 'https://example.com/' + 'a'.repeat(5000);
-      const views = Array.from({ length: 30 }, (_, i) => ({
-        pageUrl: oversizedUrl,
-        sourceMessageId: 'seed-' + i,
+    it('keeps only the 25 most-recent views when given more than 25', () => {
+      const views = Array.from({ length: 40 }, (_, i) => pageView('page-' + i));
+      expect(writePageViews(views)).toBe(true);
+      const stored = loadPageViews(null);
+      expect(stored).toHaveLength(25);
+      expect(stored[0].sourceMessageId).toBe('page-15');
+      expect(stored[24].sourceMessageId).toBe('page-39');
+    });
+  });
+
+  describe('buildPageEvents', () => {
+    it('returns all views when count is within the send limit', () => {
+      const views = Array.from({ length: 10 }, (_, i) => pageView('page-' + i));
+      expect(buildPageEvents(views)).toHaveLength(10);
+    });
+
+    it('caps output at 25 most-recent views when storage exceeds the send limit', () => {
+      const views = Array.from({ length: 40 }, (_, i) => ({
+        pageUrl: 'https://example.com/page-' + i,
+        sourceMessageId: 'id-' + i,
         timestamp: i,
       }));
+      const result = buildPageEvents(views);
+      expect(result).toHaveLength(25);
+      expect(result[0].sourceMessageId).toBe('id-15');
+      expect(result[24].sourceMessageId).toBe('id-39');
+    });
 
-      expect(writePageViews(views)).toBe(true);
-
-      const stored = loadPageViews(null);
-      expect(JSON.stringify(stored).length).toBeLessThanOrEqual(100 * 1024);
-      expect(stored.length).toBeLessThan(30);
-      expect(stored[stored.length - 1].sourceMessageId).toBe('seed-29');
+    it('computes activeTimeOnPage correctly within the capped window', () => {
+      const views = Array.from({ length: 30 }, (_, i) => ({
+        pageUrl: 'https://example.com/page-' + i,
+        sourceMessageId: 'id-' + i,
+        timestamp: i,
+        activeTimeOnSite: i * 1000,
+      }));
+      const result = buildPageEvents(views);
+      expect(result).toHaveLength(25);
+      // First record in the capped window should have activeTimeOnPage derived from
+      // the next record within the slice, not from the unsliced original array.
+      expect(result[0].activeTimeOnPage).toBe(1000);
+      expect(result[24].activeTimeOnPage).toBeUndefined();
     });
   });
 
