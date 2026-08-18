@@ -1,3 +1,10 @@
+## [1.33.3](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.2...v1.33.3) (2026-08-18)
+
+
+### Bug Fixes
+
+* limit page-view history to 25 most-recent records ([#123](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/123)) ([26f5a5b](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/26f5a5b1f1dc39ad02f896a2c8b6a900c24a56dd))
+
 ## [1.33.2](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.1...v1.33.2) (2026-08-18)
 
 
