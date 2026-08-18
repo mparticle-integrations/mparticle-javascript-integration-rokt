@@ -33,6 +33,7 @@ import {
   clearPageViews,
   readCanonicalUrl,
 } from './pageViewStorage';
+import { isLocalStorageAvailable } from './storage';
 
 import { isObject, isString, isEmpty, isFunction, sanitizeUrl } from './utils';
 
@@ -882,16 +883,17 @@ class RoktKit implements KitInterface {
       pageViews.push(pageView);
 
       if (!writePageViews(pageViews)) {
+        const reason = isLocalStorageAvailable() ? 'quota' : 'ls_unavailable';
         this.loggingService?.log({
-          message: `Rokt Kit: Failed to persist page view for ${pageUrl}`,
+          message: `Rokt Kit: Failed to persist page view for ${pageUrl} [reason: ${reason}]`,
           code: 'PAGE_VIEW_CAPTURE_FAILED',
         });
       }
     } catch (err) {
+      const reason = isLocalStorageAvailable() ? 'exception' : 'ls_unavailable';
+      const errMessage = err instanceof Error ? err.message : String(err);
       this.loggingService?.log({
-        message: `Rokt Kit: Failed to capture page view for ${pageUrl}: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
+        message: `Rokt Kit: Failed to capture page view for ${pageUrl}: ${errMessage} [reason: ${reason}]`,
         code: 'PAGE_VIEW_CAPTURE_FAILED',
       });
     }

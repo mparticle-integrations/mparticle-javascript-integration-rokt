@@ -1,5 +1,17 @@
 import { isObject } from './utils';
 
+const LS_PROBE_KEY = '__rokt_ls_probe__';
+
+export function isLocalStorageAvailable(): boolean {
+  try {
+    window.localStorage.setItem(LS_PROBE_KEY, '1');
+    window.localStorage.removeItem(LS_PROBE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function readJSON(key: string): unknown {
   try {
     const stored = window.localStorage.getItem(key);
