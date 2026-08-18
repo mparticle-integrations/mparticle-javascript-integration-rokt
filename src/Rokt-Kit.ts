@@ -986,13 +986,7 @@ class RoktKit implements KitInterface {
     // timeout, cross-tab rotation and endSession(), but never the device id, which lives in
     // localStorage/cookie for cookieExpiration days (365 by default) and survives login/logout.
     // Read it per call anyway — a partner can reassign it at any time via setDeviceId().
-    const mParticleGlobal = mp();
-    const readDeviceId = mParticleGlobal?.getDeviceId;
-    if (!isFunction(readDeviceId)) {
-      return undefined;
-    }
-
-    return readDeviceId.call(mParticleGlobal) || undefined;
+    return mp()?.getDeviceId?.() || undefined;
   }
 
   private attachLauncher(
