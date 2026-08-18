@@ -64,34 +64,3 @@ export function removeNamespacedField(namespaceKey: string, field: string): void
   }
 }
 
-export function writeNamespacedFieldWithinBudget(
-  namespaceKey: string,
-  field: string,
-  records: unknown[],
-  maxLength: number,
-): boolean {
-  // Operate on a copy so the caller's array isn't trimmed as a side effect.
-  const remaining = records.slice();
-
-  const evictOldest = (): boolean => {
-    if (remaining.length <= 1) {
-      return false;
-    }
-    remaining.shift();
-    return true;
-  };
-
-  // Two limits: our own soft cap (maxLength), then the browser's hard quota,
-  // which is shared across the origin and only surfaces when setItem throws.
-  let overBudget = JSON.stringify(remaining).length > maxLength;
-  while (overBudget && evictOldest()) {
-    overBudget = JSON.stringify(remaining).length > maxLength;
-  }
-
-  let written = writeNamespacedField(namespaceKey, field, remaining);
-  while (!written && evictOldest()) {
-    written = writeNamespacedField(namespaceKey, field, remaining);
-  }
-
-  return written;
-}

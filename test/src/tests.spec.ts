@@ -6530,6 +6530,7 @@ describe('Rokt Forwarder', () => {
         expect(stored[stored.length - 1].sourceMessageId).toBe('seed-4');
       });
 
+
       it('captures page views independently of setLocalSessionAttribute availability', async () => {
         await (window as any).mParticle.forwarder.init(
           {

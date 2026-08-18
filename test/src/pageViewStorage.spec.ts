@@ -154,8 +154,6 @@ describe('pageViewStorage', () => {
       }));
       const result = buildPageEvents(views);
       expect(result).toHaveLength(25);
-      // First record in the capped window should have activeTimeOnPage derived from
-      // the next record within the slice, not from the unsliced original array.
       expect(result[0].activeTimeOnPage).toBe(1000);
       expect(result[24].activeTimeOnPage).toBeUndefined();
     });

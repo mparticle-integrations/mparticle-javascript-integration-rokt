@@ -17,6 +17,10 @@ export interface PageEvent {
   activeTimeOnPage?: number;
 }
 
+function capPageViews(views: PageEvent[]): PageEvent[] {
+  return views.slice(-PAGE_VIEWS_MAX_COUNT);
+}
+
 export function migrateLegacyPageViewStorage(loggingService: LoggingService | null): void {
   const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
   if (legacyViews === null) {
@@ -50,7 +54,7 @@ export function loadPageViews(loggingService: LoggingService | null): PageEvent[
 }
 
 export function writePageViews(pageViews: PageEvent[]): boolean {
-  return writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, pageViews.slice(-PAGE_VIEWS_MAX_COUNT));
+  return writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, capPageViews(pageViews));
 }
 
 export function clearPageViews(): void {
@@ -58,7 +62,7 @@ export function clearPageViews(): void {
 }
 
 export function buildPageEvents(pageViews: PageEvent[]): PageEvent[] {
-  const views = pageViews.slice(-PAGE_VIEWS_MAX_COUNT);
+  const views = capPageViews(pageViews);
   return views.map((pageView, index) => {
     const activeTimeOnSite = pageView.activeTimeOnSite;
     const hasActiveTime = activeTimeOnSite !== undefined && Number.isFinite(activeTimeOnSite);
