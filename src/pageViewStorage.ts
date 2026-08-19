@@ -53,15 +53,15 @@ export function loadPageViews(loggingService: LoggingService | null): PageEvent[
   return Array.isArray(stored) ? (stored as PageEvent[]) : [];
 }
 
-export function writePageViews(pageViews: PageEvent[]): boolean {
+export function writePageViews(pageViews: PageEvent[]): number {
   const views = capPageViews(pageViews);
   for (let i = 0; i < views.length; i++) {
     const toWrite = views.slice(i);
     if (writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, toWrite)) {
-      return true;
+      return toWrite.length;
     }
   }
-  return false;
+  return 0;
 }
 
 export function clearPageViews(): void {

@@ -112,14 +112,14 @@ describe('pageViewStorage', () => {
   });
 
   describe('writePageViews', () => {
-    it('persists the page views and returns true', () => {
-      expect(writePageViews([pageView('home')])).toBe(true);
+    it('persists the page views and returns the stored count', () => {
+      expect(writePageViews([pageView('home')])).toBe(1);
       expect(loadPageViews(null)).toEqual([pageView('home')]);
     });
 
     it('keeps only the 25 most-recent views when given more than 25', () => {
       const views = Array.from({ length: 40 }, (_, i) => pageView('page-' + i));
-      expect(writePageViews(views)).toBe(true);
+      expect(writePageViews(views)).toBe(25);
       const stored = loadPageViews(null);
       expect(stored).toHaveLength(25);
       expect(stored[0].sourceMessageId).toBe('page-15');
@@ -135,7 +135,7 @@ describe('pageViewStorage', () => {
         original.call(this, key, value);
       });
 
-      expect(writePageViews(views)).toBe(true);
+      expect(writePageViews(views)).toBe(4);
       const stored = loadPageViews(null);
       expect(stored).toHaveLength(4);
       expect(stored[0].sourceMessageId).toBe('page-1');
@@ -151,7 +151,7 @@ describe('pageViewStorage', () => {
         original.call(this, key, value);
       });
 
-      expect(writePageViews(views)).toBe(true);
+      expect(writePageViews(views)).toBe(2);
       const stored = loadPageViews(null);
       expect(stored).toHaveLength(2);
       expect(stored[0].sourceMessageId).toBe('page-3');
@@ -160,7 +160,7 @@ describe('pageViewStorage', () => {
 
     it('evicts the oldest record from pre-existing storage when quota is tight on the next write', () => {
       const existing = Array.from({ length: 5 }, (_, i) => pageView('existing-' + i));
-      writePageViews(existing);
+      writePageViews(existing); // seed storage
 
       const updated = [...existing, pageView('new')];
       const original = Storage.prototype.setItem;
@@ -170,7 +170,7 @@ describe('pageViewStorage', () => {
         original.call(this, key, value);
       });
 
-      expect(writePageViews(updated)).toBe(true);
+      expect(writePageViews(updated)).toBe(5);
       const stored = loadPageViews(null);
       expect(stored).toHaveLength(5);
       expect(stored[0].sourceMessageId).toBe('existing-1');
@@ -181,7 +181,7 @@ describe('pageViewStorage', () => {
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new DOMException('quota', 'QuotaExceededError');
       });
-      expect(writePageViews([pageView('home')])).toBe(false);
+      expect(writePageViews([pageView('home')])).toBe(0);
     });
   });
 
