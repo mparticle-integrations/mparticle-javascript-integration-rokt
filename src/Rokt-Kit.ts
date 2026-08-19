@@ -884,7 +884,7 @@ class RoktKit implements KitInterface {
       const pageView = buildPageEvent(event);
       pageViews.push(pageView);
 
-      if (!writePageViews(pageViews)) {
+      if (!writePageViews(pageViews, this.loggingService)) {
         const reason = isLocalStorageAvailable() ? 'quota' : 'ls_unavailable';
         this.loggingService?.log({
           message: `Rokt Kit: Failed to persist page view for ${pageUrl} [reason: ${reason}]`,

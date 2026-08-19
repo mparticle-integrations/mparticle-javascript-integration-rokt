@@ -53,10 +53,17 @@ export function loadPageViews(loggingService: LoggingService | null): PageEvent[
   return Array.isArray(stored) ? (stored as PageEvent[]) : [];
 }
 
-export function writePageViews(pageViews: PageEvent[]): boolean {
+export function writePageViews(pageViews: PageEvent[], loggingService: LoggingService | null): boolean {
   let toWrite = capPageViews(pageViews);
+  const requested = toWrite.length;
   while (toWrite.length > 0) {
     if (writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, toWrite)) {
+      if (toWrite.length < requested) {
+        loggingService?.log({
+          message: `Rokt Kit: Page view storage reduced from ${requested} to ${toWrite.length} record(s) under quota pressure [reason: quota_eviction]`,
+          code: 'PAGE_VIEW_QUOTA_EVICTION',
+        });
+      }
       return true;
     }
     toWrite = toWrite.slice(1);
