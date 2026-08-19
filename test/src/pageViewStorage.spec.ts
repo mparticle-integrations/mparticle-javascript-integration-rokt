@@ -112,14 +112,14 @@ describe('pageViewStorage', () => {
   });
 
   describe('writePageViews', () => {
-    it('persists the page views and returns true', () => {
-      expect(writePageViews([pageView('home')], null)).toBe(true);
+    it('persists the page views and returns the stored count', () => {
+      expect(writePageViews([pageView('home')])).toBe(1);
       expect(loadPageViews(null)).toEqual([pageView('home')]);
     });
 
     it('keeps only the 25 most-recent views when given more than 25', () => {
       const views = Array.from({ length: 40 }, (_, i) => pageView('page-' + i));
-      expect(writePageViews(views, null)).toBe(true);
+      expect(writePageViews(views)).toBe(25);
       const stored = loadPageViews(null);
       expect(stored).toHaveLength(25);
       expect(stored[0].sourceMessageId).toBe('page-15');
@@ -135,7 +135,7 @@ describe('pageViewStorage', () => {
         original.call(this, key, value);
       });
 
-      expect(writePageViews(views, null)).toBe(true);
+      expect(writePageViews(views)).toBe(4);
       const stored = loadPageViews(null);
       expect(stored).toHaveLength(4);
       expect(stored[0].sourceMessageId).toBe('page-1');
@@ -151,7 +151,7 @@ describe('pageViewStorage', () => {
         original.call(this, key, value);
       });
 
-      expect(writePageViews(views, null)).toBe(true);
+      expect(writePageViews(views)).toBe(2);
       const stored = loadPageViews(null);
       expect(stored).toHaveLength(2);
       expect(stored[0].sourceMessageId).toBe('page-3');
@@ -160,7 +160,7 @@ describe('pageViewStorage', () => {
 
     it('evicts the oldest record from pre-existing storage when quota is tight on the next write', () => {
       const existing = Array.from({ length: 5 }, (_, i) => pageView('existing-' + i));
-      writePageViews(existing, null);
+      writePageViews(existing); // seed storage
 
       const updated = [...existing, pageView('new')];
       const original = Storage.prototype.setItem;
@@ -170,44 +170,18 @@ describe('pageViewStorage', () => {
         original.call(this, key, value);
       });
 
-      expect(writePageViews(updated, null)).toBe(true);
+      expect(writePageViews(updated)).toBe(5);
       const stored = loadPageViews(null);
       expect(stored).toHaveLength(5);
       expect(stored[0].sourceMessageId).toBe('existing-1');
       expect(stored[4].sourceMessageId).toBe('new');
     });
 
-    it('returns false when every write attempt fails', () => {
+    it('returns 0 when every write attempt fails', () => {
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new DOMException('quota', 'QuotaExceededError');
       });
-      expect(writePageViews([pageView('home')], null)).toBe(false);
-    });
-
-    it('does not log when the write succeeds on the first attempt', () => {
-      const logger = { log: vi.fn() } as unknown as LoggingService;
-      expect(writePageViews([pageView('home')], logger)).toBe(true);
-      expect(logger.log).not.toHaveBeenCalled();
-    });
-
-    it('logs PAGE_VIEW_QUOTA_EVICTION with before/after counts when eviction occurs', () => {
-      const views = Array.from({ length: 5 }, (_, i) => pageView('page-' + i));
-      const logger = { log: vi.fn() } as unknown as LoggingService;
-      const original = Storage.prototype.setItem;
-      let calls = 0;
-      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
-        if (++calls === 1) throw new DOMException('quota', 'QuotaExceededError');
-        original.call(this, key, value);
-      });
-
-      expect(writePageViews(views, logger)).toBe(true);
-      expect(logger.log).toHaveBeenCalledOnce();
-      expect(logger.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          code: 'PAGE_VIEW_QUOTA_EVICTION',
-          message: expect.stringContaining('reduced from 5 to 4'),
-        }),
-      );
+      expect(writePageViews([pageView('home')])).toBe(0);
     });
   });
 

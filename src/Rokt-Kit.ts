@@ -884,11 +884,18 @@ class RoktKit implements KitInterface {
       const pageView = buildPageEvent(event);
       pageViews.push(pageView);
 
-      if (!writePageViews(pageViews, this.loggingService)) {
+      const requested = pageViews.length;
+      const stored = writePageViews(pageViews);
+      if (stored === 0) {
         const reason = isLocalStorageAvailable() ? 'quota' : 'ls_unavailable';
         this.loggingService?.log({
           message: `Rokt Kit: Failed to persist page view for ${pageUrl} [reason: ${reason}]`,
           code: 'PAGE_VIEW_CAPTURE_FAILED',
+        });
+      } else if (stored < requested) {
+        this.loggingService?.log({
+          message: `Rokt Kit: Page view storage reduced from ${requested} to ${stored} record(s) under quota pressure [reason: quota_eviction]`,
+          code: 'PAGE_VIEW_QUOTA_EVICTION',
         });
       }
     } catch (err) {
