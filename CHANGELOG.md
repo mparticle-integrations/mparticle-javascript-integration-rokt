@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.4...v1.34.0) (2026-08-19)
+
+
+### Features
+
+* send the mParticle device id as a selectPlacements attribute ([#121](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/121)) ([bb754ca](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/bb754ca5d4a313358c3cb9ec612ce98009a46724))
+
 ## [1.33.4](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.3...v1.33.4) (2026-08-18)
 
 
