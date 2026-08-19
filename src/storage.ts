@@ -63,4 +63,3 @@ export function removeNamespacedField(namespaceKey: string, field: string): void
     writeJSON(namespaceKey, next);
   }
 }
-

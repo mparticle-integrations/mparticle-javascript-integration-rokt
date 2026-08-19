@@ -155,7 +155,6 @@ describe('storage: key-agnostic localStorage helpers', () => {
       expect(readJSON(NAMESPACE_KEY)).toEqual({ other: 1 });
     });
   });
-
 });
 
 describe('isLocalStorageAvailable', () => {
