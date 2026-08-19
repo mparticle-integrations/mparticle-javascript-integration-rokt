@@ -162,6 +162,7 @@ interface MParticleExtended {
   logEvent(name: string, type: number, attrs?: Record<string, unknown>): void;
   EventType: { Other: number };
   getInstance(): MParticleInstance;
+  getDeviceId?(): string;
   sessionManager?: { getSession?(): string; getSessionId?(): string };
   _getActiveForwarders(): Array<{ name: string }>;
   config?: { isLocalLauncherEnabled?: boolean; isLoggingEnabled?: boolean };
@@ -261,6 +262,7 @@ const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
 const PAGE_EVENTS_KEY = 'page_events';
 const MPARTICLE_SESSION_ID_KEY = 'mparticle_session_id';
+const MPARTICLE_DEVICE_ID_KEY = 'mparticle_device_id';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
 // IDSync search before proceeding without the userIdentifiedInWorkspace flag.
@@ -979,6 +981,14 @@ class RoktKit implements KitInterface {
     return readSessionId.call(sessionManager) || undefined;
   }
 
+  private readMpDeviceId(): string | undefined {
+    // The device application stamp (`das`) outlives the session id: core clears the session on
+    // timeout, cross-tab rotation and endSession(), but never the device id, which lives in
+    // localStorage/cookie for cookieExpiration days (365 by default) and survives login/logout.
+    // Read it per call anyway — a partner can reassign it at any time via setDeviceId().
+    return mp()?.getDeviceId?.() || undefined;
+  }
+
   private attachLauncher(
     accountId: string,
     launcherOptions: Record<string, unknown>,
@@ -1467,6 +1477,7 @@ class RoktKit implements KitInterface {
     const sessionAttributes = this.returnLocalSessionAttributes();
     const pageEvents = buildPageEvents(loadPageViews(this.loggingService));
     const mpSessionId = this.readMpSessionId();
+    const mpDeviceId = this.readMpDeviceId();
 
     const selectPlacementsAttributes: Record<string, unknown> = {
       ...(filteredUserIdentities as Record<string, unknown>),
@@ -1476,6 +1487,7 @@ class RoktKit implements KitInterface {
       ...(pageEvents.length ? { [PAGE_EVENTS_KEY]: JSON.stringify(pageEvents) } : {}),
       ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
       ...(mpSessionId ? { [MPARTICLE_SESSION_ID_KEY]: mpSessionId } : {}),
+      ...(mpDeviceId ? { [MPARTICLE_DEVICE_ID_KEY]: mpDeviceId } : {}),
       mpid,
     };
 
