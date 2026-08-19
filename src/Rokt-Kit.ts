@@ -28,7 +28,6 @@ import {
   PageEvent,
   PAGE_VIEWS_MAX_COUNT,
   buildPageEvents,
-  migrateLegacyPageViewStorage,
   loadPageViews,
   writePageViews,
   clearPageViews,
@@ -900,7 +899,7 @@ class RoktKit implements KitInterface {
     try {
       pageUrl = sanitizeUrl(window.location.href);
 
-      const pageViews = loadPageViews(this.loggingService);
+      const pageViews = loadPageViews();
       const pageView = buildPageEvent(event);
       pageViews.push(pageView);
 
@@ -1299,7 +1298,6 @@ class RoktKit implements KitInterface {
       }
 
       if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
-        migrateLegacyPageViewStorage(this.loggingService);
         clearPageViews();
         clearUtmParams();
       }
@@ -1534,7 +1532,7 @@ class RoktKit implements KitInterface {
     const filteredUserIdentities = this.returnUserIdentities(filteredUser);
 
     const sessionAttributes = this.returnLocalSessionAttributes();
-    const pageEvents = buildPageEvents(loadPageViews(this.loggingService));
+    const pageEvents = buildPageEvents(loadPageViews());
     const utmParams = loadUtmParams();
     const mpSessionId = this.readMpSessionId();
     const mpDeviceId = this.readMpDeviceId();
