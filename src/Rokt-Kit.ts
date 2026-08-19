@@ -26,6 +26,7 @@ import {
 
 import {
   PageEvent,
+  PAGE_VIEWS_MAX_COUNT,
   buildPageEvents,
   migrateLegacyPageViewStorage,
   loadPageViews,
@@ -884,7 +885,7 @@ class RoktKit implements KitInterface {
       const pageView = buildPageEvent(event);
       pageViews.push(pageView);
 
-      const requested = pageViews.length;
+      const requested = Math.min(pageViews.length, PAGE_VIEWS_MAX_COUNT);
       const stored = writePageViews(pageViews);
       if (stored === 0) {
         const reason = isLocalStorageAvailable() ? 'quota' : 'ls_unavailable';

@@ -5,7 +5,7 @@ import { sanitizeUrl } from './utils';
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
 const LS_PAGE_VIEWS_FIELD = 'pageViews';
 const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
-const PAGE_VIEWS_MAX_COUNT = 25;
+export const PAGE_VIEWS_MAX_COUNT = 25;
 
 export interface PageEvent {
   pageUrl: string;
