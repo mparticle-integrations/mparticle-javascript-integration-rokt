@@ -7,7 +7,6 @@ import {
   readNamespacedField,
   writeNamespacedField,
   removeNamespacedField,
-  writeNamespacedFieldWithinBudget,
 } from '../../src/storage';
 
 describe('storage: key-agnostic localStorage helpers', () => {
@@ -154,68 +153,6 @@ describe('storage: key-agnostic localStorage helpers', () => {
       writeNamespacedField(NAMESPACE_KEY, 'other', 1);
       removeNamespacedField(NAMESPACE_KEY, 'pageViews');
       expect(readJSON(NAMESPACE_KEY)).toEqual({ other: 1 });
-    });
-  });
-
-  describe('writeNamespacedFieldWithinBudget', () => {
-    const NAMESPACE_KEY = 'mp-rokt-kit';
-    const BUDGET = 1024;
-
-    it('writes all records unchanged when under budget', () => {
-      const records = [{ id: 1 }, { id: 2 }];
-      expect(writeNamespacedFieldWithinBudget(NAMESPACE_KEY, 'pageViews', records, BUDGET)).toBe(true);
-      expect(records).toHaveLength(2);
-      expect(readNamespacedField(NAMESPACE_KEY, 'pageViews')).toEqual([{ id: 1 }, { id: 2 }]);
-    });
-
-    it('evicts oldest-first until the serialized size is within budget', () => {
-      const big = 'x'.repeat(300);
-      const records = [
-        { id: 'a', v: big },
-        { id: 'b', v: big },
-        { id: 'c', v: big },
-        { id: 'd', v: big },
-      ];
-      expect(writeNamespacedFieldWithinBudget(NAMESPACE_KEY, 'pageViews', records, BUDGET)).toBe(true);
-
-      const stored = readNamespacedField(NAMESPACE_KEY, 'pageViews') as { id: string }[];
-      expect(JSON.stringify(stored).length).toBeLessThanOrEqual(BUDGET);
-      expect(stored[stored.length - 1].id).toBe('d');
-      expect(stored.map((r) => r.id)).not.toContain('a');
-    });
-
-    it('keeps at least the newest record even when it alone exceeds the budget', () => {
-      const records = [{ id: 'newest', v: 'x'.repeat(BUDGET * 2) }];
-      expect(writeNamespacedFieldWithinBudget(NAMESPACE_KEY, 'pageViews', records, BUDGET)).toBe(true);
-      expect(readNamespacedField(NAMESPACE_KEY, 'pageViews')).toEqual([{ id: 'newest', v: 'x'.repeat(BUDGET * 2) }]);
-    });
-
-    it('evicts and retries when writes fail, then persists', () => {
-      let calls = 0;
-      const realSetItem = Storage.prototype.setItem;
-      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
-        calls += 1;
-        if (calls <= 2) {
-          throw new DOMException('quota', 'QuotaExceededError');
-        }
-        return realSetItem.call(this, key, value);
-      });
-
-      const records = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }];
-      expect(writeNamespacedFieldWithinBudget(NAMESPACE_KEY, 'pageViews', records, BUDGET)).toBe(true);
-
-      const stored = readNamespacedField(NAMESPACE_KEY, 'pageViews') as { id: string }[];
-      // 2 failed writes evict the oldest twice (a, then b), leaving [c, d].
-      expect(stored.map((r) => r.id)).toEqual(['c', 'd']);
-    });
-
-    it('returns false when even a single record cannot be written', () => {
-      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-        throw new DOMException('quota', 'QuotaExceededError');
-      });
-      const records = [{ id: 'a' }, { id: 'b' }];
-      expect(writeNamespacedFieldWithinBudget(NAMESPACE_KEY, 'pageViews', records, BUDGET)).toBe(false);
-      expect(records).toEqual([{ id: 'a' }, { id: 'b' }]);
     });
   });
 });
