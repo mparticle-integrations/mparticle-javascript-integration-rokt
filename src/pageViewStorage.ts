@@ -54,7 +54,14 @@ export function loadPageViews(loggingService: LoggingService | null): PageEvent[
 }
 
 export function writePageViews(pageViews: PageEvent[]): boolean {
-  return writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, capPageViews(pageViews));
+  let toWrite = capPageViews(pageViews);
+  while (toWrite.length > 0) {
+    if (writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, toWrite)) {
+      return true;
+    }
+    toWrite = toWrite.slice(1);
+  }
+  return false;
 }
 
 export function clearPageViews(): void {

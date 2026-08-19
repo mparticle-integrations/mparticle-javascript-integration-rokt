@@ -125,6 +125,64 @@ describe('pageViewStorage', () => {
       expect(stored[0].sourceMessageId).toBe('page-15');
       expect(stored[24].sourceMessageId).toBe('page-39');
     });
+
+    it('evicts oldest records and retries when the initial write fails due to quota', () => {
+      const views = Array.from({ length: 5 }, (_, i) => pageView('page-' + i));
+      const original = Storage.prototype.setItem;
+      let calls = 0;
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+        if (++calls === 1) throw new DOMException('quota', 'QuotaExceededError');
+        original.call(this, key, value);
+      });
+
+      expect(writePageViews(views)).toBe(true);
+      const stored = loadPageViews(null);
+      expect(stored).toHaveLength(4);
+      expect(stored[0].sourceMessageId).toBe('page-1');
+      expect(stored[3].sourceMessageId).toBe('page-4');
+    });
+
+    it('evicts oldest records across multiple failed writes until one succeeds', () => {
+      const views = Array.from({ length: 5 }, (_, i) => pageView('page-' + i));
+      const original = Storage.prototype.setItem;
+      let calls = 0;
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+        if (++calls <= 3) throw new DOMException('quota', 'QuotaExceededError');
+        original.call(this, key, value);
+      });
+
+      expect(writePageViews(views)).toBe(true);
+      const stored = loadPageViews(null);
+      expect(stored).toHaveLength(2);
+      expect(stored[0].sourceMessageId).toBe('page-3');
+      expect(stored[1].sourceMessageId).toBe('page-4');
+    });
+
+    it('evicts the oldest record from pre-existing storage when quota is tight on the next write', () => {
+      const existing = Array.from({ length: 5 }, (_, i) => pageView('existing-' + i));
+      writePageViews(existing);
+
+      const updated = [...existing, pageView('new')];
+      const original = Storage.prototype.setItem;
+      let calls = 0;
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+        if (++calls === 1) throw new DOMException('quota', 'QuotaExceededError');
+        original.call(this, key, value);
+      });
+
+      expect(writePageViews(updated)).toBe(true);
+      const stored = loadPageViews(null);
+      expect(stored).toHaveLength(5);
+      expect(stored[0].sourceMessageId).toBe('existing-1');
+      expect(stored[4].sourceMessageId).toBe('new');
+    });
+
+    it('returns false when every write attempt fails', () => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('quota', 'QuotaExceededError');
+      });
+      expect(writePageViews([pageView('home')])).toBe(false);
+    });
   });
 
   describe('buildPageEvents', () => {
