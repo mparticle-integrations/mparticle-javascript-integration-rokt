@@ -1,11 +1,23 @@
 import type { LoggingService } from './Rokt-Kit';
-import { readJSON, removeKey, readNamespacedField, writeNamespacedField, removeNamespacedField } from './storage';
+import {
+  readJSON,
+  removeKey,
+  readNamespacedField,
+  writeNamespacedField,
+  removeNamespacedField,
+  isLocalStorageAvailable,
+} from './storage';
 import { sanitizeUrl } from './utils';
 
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
 const LS_PAGE_VIEWS_FIELD = 'pageViews';
+const LS_UTM_PARAMS_FIELD = 'utmParams';
 const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
 const PAGE_VIEWS_MAX_COUNT = 25;
+
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const;
+type UtmKey = (typeof UTM_KEYS)[number];
+export type UtmParams = Partial<Record<UtmKey, string>>;
 
 export interface PageEvent {
   pageUrl: string;
@@ -77,6 +89,43 @@ export function buildPageEvents(pageViews: PageEvent[]): PageEvent[] {
       ...(diff !== undefined && diff >= 0 ? { activeTimeOnPage: diff } : {}),
     };
   });
+}
+
+export function captureUtmParams(loggingService: LoggingService | null): void {
+  if (readNamespacedField(LS_NAMESPACE_KEY, LS_UTM_PARAMS_FIELD) !== undefined) {
+    return;
+  }
+  const search = new URLSearchParams(window.location.search);
+  const params: UtmParams = {};
+  for (const key of UTM_KEYS) {
+    const value = search.get(key);
+    if (value) params[key] = value;
+  }
+  if (Object.keys(params).length === 0) {
+    return;
+  }
+  const captured = Object.keys(params).join(', ');
+  if (!writeNamespacedField(LS_NAMESPACE_KEY, LS_UTM_PARAMS_FIELD, params)) {
+    const reason = isLocalStorageAvailable() ? 'quota' : 'ls_unavailable';
+    loggingService?.log({
+      message: `Rokt Kit: Failed to persist UTM params [reason: ${reason}]`,
+      code: 'UTM_CAPTURE_FAILED',
+    });
+    return;
+  }
+  loggingService?.log({
+    message: `Rokt Kit: Captured UTM params [${captured}]`,
+    code: 'UTM_CAPTURE_SUCCESS',
+  });
+}
+
+export function loadUtmParams(): UtmParams | null {
+  const stored = readNamespacedField(LS_NAMESPACE_KEY, LS_UTM_PARAMS_FIELD);
+  return stored !== undefined && stored !== null && typeof stored === 'object' ? (stored as UtmParams) : null;
+}
+
+export function clearUtmParams(): void {
+  removeNamespacedField(LS_NAMESPACE_KEY, LS_UTM_PARAMS_FIELD);
 }
 
 export function readCanonicalUrl(): string | undefined {

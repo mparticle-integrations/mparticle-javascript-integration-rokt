@@ -32,6 +32,9 @@ import {
   writePageViews,
   clearPageViews,
   readCanonicalUrl,
+  captureUtmParams,
+  loadUtmParams,
+  clearUtmParams,
 } from './pageViewStorage';
 import { isLocalStorageAvailable } from './storage';
 
@@ -877,6 +880,7 @@ class RoktKit implements KitInterface {
 
     try {
       pageUrl = sanitizeUrl(window.location.href);
+      captureUtmParams(this.loggingService);
 
       const pageViews = loadPageViews(this.loggingService);
       const pageView = buildPageEvent(event);
@@ -1158,6 +1162,7 @@ class RoktKit implements KitInterface {
     if (this.isTargetingDisabled()) {
       try {
         clearPageViews();
+        clearUtmParams();
       } catch (err) {
         this.errorReportingService?.report({
           message: 'Rokt Kit: Failed to clear page views when targeting is disabled',
@@ -1247,6 +1252,7 @@ class RoktKit implements KitInterface {
       if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
         migrateLegacyPageViewStorage(this.loggingService);
         clearPageViews();
+        clearUtmParams();
       }
     }
 
@@ -1466,6 +1472,7 @@ class RoktKit implements KitInterface {
 
     const sessionAttributes = this.returnLocalSessionAttributes();
     const pageEvents = buildPageEvents(loadPageViews(this.loggingService));
+    const utmParams = loadUtmParams();
     const mpSessionId = this.readMpSessionId();
 
     const selectPlacementsAttributes: Record<string, unknown> = {
@@ -1474,6 +1481,7 @@ class RoktKit implements KitInterface {
       ...optimizelyAttributes,
       ...sessionAttributes,
       ...(pageEvents.length ? { [PAGE_EVENTS_KEY]: JSON.stringify(pageEvents) } : {}),
+      ...(utmParams ? { page_view_attributes: utmParams } : {}),
       ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
       ...(mpSessionId ? { [MPARTICLE_SESSION_ID_KEY]: mpSessionId } : {}),
       mpid,
