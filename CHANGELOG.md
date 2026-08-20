@@ -1,3 +1,10 @@
+## [1.34.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.34.0...v1.34.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* retry page-view storage writes on quota failure and log eviction ([#126](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/126)) ([2e88327](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/2e88327d658e9adca21948ed736c81a9e74d262c))
+
 # [1.34.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.33.4...v1.34.0) (2026-08-19)
 
 
