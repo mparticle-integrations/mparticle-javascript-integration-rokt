@@ -1,10 +1,8 @@
-import type { LoggingService } from './Rokt-Kit';
-import { readJSON, removeKey, readNamespacedField, writeNamespacedField, removeNamespacedField } from './storage';
+import { readNamespacedField, writeNamespacedField, removeNamespacedField } from './storage';
 import { sanitizeUrl } from './utils';
 
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
 const LS_PAGE_VIEWS_FIELD = 'pageViews';
-const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
 export const PAGE_VIEWS_MAX_COUNT = 25;
 
 export interface PageEvent {
@@ -21,34 +19,7 @@ function capPageViews(views: PageEvent[]): PageEvent[] {
   return views.slice(-PAGE_VIEWS_MAX_COUNT);
 }
 
-export function migrateLegacyPageViewStorage(loggingService: LoggingService | null): void {
-  const legacyViews = readJSON(LEGACY_PAGE_VIEWS_KEY);
-  if (legacyViews === null) {
-    return;
-  }
-
-  const alreadyMigrated = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD) !== undefined;
-  const needsMigration = !alreadyMigrated && Array.isArray(legacyViews);
-
-  if (needsMigration) {
-    loggingService?.log({
-      message: 'Rokt Kit: Migrating legacy page-view storage',
-      code: 'PAGE_VIEW_LEGACY_MIGRATION',
-    });
-    const migrated = writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, legacyViews);
-    if (!migrated) {
-      loggingService?.log({
-        message: 'Rokt Kit: Failed to migrate legacy page-view storage [reason: migration_retry]',
-        code: 'PAGE_VIEW_CAPTURE_FAILED',
-      });
-    }
-  }
-
-  removeKey(LEGACY_PAGE_VIEWS_KEY);
-}
-
-export function loadPageViews(loggingService: LoggingService | null): PageEvent[] {
-  migrateLegacyPageViewStorage(loggingService);
+export function loadPageViews(): PageEvent[] {
   const stored = readNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD);
   return Array.isArray(stored) ? (stored as PageEvent[]) : [];
 }
