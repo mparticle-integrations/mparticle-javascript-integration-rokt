@@ -7,7 +7,7 @@ import {
   removeNamespacedField,
   isLocalStorageAvailable,
 } from './storage';
-import { sanitizeUrl } from './utils';
+import { sanitizeUrl, isObject } from './utils';
 
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
 const LS_PAGE_VIEWS_FIELD = 'pageViews';
@@ -121,7 +121,7 @@ export function captureUtmParams(loggingService: LoggingService | null): void {
 
 export function loadUtmParams(): UtmParams | null {
   const stored = readNamespacedField(LS_NAMESPACE_KEY, LS_UTM_PARAMS_FIELD);
-  return stored !== undefined && stored !== null && typeof stored === 'object' ? (stored as UtmParams) : null;
+  return isObject(stored) ? (stored as UtmParams) : null;
 }
 
 export function clearUtmParams(): void {
