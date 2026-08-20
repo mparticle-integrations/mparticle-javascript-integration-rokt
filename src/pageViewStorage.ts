@@ -5,7 +5,7 @@ import { sanitizeUrl } from './utils';
 const LS_NAMESPACE_KEY = 'mp-rokt-kit';
 const LS_PAGE_VIEWS_FIELD = 'pageViews';
 const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
-const PAGE_VIEWS_MAX_COUNT = 25;
+export const PAGE_VIEWS_MAX_COUNT = 25;
 
 export interface PageEvent {
   pageUrl: string;
@@ -53,8 +53,15 @@ export function loadPageViews(loggingService: LoggingService | null): PageEvent[
   return Array.isArray(stored) ? (stored as PageEvent[]) : [];
 }
 
-export function writePageViews(pageViews: PageEvent[]): boolean {
-  return writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, capPageViews(pageViews));
+export function writePageViews(pageViews: PageEvent[]): number {
+  const views = capPageViews(pageViews);
+  for (let i = 0; i < views.length; i++) {
+    const toWrite = views.slice(i);
+    if (writeNamespacedField(LS_NAMESPACE_KEY, LS_PAGE_VIEWS_FIELD, toWrite)) {
+      return toWrite.length;
+    }
+  }
+  return 0;
 }
 
 export function clearPageViews(): void {
