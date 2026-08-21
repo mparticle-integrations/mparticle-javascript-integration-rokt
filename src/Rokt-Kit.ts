@@ -263,6 +263,7 @@ const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
 const PAGE_EVENTS_KEY = 'page_events';
+const PAGE_VIEW_ATTRIBUTES_KEY = 'page_view_attributes';
 const MPARTICLE_SESSION_ID_KEY = 'mparticle_session_id';
 
 // Bound on how long selectPlacements will wait for an in-flight Workspace
@@ -880,7 +881,6 @@ class RoktKit implements KitInterface {
 
     try {
       pageUrl = sanitizeUrl(window.location.href);
-      captureUtmParams(this.loggingService);
 
       const pageViews = loadPageViews(this.loggingService);
       const pageView = buildPageEvent(event);
@@ -1246,6 +1246,7 @@ class RoktKit implements KitInterface {
   public process(event: SDKEvent): string {
     if (!this.isTargetingDisabled()) {
       if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
+        captureUtmParams(this.loggingService);
         this.capturePageView(event);
       }
 
@@ -1481,7 +1482,7 @@ class RoktKit implements KitInterface {
       ...optimizelyAttributes,
       ...sessionAttributes,
       ...(pageEvents.length ? { [PAGE_EVENTS_KEY]: JSON.stringify(pageEvents) } : {}),
-      ...(utmParams ? { page_view_attributes: utmParams } : {}),
+      ...(utmParams ? { [PAGE_VIEW_ATTRIBUTES_KEY]: utmParams } : {}),
       ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
       ...(mpSessionId ? { [MPARTICLE_SESSION_ID_KEY]: mpSessionId } : {}),
       mpid,
