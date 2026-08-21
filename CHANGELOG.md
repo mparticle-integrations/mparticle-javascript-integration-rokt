@@ -1,3 +1,10 @@
+# [1.35.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.34.1...v1.35.0) (2026-08-21)
+
+
+### Features
+
+* capture UTM params from page views and forward to selectPlacements ([#129](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/129)) ([e1f70d1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/e1f70d132c06f30efd15a45dbd34285b51715457))
+
 ## [1.34.1](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.34.0...v1.34.1) (2026-08-20)
 
 
