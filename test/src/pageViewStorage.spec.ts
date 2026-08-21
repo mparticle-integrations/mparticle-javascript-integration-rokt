@@ -6,12 +6,20 @@ import {
   writePageViews,
   clearPageViews,
   buildPageEvents,
+  captureUtmParams,
+  loadUtmParams,
+  clearUtmParams,
 } from '../../src/pageViewStorage';
 import type { LoggingService } from '../../src/Rokt-Kit';
 
 const NAMESPACE_KEY = 'mp-rokt-kit';
 const PAGE_VIEWS_FIELD = 'pageViews';
+const UTM_PARAMS_FIELD = 'utmParams';
 const LEGACY_PAGE_VIEWS_KEY = 'mpPageViews';
+
+function stubSearch(search: string): void {
+  vi.stubGlobal('location', { ...window.location, search });
+}
 
 const pageView = (id: string) => ({ pageUrl: 'https://example.com/' + id, sourceMessageId: id, timestamp: 1 });
 
@@ -226,6 +234,78 @@ describe('pageViewStorage', () => {
       const blob = readJSON(NAMESPACE_KEY);
       expect(blob).not.toHaveProperty(PAGE_VIEWS_FIELD);
       expect(blob).toHaveProperty('unrelatedField', 'keep-me');
+    });
+  });
+
+  describe('captureUtmParams', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('stores present UTM params on first call', () => {
+      stubSearch('?utm_source=google&utm_medium=cpc&utm_campaign=spring');
+      captureUtmParams(null);
+      expect(readJSON(NAMESPACE_KEY)).toHaveProperty(UTM_PARAMS_FIELD, {
+        utm_source: 'google',
+        utm_medium: 'cpc',
+        utm_campaign: 'spring',
+      });
+    });
+
+    it('only stores the keys that are present', () => {
+      stubSearch('?utm_source=email');
+      captureUtmParams(null);
+      const stored = readJSON(NAMESPACE_KEY) as Record<string, unknown>;
+      expect(stored[UTM_PARAMS_FIELD]).toEqual({ utm_source: 'email' });
+    });
+
+    it('does nothing when no UTM params are in the URL', () => {
+      stubSearch('?unrelated=value');
+      captureUtmParams(null);
+      expect(readJSON(NAMESPACE_KEY)).toBeNull();
+    });
+
+    it('does nothing when the URL has no query string', () => {
+      stubSearch('');
+      captureUtmParams(null);
+      expect(readJSON(NAMESPACE_KEY)).toBeNull();
+    });
+
+    it('first touch wins — does not overwrite when UTMs are already stored', () => {
+      stubSearch('?utm_source=google');
+      captureUtmParams(null);
+      stubSearch('?utm_source=facebook&utm_medium=paid');
+      captureUtmParams(null);
+      const stored = readJSON(NAMESPACE_KEY) as Record<string, unknown>;
+      expect(stored[UTM_PARAMS_FIELD]).toEqual({ utm_source: 'google' });
+    });
+  });
+
+  describe('loadUtmParams', () => {
+    it('returns null when nothing is stored', () => {
+      expect(loadUtmParams()).toBeNull();
+    });
+
+    it('returns the stored UTM params', () => {
+      writeNamespacedField(NAMESPACE_KEY, UTM_PARAMS_FIELD, { utm_source: 'google', utm_medium: 'cpc' });
+      expect(loadUtmParams()).toEqual({ utm_source: 'google', utm_medium: 'cpc' });
+    });
+
+    it('returns null when the stored value is not an object', () => {
+      writeNamespacedField(NAMESPACE_KEY, UTM_PARAMS_FIELD, 'invalid');
+      expect(loadUtmParams()).toBeNull();
+    });
+  });
+
+  describe('clearUtmParams', () => {
+    it('removes the utmParams field without affecting other fields', () => {
+      writeNamespacedField(NAMESPACE_KEY, UTM_PARAMS_FIELD, { utm_source: 'google' });
+      writeNamespacedField(NAMESPACE_KEY, PAGE_VIEWS_FIELD, [pageView('home')]);
+      clearUtmParams();
+
+      const blob = readJSON(NAMESPACE_KEY);
+      expect(blob).not.toHaveProperty(UTM_PARAMS_FIELD);
+      expect(blob).toHaveProperty(PAGE_VIEWS_FIELD);
     });
   });
 });

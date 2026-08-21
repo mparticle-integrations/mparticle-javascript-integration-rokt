@@ -33,6 +33,9 @@ import {
   writePageViews,
   clearPageViews,
   readCanonicalUrl,
+  captureUtmParams,
+  loadUtmParams,
+  clearUtmParams,
 } from './pageViewStorage';
 import { isLocalStorageAvailable } from './storage';
 
@@ -262,6 +265,7 @@ const USER_IDENTIFIED_IN_WORKSPACE_KEY = 'userIdentifiedInWorkspace';
 const MESSAGE_TYPE_PAGE_VIEW = 3; // mParticle MessageType.PageView
 const MESSAGE_TYPE_SESSION_END = 2; // mParticle MessageType.SessionEnd
 const PAGE_EVENTS_KEY = 'page_events';
+const PAGE_VIEW_ATTRIBUTES_KEY = 'page_view_attributes';
 const MPARTICLE_SESSION_ID_KEY = 'mparticle_session_id';
 const MPARTICLE_DEVICE_ID_KEY = 'mparticle_device_id';
 
@@ -1176,6 +1180,7 @@ class RoktKit implements KitInterface {
     if (this.isTargetingDisabled()) {
       try {
         clearPageViews();
+        clearUtmParams();
       } catch (err) {
         this.errorReportingService?.report({
           message: 'Rokt Kit: Failed to clear page views when targeting is disabled',
@@ -1259,12 +1264,14 @@ class RoktKit implements KitInterface {
   public process(event: SDKEvent): string {
     if (!this.isTargetingDisabled()) {
       if (event.EventDataType === MESSAGE_TYPE_PAGE_VIEW) {
+        captureUtmParams(this.loggingService);
         this.capturePageView(event);
       }
 
       if (event.EventDataType === MESSAGE_TYPE_SESSION_END) {
         migrateLegacyPageViewStorage(this.loggingService);
         clearPageViews();
+        clearUtmParams();
       }
     }
 
@@ -1484,6 +1491,7 @@ class RoktKit implements KitInterface {
 
     const sessionAttributes = this.returnLocalSessionAttributes();
     const pageEvents = buildPageEvents(loadPageViews(this.loggingService));
+    const utmParams = loadUtmParams();
     const mpSessionId = this.readMpSessionId();
     const mpDeviceId = this.readMpDeviceId();
 
@@ -1493,6 +1501,7 @@ class RoktKit implements KitInterface {
       ...optimizelyAttributes,
       ...sessionAttributes,
       ...(pageEvents.length ? { [PAGE_EVENTS_KEY]: JSON.stringify(pageEvents) } : {}),
+      ...(utmParams ? { [PAGE_VIEW_ATTRIBUTES_KEY]: utmParams } : {}),
       ...(this.userIdentifiedInWorkspace ? { [USER_IDENTIFIED_IN_WORKSPACE_KEY]: true } : {}),
       ...(mpSessionId ? { [MPARTICLE_SESSION_ID_KEY]: mpSessionId } : {}),
       ...(mpDeviceId ? { [MPARTICLE_DEVICE_ID_KEY]: mpDeviceId } : {}),
