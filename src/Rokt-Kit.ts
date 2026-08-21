@@ -782,6 +782,12 @@ class RoktKit implements KitInterface {
   // so a re-login re-evaluates fresh.
   private _workspaceLastSearchedIdentitiesKey?: string;
 
+  private _attachAccountId?: string;
+  private _attachLauncherOptions: Record<string, unknown> = {};
+  private _attachLegacyRoktExtensions: string[] = [];
+  private _launcherTerminated = false;
+  private _recreateLauncherPromise: Promise<void> | null = null;
+
   // ---- Private helpers ----
 
   private getEventAttributeValue(event: SDKEvent, eventAttributeKey: string): unknown {
@@ -984,7 +990,12 @@ class RoktKit implements KitInterface {
     accountId: string,
     launcherOptions: Record<string, unknown>,
     legacyRoktExtensions: string[] = [],
-  ): void {
+  ): Promise<void> {
+    this._attachAccountId = accountId;
+    this._attachLauncherOptions = launcherOptions || {};
+    this._attachLegacyRoktExtensions = legacyRoktExtensions;
+    this._launcherTerminated = false;
+
     const options: Record<string, unknown> = {
       accountId,
       ...(launcherOptions || {}),
@@ -997,14 +1008,36 @@ class RoktKit implements KitInterface {
       launcherPromise = window.Rokt!.createLauncher(options);
     }
 
-    launcherPromise
+    return launcherPromise
       .then(async (launcher) => {
         await registerLegacyExtensions(legacyRoktExtensions, launcher);
         this.initRoktLauncher(launcher);
       })
       .catch((err: unknown) => {
+        this._launcherTerminated = true;
         console.error('Error creating Rokt launcher:', err);
       });
+  }
+
+  private recreateLauncherIfTerminated(): Promise<void> | undefined {
+    if (!this._launcherTerminated) {
+      return undefined;
+    }
+    if (this._recreateLauncherPromise) {
+      return this._recreateLauncherPromise;
+    }
+    if (!this._attachAccountId || !this.isLauncherReadyToAttach()) {
+      return undefined;
+    }
+
+    this._recreateLauncherPromise = this.attachLauncher(
+      this._attachAccountId,
+      this._attachLauncherOptions,
+      this._attachLegacyRoktExtensions,
+    ).finally(() => {
+      this._recreateLauncherPromise = null;
+    });
+    return this._recreateLauncherPromise;
   }
 
   private initRoktLauncher(launcher: RoktLauncher): void {
@@ -1425,9 +1458,23 @@ class RoktKit implements KitInterface {
    * rejects it as the awaited return of an async function (TS1058) —
    * working around that would require a cast or wrapping every return in
    * `Promise.resolve(...)`. The inner work runs in `_dispatchPlacements`;
-   * this wrapper just gates it on the in-flight search via `Promise.race`.
+   * this wrapper just gates it on the in-flight search via `Promise.race`,
+   * and on a post-terminate createLauncher when the SPA needs a new instance.
    */
   public selectPlacements(options: Record<string, unknown>): RoktSelection | Promise<RoktSelection> | undefined {
+    const recreate = this.recreateLauncherIfTerminated();
+    if (recreate) {
+      const inFlight = this._workspaceSearchInFlightPromise;
+      const waitForSearch = inFlight
+        ? Promise.race([
+            inFlight,
+            new Promise<void>((resolve) => setTimeout(resolve, WORKSPACE_SEARCH_SELECT_TIMEOUT_MS)),
+          ])
+        : Promise.resolve();
+      return Promise.all([recreate, waitForSearch]).then(() =>
+        this._dispatchPlacements(options),
+      ) as Promise<RoktSelection>;
+    }
     if (this._workspaceSearchInFlightPromise) {
       const inFlight = this._workspaceSearchInFlightPromise;
       return Promise.race([
@@ -1525,18 +1572,18 @@ class RoktKit implements KitInterface {
   /**
    * Tears down the Rokt launcher and the placements it rendered.
    *
-   * The launcher reference is deliberately left in place. The Rokt Web SDK
-   * memoizes a single launcher per page, so clearing it here could not buy the
-   * caller a fresh one — it would only flip the kit to not-ready and leave
-   * later calls queued forever. Leaving state untouched makes this exactly
-   * equivalent to the `window.Rokt.currentLauncher.terminate()` call partners
-   * use today, just reachable through a supported API.
+   * The kit's launcher reference is left in place so isKitReady() stays true.
+   * The Web SDK clears its memoized launcher on terminate, so a later
+   * createLauncher (SPA navigation) produces a new instance. The next
+   * selectPlacements call re-attaches that instance. Nulling the reference
+   * here would flip the kit to not-ready with no drain path for queued calls.
    */
   public terminate(): Promise<void> {
     if (!this.isKitReady()) {
       console.error('Rokt Kit: Not initialized');
       return Promise.resolve();
     }
+    this._launcherTerminated = true;
     return this.launcher!.terminate();
   }
 

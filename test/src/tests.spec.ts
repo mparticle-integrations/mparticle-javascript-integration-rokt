@@ -216,6 +216,8 @@ describe('Rokt Forwarder', () => {
 
   afterEach(() => {
     (window as any).mParticle.forwarder.userAttributes = {};
+    (window as any).mParticle.forwarder._launcherTerminated = false;
+    (window as any).mParticle.forwarder._recreateLauncherPromise = null;
     delete (window as any).mParticle.forwarder.launcherOptions;
     delete (window as any).mParticle.Rokt.launcherOptions;
   });
@@ -3328,9 +3330,8 @@ describe('Rokt Forwarder', () => {
       expect(errorMessage).toBe('Rokt Kit: Not initialized');
     });
 
-    // The Rokt Web SDK memoizes one launcher per page, so terminate must not
-    // clear the kit's launcher references — doing so would flip the kit to
-    // not-ready with no way back.
+    // Leave the kit ready after terminate. A later createLauncher (SPA) can
+    // still mint a new instance because the Web SDK drops its memoized launcher.
     it('should leave the launcher references intact so the kit stays ready', async () => {
       const launcher = {
         terminate: () => Promise.resolve(),
@@ -3343,6 +3344,72 @@ describe('Rokt Forwarder', () => {
 
       expect((window as any).mParticle.forwarder.launcher).toBe(launcher);
       expect((window as any).Rokt.currentLauncher).toBe(launcher);
+    });
+
+    it('should create a new launcher instance and continue after terminate', async () => {
+      let createCount = 0;
+      const launchers: any[] = [];
+
+      (window as any).mParticle.Rokt.filters = {
+        userAttributesFilters: [],
+        filterUserAttributes: function (attributes: any) {
+          return attributes;
+        },
+        filteredUser: {
+          getMPID: function () {
+            return '123';
+          },
+        },
+      };
+
+      (window as any).Rokt.createLauncher = async function () {
+        createCount += 1;
+        const id = createCount;
+        const launcher = {
+          id,
+          terminate: () => Promise.resolve(),
+          selectPlacements: function (opts: any) {
+            (window as any).Rokt.selectPlacementsCalled = true;
+            (window as any).Rokt.selectPlacementsLauncherId = id;
+            (window as any).Rokt.selectPlacementsOptions = opts;
+          },
+        };
+        launchers.push(launcher);
+        return launcher;
+      };
+
+      await (window as any).mParticle.forwarder.init(
+        {
+          accountId: '123456',
+        },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      const firstLauncher = (window as any).mParticle.forwarder.launcher;
+      expect(firstLauncher).toBe(launchers[0]);
+
+      await (window as any).mParticle.forwarder.terminate();
+
+      expect((window as any).mParticle.forwarder.launcher).toBe(firstLauncher);
+
+      (window as any).mParticle.Rokt.attachKitCalled = false;
+
+      await (window as any).mParticle.forwarder.selectPlacements({ attributes: {} });
+
+      await waitForCondition(() => (window as any).mParticle.Rokt.attachKitCalled);
+
+      const secondLauncher = (window as any).mParticle.forwarder.launcher;
+      expect(createCount).toBe(2);
+      expect(secondLauncher).toBe(launchers[1]);
+      expect(secondLauncher).not.toBe(firstLauncher);
+      expect((window as any).Rokt.currentLauncher).toBe(secondLauncher);
+      expect((window as any).Rokt.selectPlacementsCalled).toBe(true);
+      expect((window as any).Rokt.selectPlacementsLauncherId).toBe(2);
     });
 
     it('should call launcher.terminate after init (test mode) and attach', async () => {
