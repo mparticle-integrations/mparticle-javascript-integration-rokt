@@ -185,7 +185,7 @@ describe('Rokt Forwarder', () => {
     };
 
     this.currentLauncher = function () {};
-  };
+  } as unknown as { new (): Record<string, unknown> };
 
   beforeAll(async () => {
     (window as any).Rokt = new (MockRoktForwarder as any)();
@@ -223,6 +223,7 @@ describe('Rokt Forwarder', () => {
 
   afterEach(() => {
     (window as any).mParticle.forwarder.userAttributes = {};
+    (window as any).mParticle.forwarder.testHelpers?.resetLauncherAttachState();
     delete (window as any).mParticle.forwarder.launcherOptions;
     delete (window as any).mParticle.Rokt.launcherOptions;
   });
@@ -3381,6 +3382,253 @@ describe('Rokt Forwarder', () => {
 
       expect((window as any).Rokt.useCalled).toBe(true);
       expect((window as any).Rokt.useName).toBe('ThankYouPageJourney');
+    });
+  });
+
+  describe('#terminate', () => {
+    interface TerminateTestLauncher {
+      id?: number;
+      terminate: () => Promise<void>;
+      selectPlacements?: (options: Record<string, unknown>) => unknown;
+    }
+
+    interface TerminateTestKit {
+      isInitialized: boolean;
+      launcher: TerminateTestLauncher | null;
+      terminate: () => Promise<void>;
+      init: (
+        settings: Record<string, unknown>,
+        service: unknown,
+        testMode: boolean,
+        trackerId: null,
+        filteredUserAttributes: Record<string, unknown>,
+      ) => string;
+      selectPlacements: (options: Record<string, unknown>) => unknown;
+    }
+
+    interface TerminateTestRokt {
+      currentLauncher?: TerminateTestLauncher;
+      createLauncher: (options?: Record<string, unknown>) => Promise<TerminateTestLauncher>;
+      attachKitCalled: boolean;
+      attachKit: (kit: TerminateTestKit) => Promise<void>;
+      kit?: TerminateTestKit;
+      filters?: {
+        userAttributesFilters: unknown[];
+        filterUserAttributes: (attributes: Record<string, unknown>) => Record<string, unknown>;
+        filteredUser: { getMPID: () => string };
+      };
+      selectPlacementsCalled?: boolean;
+      selectPlacementsLauncherId?: number;
+      selectPlacementsOptions?: Record<string, unknown>;
+    }
+
+    interface TerminateTestWindow {
+      Rokt: TerminateTestRokt;
+      mParticle: {
+        Rokt: TerminateTestRokt;
+        forwarder: TerminateTestKit;
+      };
+    }
+
+    function tw(): TerminateTestWindow {
+      return window as unknown as TerminateTestWindow;
+    }
+
+    beforeEach(() => {
+      const rokt = new MockRoktForwarder() as unknown as TerminateTestRokt;
+      tw().Rokt = rokt;
+      tw().mParticle.Rokt = rokt;
+      tw().mParticle.Rokt.attachKitCalled = false;
+      tw().mParticle.Rokt.attachKit = async (kit: TerminateTestKit) => {
+        tw().mParticle.Rokt.attachKitCalled = true;
+        tw().mParticle.Rokt.kit = kit;
+      };
+    });
+
+    it('should call launcher.terminate when fully initialized', async () => {
+      let terminateCalled = false;
+      tw().mParticle.forwarder.isInitialized = true;
+      tw().mParticle.forwarder.launcher = {
+        terminate: function () {
+          terminateCalled = true;
+          return Promise.resolve();
+        },
+      };
+
+      await tw().mParticle.forwarder.terminate();
+
+      expect(terminateCalled).toBe(true);
+    });
+
+    it('should return the promise from launcher.terminate', async () => {
+      let resolved = false;
+      tw().mParticle.forwarder.isInitialized = true;
+      tw().mParticle.forwarder.launcher = {
+        terminate: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
+      };
+
+      await tw()
+        .mParticle.forwarder.terminate()
+        .then(() => {
+          resolved = true;
+        });
+
+      expect(resolved).toBe(true);
+    });
+
+    it('should resolve without calling the launcher when called before initialization', async () => {
+      const originalConsoleError = window.console.error;
+      let errorMessage: string | null = null;
+      window.console.error = function (message: string) {
+        errorMessage = message;
+      };
+
+      tw().mParticle.forwarder.isInitialized = false;
+      tw().mParticle.forwarder.launcher = null;
+
+      try {
+        await expect(tw().mParticle.forwarder.terminate()).resolves.toBeUndefined();
+      } finally {
+        window.console.error = originalConsoleError;
+      }
+
+      expect(errorMessage).toBe('Rokt Kit: Not initialized');
+    });
+
+    it('should resolve without calling the launcher when initialized but the launcher is missing', async () => {
+      const originalConsoleError = window.console.error;
+      let errorMessage: string | null = null;
+      window.console.error = function (message: string) {
+        errorMessage = message;
+      };
+
+      tw().mParticle.forwarder.isInitialized = true;
+      tw().mParticle.forwarder.launcher = null;
+
+      try {
+        await expect(tw().mParticle.forwarder.terminate()).resolves.toBeUndefined();
+      } finally {
+        window.console.error = originalConsoleError;
+      }
+
+      expect(errorMessage).toBe('Rokt Kit: Not initialized');
+    });
+
+    // Leave the kit ready after terminate. A later createLauncher (SPA) can
+    // still mint a new instance because the Web SDK drops its memoized launcher.
+    it('should leave the launcher references intact so the kit stays ready', async () => {
+      const launcher: TerminateTestLauncher = {
+        terminate: () => Promise.resolve(),
+      };
+      tw().mParticle.forwarder.isInitialized = true;
+      tw().mParticle.forwarder.launcher = launcher;
+      tw().Rokt.currentLauncher = launcher;
+
+      await tw().mParticle.forwarder.terminate();
+
+      expect(tw().mParticle.forwarder.launcher).toBe(launcher);
+      expect(tw().Rokt.currentLauncher).toBe(launcher);
+    });
+
+    it('should create a new launcher instance and continue after terminate', async () => {
+      let createCount = 0;
+      const launchers: TerminateTestLauncher[] = [];
+
+      tw().mParticle.Rokt.filters = {
+        userAttributesFilters: [],
+        filterUserAttributes: function (attributes: Record<string, unknown>) {
+          return attributes;
+        },
+        filteredUser: {
+          getMPID: function () {
+            return '123';
+          },
+        },
+      };
+
+      tw().Rokt.createLauncher = async function (): Promise<TerminateTestLauncher> {
+        createCount += 1;
+        const id = createCount;
+        const launcher: TerminateTestLauncher = {
+          id,
+          terminate: () => Promise.resolve(),
+          selectPlacements: function (options: Record<string, unknown>) {
+            tw().Rokt.selectPlacementsCalled = true;
+            tw().Rokt.selectPlacementsLauncherId = id;
+            tw().Rokt.selectPlacementsOptions = options;
+          },
+        };
+        launchers.push(launcher);
+        return launcher;
+      };
+
+      await tw().mParticle.forwarder.init(
+        {
+          accountId: '123456',
+        },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      await waitForCondition(() => tw().mParticle.Rokt.attachKitCalled);
+
+      const firstLauncher = tw().mParticle.forwarder.launcher;
+      expect(firstLauncher).toBe(launchers[0]);
+
+      await tw().mParticle.forwarder.terminate();
+
+      expect(tw().mParticle.forwarder.launcher).toBe(firstLauncher);
+
+      tw().mParticle.Rokt.attachKitCalled = false;
+
+      await tw().mParticle.forwarder.selectPlacements({ attributes: {} });
+
+      await waitForCondition(() => tw().mParticle.Rokt.attachKitCalled);
+
+      const secondLauncher = tw().mParticle.forwarder.launcher;
+      expect(createCount).toBe(2);
+      expect(secondLauncher).toBe(launchers[1]);
+      expect(secondLauncher).not.toBe(firstLauncher);
+      expect(tw().Rokt.currentLauncher).toBe(secondLauncher);
+      expect(tw().Rokt.selectPlacementsCalled).toBe(true);
+      expect(tw().Rokt.selectPlacementsLauncherId).toBe(2);
+    });
+
+    it('should call launcher.terminate after init (test mode) and attach', async () => {
+      let terminateCalled = false;
+
+      tw().mParticle.Rokt.attachKitCalled = false;
+      tw().mParticle.Rokt.attachKit = async (kit: TerminateTestKit) => {
+        tw().mParticle.Rokt.attachKitCalled = true;
+        tw().mParticle.Rokt.kit = kit;
+      };
+
+      tw().Rokt.createLauncher = async function () {
+        return Promise.resolve({
+          terminate: function () {
+            terminateCalled = true;
+            return Promise.resolve();
+          },
+        });
+      };
+
+      await tw().mParticle.forwarder.init(
+        {
+          accountId: '123456',
+        },
+        reportService.cb,
+        true,
+        null,
+        {},
+      );
+
+      await waitForCondition(() => tw().mParticle.Rokt.attachKitCalled);
+
+      await tw().mParticle.forwarder.terminate();
+
+      expect(terminateCalled).toBe(true);
     });
   });
 
