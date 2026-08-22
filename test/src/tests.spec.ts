@@ -216,8 +216,7 @@ describe('Rokt Forwarder', () => {
 
   afterEach(() => {
     (window as any).mParticle.forwarder.userAttributes = {};
-    (window as any).mParticle.forwarder._launcherTerminated = false;
-    (window as any).mParticle.forwarder._recreateLauncherPromise = null;
+    (window as any).mParticle.forwarder.testHelpers?.resetLauncherAttachState();
     delete (window as any).mParticle.forwarder.launcherOptions;
     delete (window as any).mParticle.Rokt.launcherOptions;
   });
@@ -3347,12 +3346,18 @@ describe('Rokt Forwarder', () => {
     });
 
     it('should create a new launcher instance and continue after terminate', async () => {
+      interface SpaTestLauncher {
+        id: number;
+        terminate: () => Promise<void>;
+        selectPlacements: (options: Record<string, unknown>) => void;
+      }
+
       let createCount = 0;
-      const launchers: any[] = [];
+      const launchers: SpaTestLauncher[] = [];
 
       (window as any).mParticle.Rokt.filters = {
         userAttributesFilters: [],
-        filterUserAttributes: function (attributes: any) {
+        filterUserAttributes: function (attributes: Record<string, unknown>) {
           return attributes;
         },
         filteredUser: {
@@ -3362,16 +3367,16 @@ describe('Rokt Forwarder', () => {
         },
       };
 
-      (window as any).Rokt.createLauncher = async function () {
+      (window as any).Rokt.createLauncher = async function (): Promise<SpaTestLauncher> {
         createCount += 1;
         const id = createCount;
-        const launcher = {
+        const launcher: SpaTestLauncher = {
           id,
           terminate: () => Promise.resolve(),
-          selectPlacements: function (opts: any) {
+          selectPlacements: function (options: Record<string, unknown>) {
             (window as any).Rokt.selectPlacementsCalled = true;
             (window as any).Rokt.selectPlacementsLauncherId = id;
-            (window as any).Rokt.selectPlacementsOptions = opts;
+            (window as any).Rokt.selectPlacementsOptions = options;
           },
         };
         launchers.push(launcher);

@@ -36,6 +36,17 @@ import {
 import { isLocalStorageAvailable } from './storage';
 
 import { isObject, isString, isEmpty, isFunction, sanitizeUrl } from './utils';
+import {
+  createLauncherAttachState,
+  markLauncherAttached,
+  markLauncherAttachFailed,
+  markLauncherTerminated,
+  rememberAttachContext,
+  recreateIfTerminated,
+  resetLauncherAttachState,
+  type LauncherAttachState,
+  type RoktLauncherOptions,
+} from './launcherAttachState';
 
 interface RoktKitSettings {
   accountId: string;
@@ -90,8 +101,8 @@ interface RoktLauncher {
 }
 
 interface RoktGlobal {
-  createLauncher(options: Record<string, unknown>): Promise<RoktLauncher>;
-  createLocalLauncher(options: Record<string, unknown>): RoktLauncher;
+  createLauncher(options: RoktLauncherOptions): Promise<RoktLauncher>;
+  createLocalLauncher(options: RoktLauncherOptions): RoktLauncher;
   currentLauncher?: RoktLauncher;
   setExtensionData(data: Record<string, unknown>): void;
 }
@@ -192,6 +203,7 @@ interface TestHelpers {
   RateLimiter: typeof RateLimiter;
   ErrorCodes: typeof ErrorCodes;
   WSDKErrorSeverity: typeof WSDKErrorSeverity;
+  resetLauncherAttachState: () => void;
 }
 
 interface ForwarderRegistration {
@@ -782,11 +794,7 @@ class RoktKit implements KitInterface {
   // so a re-login re-evaluates fresh.
   private _workspaceLastSearchedIdentitiesKey?: string;
 
-  private _attachAccountId?: string;
-  private _attachLauncherOptions: Record<string, unknown> = {};
-  private _attachLegacyRoktExtensions: string[] = [];
-  private _launcherTerminated = false;
-  private _recreateLauncherPromise: Promise<void> | null = null;
+  private _launcherAttachState: LauncherAttachState = createLauncherAttachState();
 
   // ---- Private helpers ----
 
@@ -988,15 +996,16 @@ class RoktKit implements KitInterface {
 
   private attachLauncher(
     accountId: string,
-    launcherOptions: Record<string, unknown>,
-    legacyRoktExtensions: string[] = [],
+    launcherOptions: RoktLauncherOptions,
+    legacyRoktExtensions: readonly string[] = [],
   ): Promise<void> {
-    this._attachAccountId = accountId;
-    this._attachLauncherOptions = launcherOptions || {};
-    this._attachLegacyRoktExtensions = legacyRoktExtensions;
-    this._launcherTerminated = false;
+    rememberAttachContext(this._launcherAttachState, {
+      accountId,
+      launcherOptions: launcherOptions || {},
+      legacyRoktExtensions,
+    });
 
-    const options: Record<string, unknown> = {
+    const options: RoktLauncherOptions = {
       accountId,
       ...(launcherOptions || {}),
     };
@@ -1010,34 +1019,19 @@ class RoktKit implements KitInterface {
 
     return launcherPromise
       .then(async (launcher) => {
-        await registerLegacyExtensions(legacyRoktExtensions, launcher);
+        await registerLegacyExtensions([...legacyRoktExtensions], launcher);
         this.initRoktLauncher(launcher);
       })
       .catch((err: unknown) => {
-        this._launcherTerminated = true;
+        markLauncherAttachFailed(this._launcherAttachState);
         console.error('Error creating Rokt launcher:', err);
       });
   }
 
   private recreateLauncherIfTerminated(): Promise<void> | undefined {
-    if (!this._launcherTerminated) {
-      return undefined;
-    }
-    if (this._recreateLauncherPromise) {
-      return this._recreateLauncherPromise;
-    }
-    if (!this._attachAccountId || !this.isLauncherReadyToAttach()) {
-      return undefined;
-    }
-
-    this._recreateLauncherPromise = this.attachLauncher(
-      this._attachAccountId,
-      this._attachLauncherOptions,
-      this._attachLegacyRoktExtensions,
-    ).finally(() => {
-      this._recreateLauncherPromise = null;
-    });
-    return this._recreateLauncherPromise;
+    return recreateIfTerminated(this._launcherAttachState, this.isLauncherReadyToAttach(), (context) =>
+      this.attachLauncher(context.accountId, context.launcherOptions, context.legacyRoktExtensions),
+    );
   }
 
   private initRoktLauncher(launcher: RoktLauncher): void {
@@ -1047,6 +1041,7 @@ class RoktKit implements KitInterface {
     }
     // Locally cache the launcher and filters
     this.launcher = launcher;
+    markLauncherAttached(this._launcherAttachState);
 
     const roktFilters = mp().Rokt?.filters;
 
@@ -1230,6 +1225,7 @@ class RoktKit implements KitInterface {
         RateLimiter: RateLimiter,
         ErrorCodes: ErrorCodes,
         WSDKErrorSeverity: WSDKErrorSeverity,
+        resetLauncherAttachState: () => resetLauncherAttachState(this._launcherAttachState),
       };
       this.attachLauncher(accountId, launcherOptions);
       return 'Successfully initialized: ' + name;
@@ -1583,7 +1579,7 @@ class RoktKit implements KitInterface {
       console.error('Rokt Kit: Not initialized');
       return Promise.resolve();
     }
-    this._launcherTerminated = true;
+    markLauncherTerminated(this._launcherAttachState);
     return this.launcher!.terminate();
   }
 
