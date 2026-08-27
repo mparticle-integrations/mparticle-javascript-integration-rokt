@@ -1,3 +1,10 @@
+# [1.36.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.35.0...v1.36.0) (2026-08-27)
+
+
+### Features
+
+* forward terminate from the kit to the Rokt launcher ([#122](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/122)) ([87354d4](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/commit/87354d4a05e428482e01829418effa6437c3457b)), closes [#terminate](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/issues/terminate)
+
 # [1.35.0](https://github.com/mparticle-integrations/mparticle-javascript-integration-rokt/compare/v1.34.1...v1.35.0) (2026-08-21)
 
 
