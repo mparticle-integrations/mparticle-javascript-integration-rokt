@@ -39,6 +39,7 @@ import {
 import { isLocalStorageAvailable } from './storage';
 
 import { isObject, isString, isEmpty, isFunction, sanitizeUrl } from './utils';
+import { buildSetterDiagnosticLogEntry, buildSelectPlacementsDiagnosticLogEntry } from './diagnosticTiming';
 import {
   createLauncherAttachState,
   markLauncherAttached,
@@ -607,8 +608,13 @@ class ReportingTransport {
     code?: string,
     stackTrace?: string,
     onError?: (error: DeliveryError) => void,
+    // Defaults to `severity` so existing callers are unaffected. Pass a
+    // distinct value to give a class of logs its own rate-limit budget
+    // (e.g. diagnostics that shouldn't compete with operational INFO logs)
+    // while still reporting the real `severity` on the wire.
+    rateLimitKey: string = severity,
   ): void {
-    if (!this._isEnabled || this._rateLimiter.incrementAndCheck(severity)) {
+    if (!this._isEnabled || this._rateLimiter.incrementAndCheck(rateLimitKey)) {
       return;
     }
 
@@ -708,9 +714,22 @@ class LoggingService {
 
   log(entry: LogEntry | null | undefined): void {
     if (!entry) return;
+    this._send(entry, WSDKErrorSeverity.INFO);
+  }
+
+  // Ships at INFO severity like log(), but under its own rate-limit bucket
+  // (see ReportingTransport.send's rateLimitKey) so a burst of diagnostic
+  // timing entries can't starve the operational INFO budget shared by
+  // page-view/quota logging.
+  logDiagnostic(entry: LogEntry | null | undefined): void {
+    if (!entry) return;
+    this._send(entry, WSDKErrorSeverity.INFO, 'DIAGNOSTIC_TIMING');
+  }
+
+  private _send(entry: LogEntry, severity: string, rateLimitKey?: string): void {
     this._transport.send(
       this._loggingUrl,
-      WSDKErrorSeverity.INFO,
+      severity,
       entry.message,
       entry.code,
       undefined,
@@ -727,6 +746,7 @@ class LoggingService {
           });
         }
       },
+      rateLimitKey,
     );
   }
 }
@@ -1335,6 +1355,7 @@ class RoktKit implements KitInterface {
   }
 
   public setUserAttribute(key: string, value: unknown): string {
+    this.loggingService?.logDiagnostic(buildSetterDiagnosticLogEntry('setUserAttribute', [key]));
     if (!isSelectPlacementsAttributePersistenceDenied(key)) {
       this.userAttributes[key] = value;
     }
@@ -1342,12 +1363,14 @@ class RoktKit implements KitInterface {
   }
 
   public removeUserAttribute(key: string): string {
+    this.loggingService?.logDiagnostic(buildSetterDiagnosticLogEntry('removeUserAttribute', [key]));
     delete this.userAttributes[key];
     return 'Successfully removed user attribute for forwarder: ' + name;
   }
 
   private handleIdentityComplete(user: IMParticleUser, callbackName: string): string {
     this.userAttributes = removeSelectPlacementsAttributePersistenceDeniedAttributes(user.getAllUserAttributes());
+    this.loggingService?.logDiagnostic(buildSetterDiagnosticLogEntry(callbackName, Object.keys(this.userAttributes)));
     return 'Successfully called ' + callbackName + ' for forwarder: ' + name;
   }
 
@@ -1551,6 +1574,10 @@ class RoktKit implements KitInterface {
     };
 
     const selectPlacementsOptions: Record<string, unknown> = { ...options, attributes: selectPlacementsAttributes };
+
+    this.loggingService?.logDiagnostic(
+      buildSelectPlacementsDiagnosticLogEntry(Object.keys(selectPlacementsAttributes)),
+    );
 
     const selection = this.launcher!.selectPlacements(selectPlacementsOptions);
 
