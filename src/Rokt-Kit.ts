@@ -608,13 +608,8 @@ class ReportingTransport {
     code?: string,
     stackTrace?: string,
     onError?: (error: DeliveryError) => void,
-    // Defaults to `severity` so existing callers are unaffected. Pass a
-    // distinct value to give a class of logs its own rate-limit budget
-    // (e.g. diagnostics that shouldn't compete with operational INFO logs)
-    // while still reporting the real `severity` on the wire.
-    rateLimitKey: string = severity,
   ): void {
-    if (!this._isEnabled || this._rateLimiter.incrementAndCheck(rateLimitKey)) {
+    if (!this._isEnabled || this._rateLimiter.incrementAndCheck(severity)) {
       return;
     }
 
@@ -696,6 +691,10 @@ class ErrorReportingService {
 
 class LoggingService {
   private _transport: ReportingTransport;
+  // Own ReportingTransport (and thus own RateLimiter) so a burst of
+  // diagnostic timing entries can't starve the operational INFO budget
+  // that _transport shares with page-view/quota logging via log().
+  private _diagnosticTransport: ReportingTransport;
   private _loggingUrl: string;
   private _errorReportingService: { report: (e: ErrorReport) => void };
 
@@ -708,28 +707,27 @@ class LoggingService {
     rateLimiter?: RateLimiter,
   ) {
     this._transport = new ReportingTransport(config, integrationName, launcherInstanceGuid, accountId, rateLimiter);
+    this._diagnosticTransport = new ReportingTransport(config, integrationName, launcherInstanceGuid, accountId);
     this._loggingUrl = generateReportingUrl(config?.loggingUrl, config?.integrationDomain, LOGGING_ENDPOINT);
     this._errorReportingService = errorReportingService;
   }
 
   log(entry: LogEntry | null | undefined): void {
     if (!entry) return;
-    this._send(entry, WSDKErrorSeverity.INFO);
+    this._send(this._transport, entry);
   }
 
-  // Ships at INFO severity like log(), but under its own rate-limit bucket
-  // (see ReportingTransport.send's rateLimitKey) so a burst of diagnostic
-  // timing entries can't starve the operational INFO budget shared by
-  // page-view/quota logging.
+  // Ships at INFO severity like log(), but through a separate transport
+  // instance so it has its own rate-limit budget.
   logDiagnostic(entry: LogEntry | null | undefined): void {
     if (!entry) return;
-    this._send(entry, WSDKErrorSeverity.INFO, 'DIAGNOSTIC_TIMING');
+    this._send(this._diagnosticTransport, entry);
   }
 
-  private _send(entry: LogEntry, severity: string, rateLimitKey?: string): void {
-    this._transport.send(
+  private _send(transport: ReportingTransport, entry: LogEntry): void {
+    transport.send(
       this._loggingUrl,
-      severity,
+      WSDKErrorSeverity.INFO,
       entry.message,
       entry.code,
       undefined,
@@ -746,7 +744,6 @@ class LoggingService {
           });
         }
       },
-      rateLimitKey,
     );
   }
 }
